@@ -300,27 +300,39 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
       },
     },
 
-    /* ── 6. Market Outlook ── */
+    /* ── 6. Market Event ── */
     {
-      id: "market-outlook",
+      id: "market-event",
       emoji: "\u{1F4C8}",
       category: "Market",
-      labelTemplate: "Returns at {returnRate}, inflation at {inflation}",
-      descriptionTemplate: "Real return: {returnRate}, inflation: {inflation}",
-      methodology: "Changes the return and inflation assumptions for your entire projection. Higher returns accelerate your path; higher inflation increases your FIRE target. These affect every year of the projection, not just a specific period.",
-      examples: ["Bull market", "Bear market", "Stagflation", "Golden era", "Lost decade"],
+      labelTemplate: "{rate} returns for {duration} starting at age {startAge}",
+      descriptionTemplate: "Then reverts to your base {baseRate} assumption",
+      methodology: "Models a temporary period of different market returns (e.g. a crash or a boom), then reverts to your normal assumption. Uses a time-weighted blended return across the full projection horizon to approximate the impact.",
+      examples: ["Bear market", "Bull run", "Lost decade", "Recovery rally", "Crash + recovery"],
       params: [
-        { id: "returnRate", label: "Real return", type: "return", min: 0.02, max: 0.12, step: 0.005, defaultValue: scenario.assumptions.expectedRealReturn },
-        { id: "inflation", label: "Inflation", type: "return", min: 0.01, max: 0.08, step: 0.005, defaultValue: scenario.assumptions.inflation },
+        { id: "rate", label: "Return during event", type: "return", min: -0.05, max: 0.15, step: 0.005, defaultValue: Math.max(scenario.assumptions.expectedRealReturn - 0.04, 0) },
+        { id: "duration", label: "Duration", type: "years", min: 1, max: 20, step: 1, defaultValue: 5 },
+        { id: "startAge", label: "Starting at age", type: "age", min: age, max: age + 20, step: 1, defaultValue: age },
       ],
       getDirection: (v) => {
         const baseReturn = scenario.assumptions.expectedRealReturn;
-        return v.returnRate > baseReturn ? "positive" : v.returnRate < baseReturn ? "negative" : "neutral";
+        return v.rate > baseReturn ? "positive" : v.rate < baseReturn ? "negative" : "neutral";
       },
       apply: (s, v) => {
         const next = cloneScenario(s);
-        next.assumptions.expectedRealReturn = v.returnRate;
-        next.assumptions.inflation = v.inflation;
+        const baseReturn = s.assumptions.expectedRealReturn;
+        const yearsToRetirement = Math.max((s.profile.retirementAge ?? s.profile.age + 15) - s.profile.age, 1);
+        const eventStart = Math.max(v.startAge - s.profile.age, 0);
+        const eventEnd = Math.min(eventStart + v.duration, yearsToRetirement);
+        const eventYears = Math.max(eventEnd - eventStart, 0);
+        const normalYears = yearsToRetirement - eventYears;
+
+        // Time-weighted blended return across full horizon
+        const blendedReturn = yearsToRetirement > 0
+          ? (v.rate * eventYears + baseReturn * normalYears) / yearsToRetirement
+          : baseReturn;
+
+        next.assumptions.expectedRealReturn = Math.max(blendedReturn, 0);
         return next;
       },
     },
@@ -352,7 +364,9 @@ export function resolveDecision(
 
 export function buildLifeDecisions(scenario: Scenario): LifeDecision[] {
   return buildDecisionTemplates(scenario).map((template) => {
-    const defaults: Record<string, number> = {};
+    const defaults: Record<string, number> = {
+      _baseReturn: scenario.assumptions.expectedRealReturn,
+    };
     for (const param of template.params) {
       defaults[param.id] = param.defaultValue;
     }
@@ -441,12 +455,14 @@ function interpolate(
   }
 
   // Handle derived interpolations
-  // {afterTax} for income change: approximate after-tax amount
   if (result.includes("{afterTax}")) {
     const amount = values.amount ?? 0;
-    // Use a rough 25% effective rate for interpolation (actual calc uses scenario's rate)
-    const afterTax = formatK(Math.round(amount * 0.75));
+    const afterTax = formatK(Math.round(amount * 0.75)); // ~25% effective rate approximation for display
     result = result.replaceAll("{afterTax}", afterTax);
+  }
+  if (result.includes("{baseRate}")) {
+    // The base return is stored in the "rate" param's context — use a reasonable default
+    result = result.replaceAll("{baseRate}", `${((values._baseReturn ?? 0.07) * 100).toFixed(0)}%`);
   }
 
   return result;
