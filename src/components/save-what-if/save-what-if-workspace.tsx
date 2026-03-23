@@ -12,6 +12,7 @@ import {
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Slider } from "@/components/ui/slider";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   calculateFireNumber,
   calculateQuickFireSummary,
@@ -432,9 +433,17 @@ export default function SaveWhatIfWorkspace() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-medium text-foreground">
-                          <span className="mr-1.5">{decision.emoji}</span>
-                          {decision.label}
+                        <p className="flex items-center gap-1.5 font-medium text-foreground">
+                          <span>{decision.emoji}</span>
+                          <span className="flex-1">{decision.label}</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex-shrink-0 cursor-help rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/80">?</span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                              {decision.methodology}
+                            </TooltipContent>
+                          </Tooltip>
                         </p>
                         <p className="mt-0.5 text-sm text-muted-foreground">
                           {decision.description}
