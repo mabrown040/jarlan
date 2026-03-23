@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ChartShell, CompactPageHeader, StatCard } from "@/components/brand";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/landing/projection-chart";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
+import { Slider } from "@/components/ui/slider";
 import {
   calculateFireNumber,
   calculateQuickFireSummary,
@@ -24,8 +25,10 @@ import {
 import { getPlannedAnnualInvestmentContribution } from "@/lib/calc/scenario";
 import { US_BENCHMARKS } from "@/lib/data/benchmarks";
 import {
-  evaluateLifeDecisions,
-  type LifeDecisionResult,
+  buildDecisionTemplates,
+  resolveDecision,
+  type LifeDecision,
+  type DecisionParam,
 } from "@/lib/scenario-lab/life-decisions";
 import { buildSensitivityAnalysis } from "@/lib/scenario-lab/analysis";
 import {
@@ -87,12 +90,31 @@ function formatFireDate(yearsToFi: number | null): string {
 /*  Decision card color helpers                                                */
 /* -------------------------------------------------------------------------- */
 
-function getImpactColor(
-  direction: LifeDecisionResult["decision"]["direction"],
-) {
+function getImpactColor(direction: LifeDecision["direction"]) {
   if (direction === "positive") return "text-emerald-500";
   if (direction === "negative") return "text-red-500";
   return "text-amber-500";
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Param formatting                                                           */
+/* -------------------------------------------------------------------------- */
+
+function formatParamValue(param: DecisionParam, value: number): string {
+  switch (param.type) {
+    case "currency":
+      return value < 0
+        ? `-$${Math.abs(value).toLocaleString("en-US")}`
+        : `$${value.toLocaleString("en-US")}`;
+    case "percent":
+      return `${Math.round(value * 100)}%`;
+    case "years":
+      return value === 1 ? "1 yr" : `${value} yr`;
+    case "return":
+      return `${(value * 100).toFixed(1)}%`;
+    default:
+      return String(value);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -109,8 +131,11 @@ export default function SaveWhatIfWorkspace() {
 
   useGlobalScenarioFormatting(activeScenario);
 
-  /* ---- Selection state ---- */
+  /* ---- Selection + custom param state ---- */
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [customValues, setCustomValues] = useState<
+    Record<string, Record<string, number>>
+  >({});
 
   /* ---- Initialize from URL or storage ---- */
   useEffect(() => {
@@ -150,6 +175,24 @@ export default function SaveWhatIfWorkspace() {
     status,
   ]);
 
+  /* ---- Build templates + resolved decisions ---- */
+  const templates = useMemo(
+    () => buildDecisionTemplates(activeScenario),
+    [activeScenario],
+  );
+
+  const resolvedDecisions = useMemo(() => {
+    return templates.map((t) => {
+      const values: Record<string, number> = {};
+      for (const p of t.params) {
+        values[p.id] = customValues[t.id]?.[p.id] ?? p.defaultValue;
+      }
+      // Pass _expenses so interpolation of {savings} works for move-cheaper
+      values._expenses = activeScenario.annualExpenses;
+      return resolveDecision(t, values);
+    });
+  }, [templates, customValues, activeScenario.annualExpenses]);
+
   /* ---- Derived data ---- */
   const baseSummary = useMemo(
     () => calculateQuickFireSummary(activeScenario),
@@ -161,10 +204,23 @@ export default function SaveWhatIfWorkspace() {
     [activeScenario],
   );
 
-  const decisionResults = useMemo(
-    () => evaluateLifeDecisions(activeScenario),
-    [activeScenario],
-  );
+  const decisionResults = useMemo(() => {
+    return resolvedDecisions.map((d) => {
+      const modified = d.apply(activeScenario);
+      const newSummary = calculateQuickFireSummary(modified);
+      return {
+        decision: d,
+        baseYearsToFi: baseSummary.yearsToFi,
+        newYearsToFi: newSummary.yearsToFi,
+        deltaYears:
+          (baseSummary.yearsToFi ?? Infinity) -
+          (newSummary.yearsToFi ?? Infinity),
+        baseFireNumber: baseSummary.fireNumber,
+        newFireNumber: newSummary.fireNumber,
+        deltaFireNumber: newSummary.fireNumber - baseSummary.fireNumber,
+      };
+    });
+  }, [resolvedDecisions, activeScenario, baseSummary]);
 
   const sensitivity = useMemo(
     () => buildSensitivityAnalysis(activeScenario),
@@ -186,7 +242,7 @@ export default function SaveWhatIfWorkspace() {
 
   /* ---- Selected decision + computed comparison summary ---- */
   const selectedDecision =
-    decisionResults.find((r) => r.decision.id === selectedId)?.decision ?? null;
+    resolvedDecisions.find((d) => d.id === selectedId) ?? null;
 
   const selectedSummary = useMemo(() => {
     if (!selectedDecision) return null;
@@ -211,10 +267,33 @@ export default function SaveWhatIfWorkspace() {
     return rate === closest;
   }
 
-  /* ---- Toggle handler ---- */
+  /* ---- Handlers ---- */
   function handleCardClick(id: string) {
-    setSelectedId((prev) => (prev === id ? null : id));
+    if (selectedId === id) {
+      // Deselect: clear custom values for this decision
+      setSelectedId(null);
+    } else {
+      // Switch selection: clear custom values for the previously selected decision
+      if (selectedId) {
+        setCustomValues((prev) => {
+          const next = { ...prev };
+          delete next[selectedId];
+          return next;
+        });
+      }
+      setSelectedId(id);
+    }
   }
+
+  const updateParam = useCallback(
+    (decisionId: string, paramId: string, value: number) => {
+      setCustomValues((prev) => ({
+        ...prev,
+        [decisionId]: { ...prev[decisionId], [paramId]: value },
+      }));
+    },
+    [],
+  );
 
   return (
     <div className="space-y-8 pb-12">
@@ -331,50 +410,90 @@ export default function SaveWhatIfWorkspace() {
               const fireNumberChanged = Math.abs(deltaFireNumber) >= 500;
 
               return (
-                <button
+                <div
                   key={decision.id}
-                  type="button"
-                  onClick={() => handleCardClick(decision.id)}
                   className={cn(
-                    "rounded-xl border p-4 text-left transition-all",
+                    "rounded-xl border transition-all",
                     isSelected
                       ? "border-[var(--ember)] bg-[rgba(255,107,53,0.05)] ring-1 ring-[var(--ember)]/20"
                       : "border-border/60 bg-card hover:border-[var(--ember)]/30",
                   )}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium text-foreground">
-                        <span className="mr-1.5">{decision.emoji}</span>
-                        {decision.label}
-                      </p>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        {decision.description}
-                      </p>
+                  <button
+                    type="button"
+                    onClick={() => handleCardClick(decision.id)}
+                    className="w-full p-4 text-left"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">
+                          <span className="mr-1.5">{decision.emoji}</span>
+                          {decision.label}
+                        </p>
+                        <p className="mt-0.5 text-sm text-muted-foreground">
+                          {decision.description}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-3 space-y-1">
-                    <p
-                      className={cn(
-                        "text-sm font-semibold",
-                        getImpactColor(decision.direction),
-                      )}
-                    >
-                      {deltaYears === 0
-                        ? "No change"
-                        : sooner
-                          ? `${Math.abs(deltaYears).toFixed(1)} years sooner \u2191`
-                          : `${Math.abs(deltaYears).toFixed(1)} years later \u2193`}
-                    </p>
-                    {fireNumberChanged ? (
-                      <p className="text-xs text-muted-foreground">
-                        Target changes by{" "}
-                        {deltaFireNumber > 0 ? "+" : "-"}$
-                        {Math.round(Math.abs(deltaFireNumber) / 1000)}K
+                    <div className="mt-3 space-y-1">
+                      <p
+                        className={cn(
+                          "text-sm font-semibold",
+                          getImpactColor(decision.direction),
+                        )}
+                      >
+                        {deltaYears === 0
+                          ? "No change"
+                          : sooner
+                            ? `${Math.abs(deltaYears).toFixed(1)} years sooner \u2191`
+                            : `${Math.abs(deltaYears).toFixed(1)} years later \u2193`}
                       </p>
-                    ) : null}
-                  </div>
-                </button>
+                      {fireNumberChanged ? (
+                        <p className="text-xs text-muted-foreground">
+                          Target changes by{" "}
+                          {deltaFireNumber > 0 ? "+" : "-"}$
+                          {Math.round(Math.abs(deltaFireNumber) / 1000)}K
+                        </p>
+                      ) : null}
+                    </div>
+                  </button>
+
+                  {/* ---- Inline parameter inputs (only when selected) ---- */}
+                  {isSelected && decision.template.params.length > 0 ? (
+                    <div className="px-4 pb-4">
+                      {decision.template.params.map((param) => {
+                        const currentValue =
+                          customValues[decision.id]?.[param.id] ??
+                          param.defaultValue;
+
+                        return (
+                          <div
+                            key={param.id}
+                            className="mt-3 border-t border-border/40 pt-3"
+                          >
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>{param.label}</span>
+                              <span className="font-medium text-foreground">
+                                {formatParamValue(param, currentValue)}
+                              </span>
+                            </div>
+                            <div className="mt-2">
+                              <Slider
+                                min={param.min}
+                                max={param.max}
+                                step={param.step}
+                                value={[currentValue]}
+                                onValueChange={([v]) =>
+                                  updateParam(decision.id, param.id, v)
+                                }
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
               );
             })}
           </div>
