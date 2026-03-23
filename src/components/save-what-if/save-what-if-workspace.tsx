@@ -592,126 +592,203 @@ export default function SaveWhatIfWorkspace() {
         </ChartShell>
 
         {/* ---- Section 4: Year-by-year comparison (collapsed) ---- */}
-        <CollapsibleSection
-          title="Year-by-year breakdown"
-          summary={
-            selectedIds.size > 0
-              ? `${baseSummary.projection.length} years · comparing base vs ${selectedIds.size} change${selectedIds.size === 1 ? "" : "s"}`
-              : `${baseSummary.projection.length} years`
-          }
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                  <th className="pb-3 pr-4 font-medium">Year</th>
-                  <th className="pb-3 pr-4 font-medium">Age</th>
-                  <th className="pb-3 pr-4 font-medium">Base portfolio</th>
-                  {combinedSummary ? (
-                    <>
-                      <th className="pb-3 pr-4 font-medium">With changes</th>
-                      <th className="pb-3 pr-4 font-medium">Difference</th>
-                    </>
-                  ) : null}
-                  <th className="pb-3 pr-4 font-medium">% to FI</th>
-                  <th className="pb-3 font-medium">Target</th>
-                </tr>
-              </thead>
-              <tbody>
-                {baseSummary.projection.map((point, i) => {
-                  const compPoint = combinedSummary?.projection[i];
-                  const diff = compPoint
-                    ? compPoint.balance - point.balance
-                    : 0;
-                  const pctToFi = Math.min(
-                    (point.balance / point.target) * 100,
-                    100,
-                  );
-                  const compPctToFi = compPoint
-                    ? Math.min(
-                        (compPoint.balance / compPoint.target) * 100,
-                        100,
-                      )
-                    : null;
-                  const baseHitFi = pctToFi >= 100;
-                  const compHitFi = compPctToFi !== null && compPctToFi >= 100;
+        {(() => {
+          // Determine which contextual columns to show based on selected decisions
+          const showIncome = selectedIds.has("income-change") || selectedIds.has("career-break");
+          const showExpenses = selectedIds.has("lifestyle-change") || selectedIds.has("new-dependent");
+          const showSavings = selectedIds.size > 0;
+          const showReturn = selectedIds.has("market-event");
 
-                  return (
-                    <tr
-                      key={point.year}
-                      className={cn(
-                        "border-b border-border/50 transition-colors",
-                        baseHitFi &&
-                          !compHitFi &&
-                          "bg-[rgba(255,107,53,0.04)]",
-                        compHitFi && "bg-emerald-50/50 dark:bg-emerald-950/10",
-                      )}
-                    >
-                      <td className="py-2.5 pr-4 tabular-nums">{point.year}</td>
-                      <td className="py-2.5 pr-4 tabular-nums">{point.age}</td>
-                      <td className="py-2.5 pr-4 tabular-nums font-medium">
-                        {formatCompactCurrency(point.balance)}
-                      </td>
+          // Build combined scenario for contextual values
+          let combinedScenarioRef = activeScenario;
+          if (selectedIds.size > 0) {
+            let s = activeScenario;
+            for (const d of selectedDecisions) {
+              s = d.apply(s);
+            }
+            combinedScenarioRef = s;
+          }
+
+          const baseIncome = activeScenario.annualIncome;
+          const baseExpenses = activeScenario.annualExpenses;
+          const baseSavingsAmt = activeScenario.annualSavings;
+          const baseReturn = activeScenario.assumptions.expectedRealReturn;
+          const incomeGrowth = activeScenario.assumptions.incomeGrowthRate ?? 0;
+          const expenseGrowth = activeScenario.assumptions.expenseGrowthRate ?? 0;
+
+          const compIncome = combinedScenarioRef.annualIncome;
+          const compExpenses = combinedScenarioRef.annualExpenses;
+          const compSavingsAmt = combinedScenarioRef.annualSavings;
+          const compReturn = combinedScenarioRef.assumptions.expectedRealReturn;
+          const compIncomeGrowth = combinedScenarioRef.assumptions.incomeGrowthRate ?? 0;
+          const compExpenseGrowth = combinedScenarioRef.assumptions.expenseGrowthRate ?? 0;
+
+          return (
+            <CollapsibleSection
+              title="Year-by-year breakdown"
+              summary={
+                selectedIds.size > 0
+                  ? `${baseSummary.projection.length} years · comparing base vs ${selectedIds.size} change${selectedIds.size === 1 ? "" : "s"}`
+                  : `${baseSummary.projection.length} years`
+              }
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      <th className="pb-3 pr-3 font-medium">Year</th>
+                      <th className="pb-3 pr-3 font-medium">Age</th>
+                      <th className="pb-3 pr-3 font-medium">Portfolio</th>
                       {combinedSummary ? (
                         <>
-                          <td
-                            className={cn(
-                              "py-2.5 pr-4 tabular-nums font-medium",
-                              compHitFi && "text-emerald-600",
-                            )}
-                          >
-                            {compPoint
-                              ? formatCompactCurrency(compPoint.balance)
-                              : "—"}
-                          </td>
-                          <td
-                            className={cn(
-                              "py-2.5 pr-4 tabular-nums text-xs",
-                              diff > 0
-                                ? "text-emerald-600"
-                                : diff < 0
-                                  ? "text-red-500"
-                                  : "text-muted-foreground",
-                            )}
-                          >
-                            {diff === 0
-                              ? "—"
-                              : diff > 0
-                                ? `+${formatCompactCurrency(diff)}`
-                                : `-${formatCompactCurrency(Math.abs(diff))}`}
-                          </td>
+                          <th className="pb-3 pr-3 font-medium">With changes</th>
+                          <th className="pb-3 pr-3 font-medium">Δ</th>
                         </>
                       ) : null}
-                      <td className="py-2.5 pr-4">
-                        <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className={cn(
-                                "h-full rounded-full transition-all",
-                                pctToFi >= 100
-                                  ? "bg-emerald-500"
-                                  : "bg-[var(--ember)]",
-                              )}
-                              style={{
-                                width: `${Math.min(pctToFi, 100)}%`,
-                              }}
-                            />
-                          </div>
-                          <span className="tabular-nums text-xs text-muted-foreground">
-                            {Math.round(pctToFi)}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-2.5 tabular-nums text-xs text-muted-foreground">
-                        {formatCompactCurrency(point.target)}
-                      </td>
+                      {showIncome ? (
+                        <th className="pb-3 pr-3 font-medium">Income</th>
+                      ) : null}
+                      {showExpenses ? (
+                        <th className="pb-3 pr-3 font-medium">Expenses</th>
+                      ) : null}
+                      {showSavings ? (
+                        <th className="pb-3 pr-3 font-medium">Savings</th>
+                      ) : null}
+                      {showReturn ? (
+                        <th className="pb-3 pr-3 font-medium">Return</th>
+                      ) : null}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </CollapsibleSection>
+                  </thead>
+                  <tbody>
+                    {baseSummary.projection.map((point, i) => {
+                      const compPoint = combinedSummary?.projection[i];
+                      const diff = compPoint
+                        ? compPoint.balance - point.balance
+                        : 0;
+
+                      // Grow income/expenses by year for display
+                      const yearBaseIncome = baseIncome * Math.pow(1 + incomeGrowth, i);
+                      const yearBaseExpenses = baseExpenses * Math.pow(1 + expenseGrowth, i);
+                      const yearBaseSavings = baseSavingsAmt * Math.pow(1 + incomeGrowth, i);
+                      const yearCompIncome = compIncome * Math.pow(1 + compIncomeGrowth, i);
+                      const yearCompExpenses = compExpenses * Math.pow(1 + compExpenseGrowth, i);
+                      const yearCompSavings = compSavingsAmt * Math.pow(1 + compIncomeGrowth, i);
+
+                      const compHitFi =
+                        compPoint &&
+                        compPoint.balance >= compPoint.target;
+
+                      return (
+                        <tr
+                          key={point.year}
+                          className={cn(
+                            "border-b border-border/50 transition-colors",
+                            compHitFi &&
+                              "bg-emerald-50/50 dark:bg-emerald-950/10",
+                          )}
+                        >
+                          <td className="py-2 pr-3 tabular-nums">{point.year}</td>
+                          <td className="py-2 pr-3 tabular-nums">{point.age}</td>
+                          <td className="py-2 pr-3 tabular-nums font-medium">
+                            {formatCompactCurrency(point.balance)}
+                          </td>
+                          {combinedSummary ? (
+                            <>
+                              <td
+                                className={cn(
+                                  "py-2 pr-3 tabular-nums font-medium",
+                                  compHitFi && "text-emerald-600",
+                                )}
+                              >
+                                {compPoint
+                                  ? formatCompactCurrency(compPoint.balance)
+                                  : "—"}
+                              </td>
+                              <td
+                                className={cn(
+                                  "py-2 pr-3 tabular-nums text-xs",
+                                  diff > 0
+                                    ? "text-emerald-600"
+                                    : diff < 0
+                                      ? "text-red-500"
+                                      : "text-muted-foreground",
+                                )}
+                              >
+                                {diff === 0
+                                  ? "—"
+                                  : diff > 0
+                                    ? `+${formatCompactCurrency(diff)}`
+                                    : `-${formatCompactCurrency(Math.abs(diff))}`}
+                              </td>
+                            </>
+                          ) : null}
+                          {showIncome ? (
+                            <td className="py-2 pr-3 tabular-nums text-xs">
+                              {combinedSummary ? (
+                                <span className={cn(
+                                  yearCompIncome !== yearBaseIncome && "text-[var(--ember)] font-medium",
+                                )}>
+                                  {formatCompactCurrency(yearCompIncome)}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  {formatCompactCurrency(yearBaseIncome)}
+                                </span>
+                              )}
+                            </td>
+                          ) : null}
+                          {showExpenses ? (
+                            <td className="py-2 pr-3 tabular-nums text-xs">
+                              {combinedSummary ? (
+                                <span className={cn(
+                                  yearCompExpenses !== yearBaseExpenses && "text-[var(--ember)] font-medium",
+                                )}>
+                                  {formatCompactCurrency(yearCompExpenses)}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  {formatCompactCurrency(yearBaseExpenses)}
+                                </span>
+                              )}
+                            </td>
+                          ) : null}
+                          {showSavings ? (
+                            <td className="py-2 pr-3 tabular-nums text-xs">
+                              {combinedSummary ? (
+                                <span className={cn(
+                                  yearCompSavings !== yearBaseSavings
+                                    ? yearCompSavings > yearBaseSavings
+                                      ? "text-emerald-600 font-medium"
+                                      : "text-red-500 font-medium"
+                                    : "text-muted-foreground",
+                                )}>
+                                  {formatCompactCurrency(yearCompSavings)}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  {formatCompactCurrency(yearBaseSavings)}
+                                </span>
+                              )}
+                            </td>
+                          ) : null}
+                          {showReturn ? (
+                            <td className="py-2 pr-3 tabular-nums text-xs">
+                              <span className={cn(
+                                compReturn !== baseReturn && "text-[var(--ember)] font-medium",
+                              )}>
+                                {(compReturn * 100).toFixed(1)}%
+                              </span>
+                            </td>
+                          ) : null}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CollapsibleSection>
+          );
+        })()}
 
         {/* ---- Section 5: Savings Rate Table (collapsed) ---- */}
         <CollapsibleSection
