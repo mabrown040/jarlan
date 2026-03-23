@@ -488,6 +488,73 @@ export function PlanDrawerContent() {
         </div>
       </CollapsibleSection>
 
+      {/* ── Social Security ── */}
+      <CollapsibleSection
+        title="Social Security"
+        summary={
+          activeScenario.socialSecurity.monthlyBenefitAtFra > 0
+            ? `$${Math.round(activeScenario.socialSecurity.monthlyBenefitAtFra).toLocaleString()}/mo at FRA · claim at ${activeScenario.socialSecurity.claimingAge}`
+            : "Not configured"
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Enter your estimated monthly Social Security benefits. Find yours at{" "}
+            <a href="https://www.ssa.gov/myaccount" target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--ember)] hover:underline">ssa.gov</a>.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="drawer-ss-62" label="Monthly at 62" tooltip="Your estimated monthly benefit if you claim Social Security at age 62 (earliest eligible age, ~30% reduction from FRA)." />
+              <NumberInput id="drawer-ss-62" min={0} step={100} inputMode="numeric" value={activeScenario.socialSecurity.monthlyBenefitAt62} onValueChange={(v) => updateScenario((s) => { s.socialSecurity.monthlyBenefitAt62 = v; })} />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="drawer-ss-fra" label="Monthly at FRA" tooltip="Your estimated benefit at full retirement age (67 for most people). This is your primary insurance amount." />
+              <NumberInput id="drawer-ss-fra" min={0} step={100} inputMode="numeric" value={activeScenario.socialSecurity.monthlyBenefitAtFra} onValueChange={(v) => updateScenario((s) => { s.socialSecurity.monthlyBenefitAtFra = v; })} />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="drawer-ss-70" label="Monthly at 70" tooltip="Your estimated benefit if you delay claiming to age 70 (~24% bonus over FRA via delayed retirement credits)." />
+              <NumberInput id="drawer-ss-70" min={0} step={100} inputMode="numeric" value={activeScenario.socialSecurity.monthlyBenefitAt70} onValueChange={(v) => updateScenario((s) => { s.socialSecurity.monthlyBenefitAt70 = v; })} />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="drawer-ss-claim" label="Claiming age" tooltip="When you plan to start receiving benefits. Delaying increases your monthly amount but means fewer years of payments." />
+              <Select id="drawer-ss-claim" value={String(activeScenario.socialSecurity.claimingAge)} onChange={(e) => updateScenario((s) => { s.socialSecurity.claimingAge = Number(e.target.value) as 62 | 67 | 70; })}>
+                <option value="62">Claim at 62</option>
+                <option value="67">Claim at 67 (FRA)</option>
+                <option value="70">Claim at 70</option>
+              </Select>
+            </div>
+          </div>
+
+          {activeScenario.profile.partner ? (
+            <>
+              <p className="text-sm font-medium text-foreground">Partner benefits</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <FieldLabel htmlFor="drawer-ss-p62" label="Partner at 62" tooltip="Partner's estimated monthly benefit at age 62." />
+                  <NumberInput id="drawer-ss-p62" min={0} step={100} inputMode="numeric" value={activeScenario.profile.partner.socialSecurityBenefit.monthlyBenefitAt62} onValueChange={(v) => updateScenario((s) => { if (s.profile.partner) s.profile.partner.socialSecurityBenefit.monthlyBenefitAt62 = v; })} />
+                </div>
+                <div className="space-y-1.5">
+                  <FieldLabel htmlFor="drawer-ss-pfra" label="Partner at FRA" tooltip="Partner's estimated monthly benefit at full retirement age." />
+                  <NumberInput id="drawer-ss-pfra" min={0} step={100} inputMode="numeric" value={activeScenario.profile.partner.socialSecurityBenefit.monthlyBenefitAtFra} onValueChange={(v) => updateScenario((s) => { if (s.profile.partner) s.profile.partner.socialSecurityBenefit.monthlyBenefitAtFra = v; })} />
+                </div>
+                <div className="space-y-1.5">
+                  <FieldLabel htmlFor="drawer-ss-p70" label="Partner at 70" tooltip="Partner's estimated monthly benefit at age 70." />
+                  <NumberInput id="drawer-ss-p70" min={0} step={100} inputMode="numeric" value={activeScenario.profile.partner.socialSecurityBenefit.monthlyBenefitAt70} onValueChange={(v) => updateScenario((s) => { if (s.profile.partner) s.profile.partner.socialSecurityBenefit.monthlyBenefitAt70 = v; })} />
+                </div>
+                <div className="space-y-1.5">
+                  <FieldLabel htmlFor="drawer-ss-pclaim" label="Partner claim age" tooltip="When your partner plans to start claiming Social Security benefits." />
+                  <Select id="drawer-ss-pclaim" value={String(activeScenario.profile.partner.socialSecurityBenefit.claimingAge)} onChange={(e) => updateScenario((s) => { if (s.profile.partner) s.profile.partner.socialSecurityBenefit.claimingAge = Number(e.target.value) as 62 | 67 | 70; })}>
+                    <option value="62">Claim at 62</option>
+                    <option value="67">Claim at 67 (FRA)</option>
+                    <option value="70">Claim at 70</option>
+                  </Select>
+                </div>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </CollapsibleSection>
+
       {/* ── Cash flows ── */}
       <CollapsibleSection
         title="Cash flows"
