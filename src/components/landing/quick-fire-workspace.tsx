@@ -11,7 +11,7 @@ import {
   PageHero,
 } from "@/components/brand";
 import { useHasExistingDraft } from "@/lib/hooks/use-has-existing-draft";
-import { ProjectionChart, findCrossoverYear } from "@/components/landing/projection-chart";
+import { ProjectionChart, ChartLegend, findCrossoverYear } from "@/components/landing/projection-chart";
 import { buildScenarioProjection } from "@/lib/calc/quick-fire";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { Button } from "@/components/ui/button";
@@ -880,15 +880,18 @@ export function QuickFireWorkspace({
               description="How your current pace stacks up against the target."
               actions={
                 variant === "module" ? (
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={showBands}
-                      onChange={(e) => setShowBands(e.target.checked)}
-                      className="rounded border-border accent-[var(--ember)]"
-                    />
-                    Show range of outcomes
-                  </label>
+                  <div className="flex flex-col items-end gap-2">
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={showBands}
+                        onChange={(e) => setShowBands(e.target.checked)}
+                        className="rounded border-border accent-[var(--ember)]"
+                      />
+                      Show range of outcomes
+                    </label>
+                    <ChartLegend showBands={showBands} />
+                  </div>
                 ) : null
               }
             >
@@ -900,18 +903,23 @@ export function QuickFireWorkspace({
                 showBands={showBands}
                 bandProjections={bandProjections}
               />
-              {variant === "module" && crossover ? (
-                <div className="mt-4 rounded-xl border border-[var(--ember)]/20 bg-[rgba(255,107,53,0.04)] px-4 py-3 text-sm">
-                  <p className="font-medium text-foreground">
-                    <span className="mr-1.5 text-[var(--ember)]">{"\u2726"}</span>
-                    Year {crossover.year}: Your money is making more money than you are
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    Investment growth ({formatCompactCurrency(crossover.growth)}) now exceeds
-                    your total contributions ({formatCompactCurrency(crossover.contributions)}).
-                  </p>
-                </div>
-              ) : null}
+              {variant === "module" && crossover ? (() => {
+                const total = crossover.contributions + crossover.growth;
+                const pct = total > 0 ? Math.round((crossover.growth / total) * 100) : 0;
+                return (
+                  <div className="mt-4 rounded-xl border border-[var(--ember)]/15 bg-[rgba(255,107,53,0.03)] px-4 py-3 text-sm">
+                    <p className="font-medium text-foreground">
+                      <span className="mr-1.5 animate-pulse text-[var(--ember)]">{"\u2726"}</span>
+                      Year {crossover.year}: Your money is making more money than you are
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      Investment growth ({formatCompactCurrency(crossover.growth)}) now exceeds
+                      your total contributions ({formatCompactCurrency(crossover.contributions)}).
+                      Growth is <span className="font-medium text-[var(--ember)]">{pct}%</span> of your portfolio.
+                    </p>
+                  </div>
+                );
+              })() : null}
               {variant === "module" ? (
                 <CollapsibleSection
                   title="Year-by-year breakdown"
