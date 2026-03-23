@@ -177,7 +177,7 @@ export function PlanDrawerContent() {
               />
             </div>
             <div className="space-y-1.5">
-              <FieldLabel htmlFor="drawer-filing" label="Filing status" />
+              <FieldLabel htmlFor="drawer-filing" label="Filing status" tooltip="Affects federal tax brackets. Married filing jointly has wider brackets and lower effective rates." />
               <Select
                 id="drawer-filing"
                 value={activeScenario.profile.filingStatus}
@@ -282,7 +282,7 @@ export function PlanDrawerContent() {
           {/* Portfolio + age + retirement */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <FieldLabel htmlFor="drawer-balance" label="Portfolio balance" />
+              <FieldLabel htmlFor="drawer-balance" label="Portfolio balance" tooltip="Total current investments across all accounts. This is your starting point for projections." />
               <NumberInput
                 id="drawer-balance"
                 min={0}
@@ -294,7 +294,7 @@ export function PlanDrawerContent() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <FieldLabel htmlFor="drawer-age" label="Age" />
+                <FieldLabel htmlFor="drawer-age" label="Age" tooltip="Your current age. Used to calculate years to FI and milestone timing." />
                 <NumberInput
                   id="drawer-age"
                   min={18}
@@ -305,7 +305,7 @@ export function PlanDrawerContent() {
                 />
               </div>
               <div className="space-y-1.5">
-                <FieldLabel htmlFor="drawer-ret-age" label="Retire at" />
+                <FieldLabel htmlFor="drawer-ret-age" label="Retire at" tooltip="Target age for financial independence. Coast FIRE calculations use this as the compounding horizon." />
                 <NumberInput
                   id="drawer-ret-age"
                   min={18}
@@ -322,7 +322,7 @@ export function PlanDrawerContent() {
           {showRetirementExpenses ? (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="drawer-ret-expenses" label="Retirement spending" />
+                <FieldLabel htmlFor="drawer-ret-expenses" label="Retirement spending" tooltip="If your spending will differ in retirement (e.g., no mortgage, more travel). Drives your FIRE number." />
                 <button
                   type="button"
                   className="text-xs text-muted-foreground hover:text-foreground"
@@ -498,7 +498,7 @@ export function PlanDrawerContent() {
           {activeScenario.profile.partner ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <FieldLabel htmlFor="drawer-partner-name" label="Name" />
+                <FieldLabel htmlFor="drawer-partner-name" label="Name" tooltip="Your partner's name for labeling accounts and projections." />
                 <Input
                   id="drawer-partner-name"
                   value={activeScenario.profile.partner.name}
@@ -506,7 +506,7 @@ export function PlanDrawerContent() {
                 />
               </div>
               <div className="space-y-1.5">
-                <FieldLabel htmlFor="drawer-partner-income" label="Income" />
+                <FieldLabel htmlFor="drawer-partner-income" label="Income" tooltip="Partner's gross annual income. Combined household income is used for tax calculations." />
                 <NumberInput
                   id="drawer-partner-income"
                   min={0}
@@ -517,7 +517,7 @@ export function PlanDrawerContent() {
                 />
               </div>
               <div className="space-y-1.5">
-                <FieldLabel htmlFor="drawer-partner-age" label="Age" />
+                <FieldLabel htmlFor="drawer-partner-age" label="Age" tooltip="Partner's current age. May differ from yours for joint retirement planning." />
                 <NumberInput
                   id="drawer-partner-age"
                   min={18}
@@ -528,7 +528,7 @@ export function PlanDrawerContent() {
                 />
               </div>
               <div className="space-y-1.5">
-                <FieldLabel htmlFor="drawer-partner-ret" label="Retirement age" />
+                <FieldLabel htmlFor="drawer-partner-ret" label="Retirement age" tooltip="When your partner plans to stop working. Their income stops at this age." />
                 <NumberInput
                   id="drawer-partner-ret"
                   min={18}
@@ -542,7 +542,7 @@ export function PlanDrawerContent() {
                 />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
-                <FieldLabel htmlFor="drawer-partner-health" label="Health outlook" />
+                <FieldLabel htmlFor="drawer-partner-health" label="Health outlook" tooltip="Shifts life expectancy ±5 years. Used for mortality-adjusted withdrawal analysis." />
                 <Select
                   id="drawer-partner-health"
                   value={activeScenario.profile.partner.healthStatus ?? "average"}
@@ -577,7 +577,7 @@ export function PlanDrawerContent() {
             >
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <FieldLabel htmlFor={`drawer-acct-name-${account.id}`} label="Name" />
+                  <FieldLabel htmlFor={`drawer-acct-name-${account.id}`} label="Name" tooltip="A label for this account (e.g., 'Vanguard 401k')." />
                   <Input
                     id={`drawer-acct-name-${account.id}`}
                     value={account.name}
@@ -590,7 +590,7 @@ export function PlanDrawerContent() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <FieldLabel htmlFor={`drawer-acct-type-${account.id}`} label="Type" />
+                  <FieldLabel htmlFor={`drawer-acct-type-${account.id}`} label="Type" tooltip="Account type determines tax treatment. Pre-tax (401k/IRA), tax-free (Roth), or taxable." />
                   <Select
                     id={`drawer-acct-type-${account.id}`}
                     value={account.type}
@@ -607,7 +607,7 @@ export function PlanDrawerContent() {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <FieldLabel htmlFor={`drawer-acct-bal-${account.id}`} label="Balance" />
+                  <FieldLabel htmlFor={`drawer-acct-bal-${account.id}`} label="Balance" tooltip="Current balance in this account." />
                   <NumberInput
                     id={`drawer-acct-bal-${account.id}`}
                     min={0}
@@ -623,7 +623,7 @@ export function PlanDrawerContent() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <FieldLabel htmlFor={`drawer-acct-contrib-${account.id}`} label="Contribution/yr" />
+                  <FieldLabel htmlFor={`drawer-acct-contrib-${account.id}`} label="Contribution/yr" tooltip="How much you add to this account each year." />
                   <NumberInput
                     id={`drawer-acct-contrib-${account.id}`}
                     min={0}
@@ -639,7 +639,7 @@ export function PlanDrawerContent() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <FieldLabel htmlFor={`drawer-acct-match-${account.id}`} label="Match %" />
+                  <FieldLabel htmlFor={`drawer-acct-match-${account.id}`} label="Match %" tooltip="Employer match as a decimal (e.g., 0.5 = 50% match on your contribution)." />
                   <NumberInput
                     id={`drawer-acct-match-${account.id}`}
                     min={0}
@@ -661,7 +661,7 @@ export function PlanDrawerContent() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <FieldLabel htmlFor={`drawer-acct-owner-${account.id}`} label="Owner" />
+                  <FieldLabel htmlFor={`drawer-acct-owner-${account.id}`} label="Owner" tooltip="Who owns this account. Joint accounts are shared between partners." />
                   <Select
                     id={`drawer-acct-owner-${account.id}`}
                     value={account.owner ?? "primary"}
@@ -737,7 +737,7 @@ export function PlanDrawerContent() {
             >
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <FieldLabel htmlFor={`drawer-cf-name-${cf.id}`} label="Name" />
+                  <FieldLabel htmlFor={`drawer-cf-name-${cf.id}`} label="Name" tooltip="Descriptive label (e.g., 'Rental income', 'Kids college')." />
                   <Input
                     id={`drawer-cf-name-${cf.id}`}
                     value={cf.name}
@@ -750,7 +750,7 @@ export function PlanDrawerContent() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <FieldLabel htmlFor={`drawer-cf-type-${cf.id}`} label="Type" />
+                  <FieldLabel htmlFor={`drawer-cf-type-${cf.id}`} label="Type" tooltip="Income adds to your savings; expenses reduce them." />
                   <Select
                     id={`drawer-cf-type-${cf.id}`}
                     value={cf.type}
@@ -766,7 +766,7 @@ export function PlanDrawerContent() {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <FieldLabel htmlFor={`drawer-cf-amt-${cf.id}`} label="Amount/yr" />
+                  <FieldLabel htmlFor={`drawer-cf-amt-${cf.id}`} label="Amount/yr" tooltip="Annual amount in today's dollars." />
                   <NumberInput
                     id={`drawer-cf-amt-${cf.id}`}
                     min={0}
@@ -782,7 +782,7 @@ export function PlanDrawerContent() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <FieldLabel htmlFor={`drawer-cf-start-${cf.id}`} label="Start age" />
+                  <FieldLabel htmlFor={`drawer-cf-start-${cf.id}`} label="Start age" tooltip="Age when this event begins affecting your plan." />
                   <NumberInput
                     id={`drawer-cf-start-${cf.id}`}
                     min={activeScenario.profile.age}
@@ -852,7 +852,7 @@ export function PlanDrawerContent() {
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <FieldLabel htmlFor="drawer-country" label="Country" />
+            <FieldLabel htmlFor="drawer-country" label="Country" tooltip="Sets tax rules and currency defaults. US has the most detailed tax modeling." />
             <Select
               id="drawer-country"
               value={countryPreset.code}
@@ -864,7 +864,7 @@ export function PlanDrawerContent() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <FieldLabel htmlFor="drawer-currency" label="Currency" />
+            <FieldLabel htmlFor="drawer-currency" label="Currency" tooltip="Display currency for all numbers. Doesn't convert — use your local amounts." />
             <Select
               id="drawer-currency"
               value={activeScenario.currency}
@@ -876,7 +876,7 @@ export function PlanDrawerContent() {
             </Select>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <FieldLabel htmlFor="drawer-state" label={countryPreset.stateLabel} />
+            <FieldLabel htmlFor="drawer-state" label={countryPreset.stateLabel} tooltip="State/province for state income tax estimates." />
             <Input
               id="drawer-state"
               value={activeScenario.profile.state}

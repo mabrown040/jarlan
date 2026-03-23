@@ -2,45 +2,26 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { Copy, Printer, RotateCcw } from "lucide-react";
+import { Copy, RotateCcw } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   ChartShell,
-  EnhancedStatCard,
-  InsightMiniTable,
-  InsightProgressBar,
   PageHero,
-  SectionHeading,
-  StatCard,
 } from "@/components/brand";
-import { GuidedFlow } from "@/components/landing/guided-flow/guided-flow";
-import {
-  LandingCapabilitySection,
-  LandingPathwaySection,
-} from "@/components/landing/landing-support-sections";
 import { useHasExistingDraft } from "@/lib/hooks/use-has-existing-draft";
-import { FieldLabel } from "@/components/form/field-label";
 import { ProjectionChart } from "@/components/landing/projection-chart";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Input } from "@/components/ui/input";
-import { NumberInput } from "@/components/ui/number-input";
 import { Select } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Slider } from "@/components/ui/slider";
 import {
   buildSavingsRateTable,
   calculateFireTypeSummaries,
   calculateQuickFireSummary,
-  calculateYearsToTarget,
   formatCompactCurrency,
-  formatCurrency,
   formatPercent,
   formatYears,
   getEmployerMatchTotal,
@@ -52,52 +33,19 @@ import {
 import { estimateScenarioTax } from "@/lib/tax";
 import {
   cloneScenario,
-  createDefaultAccount,
-  createDefaultCashFlowEvent,
 } from "@/lib/domain";
 import type {
-  AccountOwner,
-  AccountType,
-  CashFlowEvent,
-  CurrencyCode,
   FilingStatus,
   Scenario,
 } from "@/lib/domain/types";
-import { getCountryPreset, listCountryPresets } from "@/lib/data";
+import { getCountryPreset } from "@/lib/data";
 import { SCENARIO_QUERY_KEY } from "@/lib/share";
 import {
   buildScenarioShareUrl,
   deserializeScenarioFromSearchParam,
 } from "@/lib/share";
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
-import { educationAnchors } from "@/lib/education/content";
 import { cn } from "@/lib/utils";
-
-const accountTypeOptions: Array<{ value: AccountType; label: string }> = [
-  { value: "traditional_401k", label: "Traditional 401(k)" },
-  { value: "roth_401k", label: "Roth 401(k)" },
-  { value: "traditional_ira", label: "Traditional IRA" },
-  { value: "roth_ira", label: "Roth IRA" },
-  { value: "taxable", label: "Taxable brokerage" },
-  { value: "hsa", label: "HSA" },
-  { value: "cash", label: "Cash" },
-  { value: "other", label: "Other" },
-];
-
-const accountOwnerOptions: Array<{ value: AccountOwner; label: string }> = [
-  { value: "primary", label: "Primary" },
-  { value: "partner", label: "Partner" },
-  { value: "joint", label: "Joint" },
-];
-
-const countryPresets = listCountryPresets();
-const currencyOptions: Array<{ value: CurrencyCode; label: string }> = [
-  { value: "USD", label: "US Dollar (USD)" },
-  { value: "CAD", label: "Canadian Dollar (CAD)" },
-  { value: "GBP", label: "British Pound (GBP)" },
-  { value: "EUR", label: "Euro (EUR)" },
-  { value: "AUD", label: "Australian Dollar (AUD)" },
-];
 
 function syncScenarioRollups(nextScenario: Scenario) {
   nextScenario.annualSavings = nextScenario.accounts.reduce(
@@ -563,80 +511,183 @@ export function QuickFireWorkspace({
           </>
         ) : (
           <>
-            <section className="mx-auto max-w-7xl space-y-6 px-6 pt-8">
-              <h1 className="font-display text-3xl tracking-[-0.03em] text-foreground">
-                Your FIRE overview
-              </h1>
-
-              {/* Key metrics */}
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">FIRE number</p>
-                  <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-[var(--ember)]">
-                    {formatCompactCurrency(summary.fireNumber)}
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {formatPercent(summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0, 0)} there · {formatCompactCurrency(currentBalance)} saved
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Years to FI</p>
-                  <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
-                    {formatYears(summary.yearsToFi)}
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {summary.fireAge !== null ? `FI at age ${summary.fireAge}` : "Adjust inputs to see a timeline"}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">After-tax savings</p>
-                  <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
-                    {formatPercent(taxEstimate.afterTaxSavingsRate, 0)}
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {formatCompactCurrency(taxEstimate.actualSavings)} of {formatCompactCurrency(taxEstimate.takeHome)} take-home
-                  </p>
+            <section className="mx-auto max-w-7xl px-6 pt-8">
+              {/* Compact status bar */}
+              <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+                <h1 className="font-display text-3xl tracking-[-0.03em] text-foreground">
+                  Welcome back
+                </h1>
+                <div className="flex items-baseline gap-4 text-sm text-muted-foreground">
+                  <span>
+                    Target{" "}
+                    <span className="font-semibold text-[var(--ember)]">
+                      {formatCompactCurrency(summary.fireNumber)}
+                    </span>
+                  </span>
+                  <span className="text-border">·</span>
+                  <span>
+                    <span className="font-semibold text-foreground">
+                      {formatYears(summary.yearsToFi)}
+                    </span>
+                    {" "}to go
+                  </span>
+                  <span className="text-border">·</span>
+                  <span>
+                    <span className="font-semibold text-foreground">
+                      {formatPercent(summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0, 0)}
+                    </span>
+                    {" "}saved
+                  </span>
                 </div>
               </div>
 
-              {/* FIRE type comparison */}
-              <div className="space-y-4">
-                <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                  Your FIRE paths
-                </h2>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                  {fireTypes.map((fireType) => (
-                    <div
-                      key={fireType.id}
-                      className="flex flex-col gap-3 rounded-2xl bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]"
-                    >
-                      <h3 className="text-sm font-semibold text-foreground">{fireType.label}</h3>
-                      <p className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                        {formatCompactCurrency(fireType.target)}
-                      </p>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary/60 transition-all"
-                          style={{ width: `${Math.min(fireType.progress * 100, 100)}%` }}
-                        />
+              {/* Progress bar */}
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[var(--ember)] to-[var(--flame)] transition-all duration-500"
+                  style={{ width: `${Math.min((summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0) * 100, 100)}%` }}
+                />
+              </div>
+            </section>
+
+            {/* Navigation hub cards */}
+            <section className="mx-auto max-w-7xl px-6 pt-8">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {/* Your Plan */}
+                <Link
+                  href={"/accumulation" as Route}
+                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(255,107,53,0.1)]">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
                       </div>
-                      <p className="text-sm leading-snug text-muted-foreground">{fireType.description}</p>
+                      <h3 className="font-semibold text-foreground">Your Plan</h3>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Projections, milestones, and what-if analysis for your path to FI.
+                    </p>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
+                    <span className="text-xs text-muted-foreground">
+                      {summary.fireAge !== null ? `FI at age ${summary.fireAge}` : "Set up your plan"}
+                    </span>
+                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
+                  </div>
+                </Link>
 
-              {/* Actions */}
-              <div className="flex flex-wrap gap-3">
-                <Button asChild>
-                  <Link href={"/accumulation" as Route}>Open Your Plan</Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href={"/quiz" as Route}>Retake quiz</Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href={"/withdrawal" as Route}>Stress-test retirement</Link>
-                </Button>
+                {/* Withdrawal Lab */}
+                <Link
+                  href={"/withdrawal" as Route}
+                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(99,102,241,0.1)]">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/><path d="M12 6v6l4 2"/></svg>
+                      </div>
+                      <h3 className="font-semibold text-foreground">Stress-test retirement</h3>
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Historical backtests and Monte Carlo sims against 150+ years of market data.
+                    </p>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
+                    <span className="text-xs text-muted-foreground">Will your money last?</span>
+                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
+                  </div>
+                </Link>
+
+                {/* FIRE Quiz */}
+                <Link
+                  href={"/quiz" as Route}
+                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(247,201,72,0.15)]">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--flame)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><circle cx="12" cy="12" r="10"/><path d="M12 17h.01"/></svg>
+                      </div>
+                      <h3 className="font-semibold text-foreground">FIRE quiz</h3>
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Find the FIRE style that fits your personality and goals.
+                    </p>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
+                    <span className="text-xs text-muted-foreground">Retake anytime</span>
+                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
+                  </div>
+                </Link>
+
+                {/* Tax Strategy */}
+                <Link
+                  href={"/tax-strategy" as Route}
+                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(16,185,129,0.1)]">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
+                      </div>
+                      <h3 className="font-semibold text-foreground">Tax strategy</h3>
+                      <span className="rounded-full border border-[rgba(255,107,53,0.22)] bg-[rgba(255,107,53,0.08)] px-1.5 py-0.5 font-mono text-[0.5rem] uppercase tracking-[0.14em] text-[var(--ember)]">Pro</span>
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Roth conversions, drawdown sequencing, and ACA planning.
+                    </p>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
+                    <span className="text-xs text-muted-foreground">Optimize your withdrawals</span>
+                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
+                  </div>
+                </Link>
+
+                {/* Track */}
+                <Link
+                  href={"/dashboard" as Route}
+                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(168,85,247,0.1)]">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                      </div>
+                      <h3 className="font-semibold text-foreground">Track progress</h3>
+                      <span className="rounded-full border border-[rgba(255,107,53,0.22)] bg-[rgba(255,107,53,0.08)] px-1.5 py-0.5 font-mono text-[0.5rem] uppercase tracking-[0.14em] text-[var(--ember)]">Pro</span>
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Net worth snapshots, portfolio checkups, and milestone tracking.
+                    </p>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
+                    <span className="text-xs text-muted-foreground">Monitor your journey</span>
+                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
+                  </div>
+                </Link>
+
+                {/* Learn */}
+                <Link
+                  href={"/education" as Route}
+                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(59,130,246,0.1)]">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                      </div>
+                      <h3 className="font-semibold text-foreground">Learn</h3>
+                    </div>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Research-backed guides on withdrawal rates, asset allocation, and FIRE strategies.
+                    </p>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
+                    <span className="text-xs text-muted-foreground">Understand the math</span>
+                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
+                  </div>
+                </Link>
               </div>
             </section>
           </>
@@ -669,547 +720,8 @@ export function QuickFireWorkspace({
       <section id="calculator" className="mx-auto max-w-7xl px-6 scroll-mt-24">
         <div className="space-y-8">
           <div className="grid gap-6">
-            {/* Inline inputs live in the Plan Drawer now */}
-            {false as never ? (
-            <div>
-              <CardHeader>
-                <SectionHeading
-                  title="Scenario inputs"
-                  titleAs="h3"
-                  description={
-                      <>
-                        Adjust the core levers first, then layer in accounts, partner
-                        planning, and recurring events further down this page.
-                      </>
-                  }
-                />
-              </CardHeader>
-              <CardContent className="space-y-5">
-
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <FieldLabel
-                        htmlFor="expenses"
-                        label="Annual expenses"
-                      />
-                    </div>
-                    <NumberInput
-                      id="expenses"
-                      min={0}
-                      step={expenseInputMode === "monthly" ? 100 : 1000}
-                      inputMode="numeric"
-                      value={expenseInputValue}
-                      onValueChange={(value) =>
-                        updateExpenses(
-                          expenseInputMode === "monthly" ? value * 12 : value,
-                        )
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <FieldLabel htmlFor="portfolio" label="Current portfolio" />
-                    <NumberInput
-                      id="portfolio"
-                      min={0}
-                      step={1000}
-                      inputMode="numeric"
-                      value={currentBalance}
-                      onValueChange={updateCurrentBalance}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <FieldLabel htmlFor="savings" label="Annual savings" />
-                    <NumberInput
-                      id="savings"
-                      min={0}
-                      step={1000}
-                      inputMode="numeric"
-                      value={activeScenario.annualSavings}
-                      onValueChange={updateAnnualSavings}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <FieldLabel
-                      htmlFor="income"
-                      label={
-                        activeScenario.profile.partner
-                          ? "Primary income"
-                          : "Annual income"
-                      }
-                    />
-                    <NumberInput
-                      id="income"
-                      min={0}
-                      step={1000}
-                      inputMode="numeric"
-                      value={activeScenario.annualIncome}
-                      onValueChange={updateIncome}
-                    />
-                  </div>
-                  {variant === "module" || showAdvancedLandingInputs ? (
-                    <>
-                      <div className="space-y-2">
-                        <FieldLabel htmlFor="age" label="Current age" />
-                        <NumberInput
-                          id="age"
-                          min={18}
-                          max={80}
-                          inputMode="numeric"
-                          value={activeScenario.profile.age}
-                          onValueChange={updateProfileAge}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel
-                          htmlFor="retirement-age"
-                          label="Target retirement age"
-                        />
-                        <NumberInput
-                          id="retirement-age"
-                          min={18}
-                          max={80}
-                          inputMode="numeric"
-                          value={
-                            activeScenario.profile.retirementAge ??
-                            activeScenario.profile.age
-                          }
-                          onValueChange={updateRetirementAge}
-                        />
-                      </div>
-                      <div className="space-y-2 sm:col-span-2 xl:col-span-1">
-                        <FieldLabel
-                          htmlFor="part-time-income"
-                          label="Barista income"
-                          tooltip="Used for the Barista FIRE target: (expenses - part-time income) / withdrawal rate."
-                        />
-                        <NumberInput
-                          id="part-time-income"
-                          min={0}
-                          step={1000}
-                          inputMode="numeric"
-                          value={activeScenario.assumptions.partTimeIncome}
-                          onValueChange={updatePartTimeIncome}
-                        />
-                      </div>
-                      {variant === "module" ? (
-                        <>
-                          <div className="space-y-2">
-                            <FieldLabel htmlFor="country" label="Country" />
-                            <Select
-                              id="country"
-                              value={countryPreset.code}
-                              onChange={(event) => handleCountryChange(event.target.value)}
-                            >
-                              {countryPresets.map((option) => (
-                                <option key={option.code} value={option.code}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <FieldLabel htmlFor="currency" label="Display currency" />
-                            <Select
-                              id="currency"
-                              value={activeScenario.currency}
-                              onChange={(event) =>
-                                updateCurrency(event.target.value as CurrencyCode)
-                              }
-                            >
-                              {currencyOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </Select>
-                          </div>
-                          <div className="space-y-2 sm:col-span-2 xl:col-span-1">
-                            <FieldLabel
-                              htmlFor="state"
-                              label={countryPreset.stateLabel}
-                              tooltip="US state logic feeds the most complete tax and ACA modeling today. Other countries use this as a location label while localized tax rules continue to expand."
-                            />
-                            <Input
-                              id="state"
-                              value={activeScenario.profile.state}
-                              onChange={(event) =>
-                                replaceScenario({
-                                  ...cloneScenario(activeScenario),
-                                  profile: {
-                                    ...activeScenario.profile,
-                                    state: event.target.value,
-                                  },
-                                })
-                              }
-                            />
-                          </div>
-                        </>
-                      ) : null}
-                    </>
-                  ) : null}
-                </div>
-
-                {variant === "module" ? (
-                  <div className="rounded-2xl border border-border/60 bg-card/35 p-4 text-sm text-muted-foreground">
-                    <p className="font-medium text-foreground">Country and currency readiness</p>
-                    <p className="mt-2">
-                      {countryPreset.readiness} The whole planning surface now follows the
-                      selected display currency so shared snapshots and walkthroughs are
-                      easier outside the US, even while tax modeling remains deepest for US
-                      households.
-                    </p>
-                  </div>
-                ) : null}
-
-                {variant === "module" ? (
-                  <div className="rounded-2xl border border-border/60 bg-card/35 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          Couple planning
-                        </p>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          Add a partner to model dual retirement dates, household
-                          income, and partner-readable summary language.
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() =>
-                          setPartnerPlanningEnabled(!activeScenario.profile.partner)
-                        }
-                      >
-                        {activeScenario.profile.partner
-                          ? "Switch back to solo planning"
-                          : "Plan with a partner"}
-                      </Button>
-                    </div>
-
-                    {activeScenario.profile.partner ? (
-                      <div className="mt-4 grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <FieldLabel
-                            htmlFor="partner-name"
-                            label="Partner name"
-                          />
-                          <Input
-                            id="partner-name"
-                            value={activeScenario.profile.partner.name}
-                            onChange={(event) =>
-                              updatePartnerName(event.target.value)
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <FieldLabel
-                            htmlFor="partner-income"
-                            label="Partner income"
-                          />
-                          <NumberInput
-                            id="partner-income"
-                            min={0}
-                            step={1000}
-                            inputMode="numeric"
-                            value={activeScenario.profile.partner.annualIncome ?? 0}
-                            onValueChange={updatePartnerIncome}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <FieldLabel htmlFor="partner-age" label="Partner age" />
-                          <NumberInput
-                            id="partner-age"
-                            min={18}
-                            max={80}
-                            inputMode="numeric"
-                            value={activeScenario.profile.partner.age}
-                            onValueChange={updatePartnerAge}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <FieldLabel
-                            htmlFor="partner-retirement-age"
-                            label="Partner retirement age"
-                          />
-                          <NumberInput
-                            id="partner-retirement-age"
-                            min={18}
-                            max={90}
-                            inputMode="numeric"
-                            value={
-                              activeScenario.profile.partner.retirementAge ??
-                              activeScenario.profile.partner.age
-                            }
-                            onValueChange={updatePartnerRetirementAge}
-                          />
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                          <FieldLabel
-                            htmlFor="partner-health"
-                            label="Partner health outlook"
-                          />
-                          <Select
-                            id="partner-health"
-                            value={
-                              activeScenario.profile.partner.healthStatus ??
-                              "average"
-                            }
-                            onChange={(event) =>
-                              updatePartnerHealthStatus(
-                                event.target.value as NonNullable<
-                                  NonNullable<
-                                    Scenario["profile"]["partner"]
-                                  >["healthStatus"]
-                                >,
-                              )
-                            }
-                          >
-                            <option value="below_average">
-                              Below average longevity
-                            </option>
-                            <option value="average">Average longevity</option>
-                            <option value="above_average">
-                              Above average longevity
-                            </option>
-                          </Select>
-                        </div>
-                        <div className="rounded-xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground md:col-span-2">
-                          {coupleSummary}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-
-
-                <Separator />
-                    <div className="space-y-4">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <FieldLabel
-                            htmlFor="withdrawal-rate"
-                            label="Withdrawal rate"
-                            tooltip="Default 4% is the classic Bengen/Trinity baseline. ERN's longer-horizon research suggests 3.25% to 3.5% is safer for early retirees."
-                          />
-                          <span className="text-sm font-medium">
-                            {formatPercent(
-                              activeScenario.assumptions.withdrawalRate,
-                              2,
-                            )}
-                          </span>
-                        </div>
-                        <Slider
-                          id="withdrawal-rate"
-                          min={0.025}
-                          max={0.06}
-                          step={0.001}
-                          value={[activeScenario.assumptions.withdrawalRate]}
-                          onValueChange={([value]) => updateWithdrawalRate(value)}
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <FieldLabel
-                            htmlFor="real-return"
-                            label="Expected real return"
-                            tooltip="Real return means after inflation. The app defaults to real-dollar math so users can reason in today's purchasing power."
-                          />
-                          <span className="text-sm font-medium">
-                            {formatPercent(
-                              activeScenario.assumptions.expectedRealReturn,
-                              1,
-                            )}
-                          </span>
-                        </div>
-                        <Slider
-                          id="real-return"
-                          min={0}
-                          max={0.1}
-                          step={0.005}
-                          value={[activeScenario.assumptions.expectedRealReturn]}
-                          onValueChange={([value]) =>
-                            updateExpectedRealReturn(value)
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <FieldLabel
-                          htmlFor="safer-rate"
-                          label="Safer FIRE rate"
-                          tooltip="Used for the comparison callout so users can see a more conservative target alongside the default FIRE number."
-                        />
-                        <NumberInput
-                          id="safer-rate"
-                          min={0.025}
-                          max={0.05}
-                          step={0.001}
-                          inputMode="decimal"
-                          value={activeScenario.assumptions.saferWithdrawalRate}
-                          onValueChange={updateSaferWithdrawalRate}
-                        />
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <a
-                          href={`/education#${educationAnchors.safeWithdrawalRate}`}
-                          className="rounded-full border border-border/60 px-3 py-1 transition-colors hover:border-primary/40 hover:text-primary"
-                        >
-                          Why 4%?
-                        </a>
-                        <a
-                          href={`/education#${educationAnchors.coastFire}`}
-                          className="rounded-full border border-border/60 px-3 py-1 transition-colors hover:border-primary/40 hover:text-primary"
-                        >
-                          What is Coast FIRE?
-                        </a>
-                        <a
-                          href={`/education#${educationAnchors.defaults}`}
-                          className="rounded-full border border-border/60 px-3 py-1 transition-colors hover:border-primary/40 hover:text-primary"
-                        >
-                          Why use real returns?
-                        </a>
-                      </div>
-                    </div>
-                <div className="flex flex-wrap gap-3">
-                  <Button type="button" variant="outline" onClick={handleCopyShareLink}>
-                    <Copy className="size-4" />
-                    {copied ? "Copied share link" : "Copy share link"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handlePrintSnapshot}
-                  >
-                    <Printer className="size-4" />
-                    Print snapshot
-                  </Button>
-                  <Button type="button" variant="ghost" onClick={resetScenario}>
-                    <RotateCcw className="size-4" />
-                    Reset sample
-                  </Button>
-                </div>
-              </CardContent>
-            </div>
-            ) : null}
 
           <div className="grid gap-6">
-            {false as never ? (
-              <div data-print-section="summary" className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                    Your FIRE snapshot
-                  </h2>
-                  <div className="flex items-center gap-1" data-print-hidden="true">
-                    <Button type="button" variant="ghost" size="sm" onClick={handleCopyShareLink} title="Copy share link">
-                      <Copy className="size-4" />
-                    </Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={handlePrintSnapshot} title="Print">
-                      <Printer className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <EnhancedStatCard
-                      label="FIRE number"
-                      value={formatCompactCurrency(summary.fireNumber)}
-                      insight={
-                        <InsightProgressBar
-                          progress={summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0}
-                          label={`${formatPercent(summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0, 0)} there \u00b7 ${formatCompactCurrency(currentBalance)} saved`}
-                          tone="accent"
-                        />
-                      }
-                      caption={`${formatCompactCurrency(activeScenario.retirementExpenses)}/yr at ${formatPercent(activeScenario.assumptions.withdrawalRate, 0)} withdrawal rate`}
-                      learnMore={{
-                        title: "How is this calculated?",
-                        content: `FIRE number = annual spending \u00f7 withdrawal rate. The Trinity Study (1998) found that a 4% initial withdrawal, adjusted for inflation, sustained a portfolio for 30 years in most historical periods. Your ${formatCompactCurrency(activeScenario.retirementExpenses)}/yr spending at ${formatPercent(activeScenario.assumptions.withdrawalRate, 0)} means you need ${formatCompactCurrency(summary.fireNumber)}.`,
-                      }}
-                      tone="accent"
-                    />
-                    <EnhancedStatCard
-                      label="Time to FI"
-                      value={formatYears(summary.yearsToFi)}
-                      subtitle={summary.fireAge !== null ? `age ${summary.fireAge}` : undefined}
-                      insight={
-                        sensitivityRows.length >= 7 ? (
-                          <InsightMiniTable
-                            rows={[
-                              {
-                                label: `Save 5% less`,
-                                value: formatYears(sensitivityRows[2].yearsToFi),
-                              },
-                              {
-                                label: `Save 5% more`,
-                                value: formatYears(sensitivityRows[4].yearsToFi),
-                              },
-                            ]}
-                          />
-                        ) : null
-                      }
-                      caption={`${formatCompactCurrency(activeScenario.annualSavings)}/yr at ${formatPercent(activeScenario.assumptions.expectedRealReturn, 0)} real return`}
-                      learnMore={{
-                        title: "How time to FI works",
-                        content: `Projects your portfolio forward month by month, adding savings and compounding at ${formatPercent(activeScenario.assumptions.expectedRealReturn, 0)} real return (after inflation). All numbers are in today's dollars. The sensitivity rows show how \u00b15% savings shifts the outcome.`,
-                      }}
-                      tone={summary.yearsToFi !== null && summary.yearsToFi <= 10 ? "success" : "default"}
-                    />
-                    <EnhancedStatCard
-                      label="Coast FIRE"
-                      value={
-                        summary.coastGap <= 0
-                          ? "Coasting"
-                          : summary.coastAge !== null
-                            ? `Age ${Math.round(summary.coastAge)}`
-                            : `${formatCompactCurrency(summary.coastGap)} gap`
-                      }
-                      subtitle={
-                        summary.coastGap <= 0
-                          ? "stop saving now"
-                          : summary.coastAge !== null
-                            ? "stop saving then"
-                            : undefined
-                      }
-                      insight={
-                        <InsightProgressBar
-                          progress={coastFireSummary?.progress ?? 0}
-                          label={`${formatPercent(Math.min(coastFireSummary?.progress ?? 0, 1), 0)} of coast target reached`}
-                          tone={coastFireSummary?.progress && coastFireSummary.progress >= 1 ? "success" : "warning"}
-                        />
-                      }
-                      caption={`Compounding to ${formatCompactCurrency(summary.fireNumber)} by age ${activeScenario.profile.retirementAge ?? activeScenario.profile.age}`}
-                      learnMore={{
-                        title: "What is Coast FIRE?",
-                        content: `Coast FIRE means you've saved enough that compound growth alone reaches your FIRE number by retirement \u2014 no new savings needed. The coast age is when your portfolio crosses that threshold. After that, you could take a lower-paying job covering just expenses and let compounding finish the job.`,
-                      }}
-                      tone={coastFireSummary?.progress && coastFireSummary.progress >= 1 ? "success" : "warning"}
-                    />
-                    <EnhancedStatCard
-                      label="Safer target"
-                      value={formatCompactCurrency(summary.saferFireNumber)}
-                      subtitle={`at ${formatPercent(activeScenario.assumptions.saferWithdrawalRate, 1)}`}
-                      insight={
-                        <InsightProgressBar
-                          progress={summary.saferFireNumber > 0 ? currentBalance / summary.saferFireNumber : 0}
-                          label={`${formatCompactCurrency(summary.saferFireNumber - summary.fireNumber)} more than the ${formatPercent(activeScenario.assumptions.withdrawalRate, 0)} target`}
-                        />
-                      }
-                      caption={`~95% historical success over 30 yrs; ${formatPercent(activeScenario.assumptions.saferWithdrawalRate, 1)} approaches 100% over 40+`}
-                      learnMore={{
-                        title: "Why a safer rate?",
-                        content: `The 4% rule was designed for 30-year retirements. Early retirees need 40-60 years, which historically had higher failure rates. ERN's SWR Series suggests 3.25-3.5% for longer horizons. This target gives you a bigger buffer against sequence-of-returns risk in the critical early years.`,
-                      }}
-                    />
-                  </div>
-                <div data-print-hidden="true">
-                  <Button asChild>
-                    <Link href={landingNextStep.href}>{landingNextStep.cta}</Link>
-                  </Button>
-                </div>
-              </div>
-            ) : null}
 
             {variant === "module" ? (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1269,8 +781,15 @@ export function QuickFireWorkspace({
                     {formatCompactCurrency(taxEstimate.actualSavings)} of {formatCompactCurrency(taxEstimate.takeHome)} take-home
                   </p>
                 </button>
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Tax estimate</p>
+                <button
+                  type="button"
+                  onClick={() => drawerStore.open("basics")}
+                  className="group rounded-2xl bg-card p-6 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Tax estimate</p>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  </div>
                   <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
                     {formatCompactCurrency(taxEstimate.totalTax)}
                   </p>
@@ -1278,22 +797,24 @@ export function QuickFireWorkspace({
                     <p className="text-sm text-muted-foreground">
                       {formatPercent(taxEstimate.effectiveRate, 0)} effective
                     </p>
-                    <select
+                    <Select
                       value={activeScenario.profile.filingStatus}
                       onChange={(e) => {
+                        e.stopPropagation();
                         const next = cloneScenario(activeScenario);
                         next.profile.filingStatus = e.target.value as FilingStatus;
                         replaceScenario(next);
                       }}
-                      className="rounded-lg border border-border/60 bg-background px-2 py-1 text-xs text-foreground transition-colors hover:border-border"
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-auto min-w-0 rounded-lg border border-border/60 bg-background px-2 py-1 text-xs"
                     >
                       <option value="single">Single</option>
                       <option value="married_joint">Married joint</option>
                       <option value="married_separate">Married separate</option>
                       <option value="head_of_household">Head of household</option>
-                    </select>
+                    </Select>
                   </div>
-                </div>
+                </button>
               </div>
             ) : null}
 
@@ -1389,550 +910,6 @@ export function QuickFireWorkspace({
           </div>
         </div>
 
-        {variant === "module" && false as boolean ? (
-          <div className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
-            <CollapsibleSection
-              title="Account plan"
-              summary={`${activeScenario.accounts.length} account${activeScenario.accounts.length === 1 ? "" : "s"}, ${formatCompactCurrency(currentBalance)} total`}
-            >
-              <div className="space-y-4">
-                {activeScenario.accounts.map((account, index) => (
-                  <div
-                    key={account.id}
-                    className="rounded-xl border border-border/60 bg-card/35 p-4"
-                  >
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <FieldLabel htmlFor={`account-name-${account.id}`} label="Name" />
-                        <Input
-                          id={`account-name-${account.id}`}
-                          value={account.name}
-                          onChange={(event) =>
-                            updateScenario((scenario) => {
-                              const nextAccount = scenario.accounts.find(
-                                (candidate) => candidate.id === account.id,
-                              );
-
-                              if (nextAccount) {
-                                nextAccount.name = event.target.value;
-                              }
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel htmlFor={`account-type-${account.id}`} label="Type" />
-                        <Select
-                          id={`account-type-${account.id}`}
-                          value={account.type}
-                          onChange={(event) =>
-                            updateScenario((scenario) => {
-                              const nextAccount = scenario.accounts.find(
-                                (candidate) => candidate.id === account.id,
-                              );
-
-                              if (nextAccount) {
-                                nextAccount.type = event.target.value as AccountType;
-                              }
-                            })
-                          }
-                        >
-                          {accountTypeOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel
-                          htmlFor={`account-owner-${account.id}`}
-                          label="Owner"
-                        />
-                        <Select
-                          id={`account-owner-${account.id}`}
-                          value={account.owner ?? "primary"}
-                          onChange={(event) =>
-                            updateScenario((scenario) => {
-                              const nextAccount = scenario.accounts.find(
-                                (candidate) => candidate.id === account.id,
-                              );
-
-                              if (nextAccount) {
-                                nextAccount.owner =
-                                  event.target.value as AccountOwner;
-                              }
-                            })
-                          }
-                        >
-                          {accountOwnerOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel
-                          htmlFor={`account-balance-${account.id}`}
-                          label={index === 0 ? "Core balance" : "Balance"}
-                        />
-                        <NumberInput
-                          id={`account-balance-${account.id}`}
-                          min={0}
-                          step={1000}
-                          inputMode="numeric"
-                          value={account.currentBalance}
-                          onValueChange={(value) =>
-                            updateScenario((scenario) => {
-                              const nextAccount = scenario.accounts.find(
-                                (candidate) => candidate.id === account.id,
-                              );
-
-                              if (nextAccount) {
-                                nextAccount.currentBalance = Math.max(value, 0);
-                              }
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel
-                          htmlFor={`account-contribution-${account.id}`}
-                          label={index === 0 ? "Core contribution" : "Contribution"}
-                        />
-                        <NumberInput
-                          id={`account-contribution-${account.id}`}
-                          min={0}
-                          step={1000}
-                          inputMode="numeric"
-                          value={account.annualContribution}
-                          onValueChange={(value) =>
-                            updateScenario((scenario) => {
-                              const nextAccount = scenario.accounts.find(
-                                (candidate) => candidate.id === account.id,
-                              );
-
-                              if (nextAccount) {
-                                nextAccount.annualContribution = Math.max(value, 0);
-                              }
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel
-                          htmlFor={`account-match-${account.id}`}
-                          label="Employer match %"
-                          tooltip="Interpreted as match percentage of the employee contribution, capped by the salary percentage below."
-                        />
-                        <NumberInput
-                          id={`account-match-${account.id}`}
-                          min={0}
-                          max={1}
-                          step={0.01}
-                          inputMode="decimal"
-                          value={account.employerMatch?.percentage ?? 0}
-                          onValueChange={(value) =>
-                            updateScenario((scenario) => {
-                              const nextAccount = scenario.accounts.find(
-                                (candidate) => candidate.id === account.id,
-                              );
-
-                              if (nextAccount) {
-                                nextAccount.employerMatch = {
-                                  percentage: Math.max(value, 0),
-                                  upTo: nextAccount.employerMatch?.upTo ?? 0,
-                                };
-                              }
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel
-                          htmlFor={`account-match-cap-${account.id}`}
-                          label="Match cap (% of salary)"
-                          tooltip="A 6% cap means the employer only matches contributions up to 6% of annual income."
-                        />
-                        <NumberInput
-                          id={`account-match-cap-${account.id}`}
-                          min={0}
-                          max={1}
-                          step={0.01}
-                          inputMode="decimal"
-                          value={account.employerMatch?.upTo ?? 0}
-                          onValueChange={(value) =>
-                            updateScenario((scenario) => {
-                              const nextAccount = scenario.accounts.find(
-                                (candidate) => candidate.id === account.id,
-                              );
-
-                              if (nextAccount) {
-                                nextAccount.employerMatch = {
-                                  percentage:
-                                    nextAccount.employerMatch?.percentage ?? 0,
-                                  upTo: Math.max(value, 0),
-                                };
-                              }
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() =>
-                          updateScenario((scenario) => {
-                            if (scenario.accounts.length <= 1) {
-                              return;
-                            }
-
-                            scenario.accounts = scenario.accounts.filter(
-                              (candidate) => candidate.id !== account.id,
-                            );
-                          })
-                        }
-                        disabled={activeScenario.accounts.length <= 1}
-                      >
-                        Remove account
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    updateScenario((scenario) => {
-                      scenario.accounts.push(
-                        createDefaultAccount(
-                          "traditional_401k",
-                          "New retirement account",
-                          scenario.profile.partner ? "joint" : "primary",
-                        ),
-                      );
-                    })
-                  }
-                >
-                  Add account
-                </Button>
-              </div>
-            </CollapsibleSection>
-
-            <CollapsibleSection
-              title="Recurring events"
-              summary={activeScenario.cashFlows.length === 0 ? "No events yet" : `${activeScenario.cashFlows.length} event${activeScenario.cashFlows.length === 1 ? "" : "s"}`}
-            >
-              <div className="space-y-4">
-                {activeScenario.cashFlows.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border/60 bg-card/35 p-4 text-sm text-muted-foreground">
-                    No recurring cash-flow events yet. Add one to see it flow into the
-                    accumulation runway.
-                  </div>
-                ) : null}
-                {activeScenario.cashFlows.map((cashFlow: CashFlowEvent) => (
-                  <div
-                    key={cashFlow.id}
-                    className="rounded-xl border border-border/60 bg-card/35 p-4"
-                  >
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <FieldLabel htmlFor={`cashflow-name-${cashFlow.id}`} label="Name" />
-                        <Input
-                          id={`cashflow-name-${cashFlow.id}`}
-                          value={cashFlow.name}
-                          onChange={(event) =>
-                            updateScenario((scenario) => {
-                              const nextCashFlow = scenario.cashFlows.find(
-                                (candidate) => candidate.id === cashFlow.id,
-                              );
-
-                              if (nextCashFlow) {
-                                nextCashFlow.name = event.target.value;
-                              }
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel htmlFor={`cashflow-type-${cashFlow.id}`} label="Type" />
-                        <Select
-                          id={`cashflow-type-${cashFlow.id}`}
-                          value={cashFlow.type}
-                          onChange={(event) =>
-                            updateScenario((scenario) => {
-                              const nextCashFlow = scenario.cashFlows.find(
-                                (candidate) => candidate.id === cashFlow.id,
-                              );
-
-                              if (nextCashFlow) {
-                                nextCashFlow.type = event.target.value as CashFlowEvent["type"];
-                              }
-                            })
-                          }
-                        >
-                          <option value="income">Income</option>
-                          <option value="expense">Expense</option>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel htmlFor={`cashflow-amount-${cashFlow.id}`} label="Annual amount" />
-                        <NumberInput
-                          id={`cashflow-amount-${cashFlow.id}`}
-                          min={0}
-                          step={1000}
-                          inputMode="numeric"
-                          value={cashFlow.amount}
-                          onValueChange={(value) =>
-                            updateScenario((scenario) => {
-                              const nextCashFlow = scenario.cashFlows.find(
-                                (candidate) => candidate.id === cashFlow.id,
-                              );
-
-                              if (nextCashFlow) {
-                                nextCashFlow.amount = Math.max(value, 0);
-                              }
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel htmlFor={`cashflow-start-${cashFlow.id}`} label="Start age" />
-                        <NumberInput
-                          id={`cashflow-start-${cashFlow.id}`}
-                          min={activeScenario.profile.age}
-                          max={90}
-                          step={1}
-                          inputMode="numeric"
-                          value={cashFlow.startAge}
-                          onValueChange={(value) =>
-                            updateScenario((scenario) => {
-                              const nextCashFlow = scenario.cashFlows.find(
-                                (candidate) => candidate.id === cashFlow.id,
-                              );
-
-                              if (nextCashFlow) {
-                                nextCashFlow.startAge = Math.round(value);
-                              }
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel
-                          htmlFor={`cashflow-end-${cashFlow.id}`}
-                          label="End age"
-                          tooltip="Use 0 to leave the event open-ended."
-                        />
-                        <NumberInput
-                          id={`cashflow-end-${cashFlow.id}`}
-                          min={0}
-                          max={100}
-                          step={1}
-                          inputMode="numeric"
-                          value={cashFlow.endAge ?? 0}
-                          onValueChange={(value) =>
-                            updateScenario((scenario) => {
-                              const nextCashFlow = scenario.cashFlows.find(
-                                (candidate) => candidate.id === cashFlow.id,
-                              );
-
-                              if (nextCashFlow) {
-                                nextCashFlow.endAge = value <= 0 ? null : Math.round(value);
-                              }
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel htmlFor={`cashflow-inflation-${cashFlow.id}`} label="Inflation adjusted" />
-                        <Select
-                          id={`cashflow-inflation-${cashFlow.id}`}
-                          value={String(cashFlow.inflationAdjusted)}
-                          onChange={(event) =>
-                            updateScenario((scenario) => {
-                              const nextCashFlow = scenario.cashFlows.find(
-                                (candidate) => candidate.id === cashFlow.id,
-                              );
-
-                              if (nextCashFlow) {
-                                nextCashFlow.inflationAdjusted =
-                                  event.target.value === "true";
-                              }
-                            })
-                          }
-                        >
-                          <option value="true">Yes</option>
-                          <option value="false">No</option>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() =>
-                          updateScenario((scenario) => {
-                            scenario.cashFlows = scenario.cashFlows.filter(
-                              (candidate) => candidate.id !== cashFlow.id,
-                            );
-                          })
-                        }
-                      >
-                        Remove event
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      updateScenario((scenario) => {
-                        const nextCashFlow = createDefaultCashFlowEvent("income");
-                        nextCashFlow.startAge = scenario.profile.age;
-                        scenario.cashFlows.push(nextCashFlow);
-                      })
-                    }
-                  >
-                    Add income event
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      updateScenario((scenario) => {
-                        const nextCashFlow = createDefaultCashFlowEvent("expense");
-                        nextCashFlow.startAge = scenario.profile.age;
-                        scenario.cashFlows.push(nextCashFlow);
-                      })
-                    }
-                  >
-                    Add expense event
-                  </Button>
-                </div>
-              </div>
-            </CollapsibleSection>
-          </div>
-        ) : null}
-
-        {variant === "module" ? (
-          <div className="space-y-6">
-            <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-              What-if analysis
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  Savings sensitivity
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  How small changes to your savings rate shift the timeline.
-                </p>
-                <div className="mt-4 overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="text-muted-foreground">
-                      <tr>
-                        <th className="pb-2 pr-4 text-left font-medium">Scenario</th>
-                        <th className="pb-2 pr-4 text-right font-medium">Savings/yr</th>
-                        <th className="pb-2 text-right font-medium">Years to FI</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sensitivityRows.map((row, i) => (
-                        <tr
-                          key={i}
-                          className={cn(
-                            "border-t border-border/30",
-                            row.delta === 0 && "bg-[rgba(255,107,53,0.04)] font-medium",
-                          )}
-                        >
-                          <td className="py-2.5 pr-4">
-                            {row.delta === 0
-                              ? "Current plan"
-                              : `${row.delta > 0 ? "+" : ""}${formatPercent(row.delta / Math.max(activeScenario.annualSavings, 1), 0)}`}
-                          </td>
-                          <td className="py-2.5 pr-4 text-right tabular-nums">
-                            {formatCompactCurrency(row.annualSavings)}
-                          </td>
-                          <td className="py-2.5 text-right tabular-nums font-semibold">
-                            {formatYears(row.yearsToFi)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  The shockingly simple math
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Your time to FI depends on one number: how much of your take-home pay you save. Based on your {formatCompactCurrency(currentBalance)} starting balance.
-                </p>
-                <div className="mt-4 overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="text-muted-foreground">
-                      <tr>
-                        <th className="pb-2 pr-4 text-left font-medium">Save</th>
-                        <th className="pb-2 pr-4 text-right font-medium">Spend/yr</th>
-                        <th className="pb-2 pr-4 text-right font-medium">Need</th>
-                        <th className="pb-2 text-right font-medium">Years</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].map((rate) => {
-                        const takeHome = taxEstimate.takeHome;
-                        const annualSavings = takeHome * rate;
-                        const annualSpending = takeHome * (1 - rate);
-                        const fireTarget = annualSpending / activeScenario.assumptions.withdrawalRate;
-                        const effectiveReturn = activeScenario.assumptions.expectedRealReturn - activeScenario.simulationSettings.feeDrag;
-                        const yearsToFi = currentBalance >= fireTarget
-                          ? 0
-                          : calculateYearsToTarget({
-                              currentBalance,
-                              annualContribution: annualSavings,
-                              targetBalance: fireTarget,
-                              annualRealReturn: effectiveReturn,
-                            });
-                        const userRate = taxEstimate.afterTaxSavingsRate;
-                        const isClosest = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].reduce((best, r) =>
-                          Math.abs(r - userRate) < Math.abs(best - userRate) ? r : best
-                        ) === rate;
-                        return (
-                          <tr
-                            key={rate}
-                            className={cn(
-                              "border-t border-border/30",
-                              isClosest && "bg-[rgba(255,107,53,0.04)]",
-                            )}
-                          >
-                            <td className="py-2.5 pr-4 tabular-nums">
-                              {formatPercent(rate, 0)}
-                              {isClosest ? (
-                                <span className="ml-1.5 text-[0.65rem] font-bold uppercase text-[var(--ember)]">You</span>
-                              ) : null}
-                            </td>
-                            <td className="py-2.5 pr-4 text-right tabular-nums">{formatCompactCurrency(annualSpending)}</td>
-                            <td className="py-2.5 pr-4 text-right tabular-nums">{formatCompactCurrency(fireTarget)}</td>
-                            <td className="py-2.5 text-right tabular-nums font-semibold">{formatYears(yearsToFi)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div />
-        )}
         </div>
       </section>
       )}
