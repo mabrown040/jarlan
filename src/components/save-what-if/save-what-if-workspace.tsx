@@ -593,14 +593,34 @@ export default function SaveWhatIfWorkspace() {
 
         {/* ---- Section 4: Year-by-year comparison (collapsed) ---- */}
         {(() => {
-          // Determine which contextual columns to show based on selected decisions
-          const showIncome = selectedIds.has("income-change") || selectedIds.has("career-break") || selectedIds.has("new-dependent");
-          const showExpenses = selectedIds.has("lifestyle-change") || selectedIds.has("new-dependent") || selectedIds.has("career-break");
-          const showSavings = selectedIds.size > 0;
-          const showGrowth = selectedIds.has("market-event");
           const hasComparison = combinedSummary != null;
 
-          // Track FIRE milestone (first year balance >= target)
+          // Build event timing map: which ages have events starting/ending
+          const eventTimings: Map<number, string[]> = new Map();
+          if (hasComparison) {
+            for (const d of selectedDecisions) {
+              const template = d.template;
+              const vals: Record<string, number> = {};
+              for (const p of template.params) {
+                vals[p.id] = customValues[d.id]?.[p.id] ?? p.defaultValue;
+              }
+              // Determine event start age from params
+              const startAge = vals.startAge ?? vals.atAge ?? activeScenario.profile.age;
+              const duration = vals.duration ?? null;
+              const existing = eventTimings.get(Math.round(startAge)) ?? [];
+              existing.push(`${d.emoji} ${d.label.split(" at ")[0].split(" for ")[0]}`);
+              eventTimings.set(Math.round(startAge), existing);
+              // Mark end of duration-based events
+              if (duration && duration > 0) {
+                const endAge = Math.round(startAge + duration);
+                const endExisting = eventTimings.get(endAge) ?? [];
+                endExisting.push(`${d.emoji} ends`);
+                eventTimings.set(endAge, endExisting);
+              }
+            }
+          }
+
+          // Track FIRE milestones
           let baseHitFiYear: number | null = null;
           let compHitFiYear: number | null = null;
 
@@ -624,21 +644,16 @@ export default function SaveWhatIfWorkspace() {
                         <>
                           <th className="pb-3 pr-3 font-medium">With changes</th>
                           <th className="pb-3 pr-3 font-medium">Δ</th>
+                          <th className="pb-3 pr-3 font-medium">Savings/yr</th>
+                          <th className="pb-3 pr-3 font-medium">Growth</th>
                         </>
-                      ) : null}
-                      {showIncome ? (
-                        <th className="pb-3 pr-3 font-medium">Income</th>
-                      ) : null}
-                      {showExpenses ? (
-                        <th className="pb-3 pr-3 font-medium">Expenses</th>
-                      ) : null}
-                      {showSavings ? (
-                        <th className="pb-3 pr-3 font-medium">Savings/yr</th>
-                      ) : null}
-                      {showGrowth ? (
-                        <th className="pb-3 pr-3 font-medium">Growth</th>
-                      ) : null}
-                      <th className="pb-3 font-medium">Milestone</th>
+                      ) : (
+                        <>
+                          <th className="pb-3 pr-3 font-medium">Savings/yr</th>
+                          <th className="pb-3 pr-3 font-medium">Growth</th>
+                        </>
+                      )}
+                      <th className="pb-3 font-medium">Events</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -646,7 +661,7 @@ export default function SaveWhatIfWorkspace() {
                       const compPoint = combinedSummary?.projection[i];
                       const diff = compPoint ? compPoint.balance - point.balance : 0;
 
-                      // Track FIRE milestones (first crossing only)
+                      // Track FIRE milestones
                       const baseAtFi = point.balance >= point.target && point.year > 0;
                       const compAtFi = compPoint && compPoint.balance >= compPoint.target && compPoint.year > 0;
                       if (baseAtFi && baseHitFiYear === null) baseHitFiYear = point.year;
@@ -654,21 +669,17 @@ export default function SaveWhatIfWorkspace() {
                       const showBaseFiBadge = point.year === baseHitFiYear;
                       const showCompFiBadge = hasComparison && point.year === compHitFiYear;
 
-                      // Read enriched data directly from projection (no fake growing)
-                      const baseInc = point.income ?? 0;
-                      const baseExp = point.expenses ?? 0;
+                      // Enriched data
                       const baseSav = point.savings ?? 0;
                       const baseGrw = point.growth ?? 0;
-                      const compInc = compPoint?.income ?? 0;
-                      const compExp = compPoint?.expenses ?? 0;
                       const compSav = compPoint?.savings ?? 0;
                       const compGrw = compPoint?.growth ?? 0;
-
-                      // Determine if values changed meaningfully (>$100 difference)
-                      const incChanged = hasComparison && Math.abs(compInc - baseInc) > 100;
-                      const expChanged = hasComparison && Math.abs(compExp - baseExp) > 100;
                       const savChanged = hasComparison && Math.abs(compSav - baseSav) > 100;
                       const grwChanged = hasComparison && Math.abs(compGrw - baseGrw) > 100;
+
+                      // Event tags for this age
+                      const age = Math.round(point.age);
+                      const events = eventTimings.get(age) ?? [];
 
                       return (
                         <tr
@@ -680,7 +691,7 @@ export default function SaveWhatIfWorkspace() {
                           )}
                         >
                           <td className="py-2 pr-3 tabular-nums">{point.year}</td>
-                          <td className="py-2 pr-3 tabular-nums">{Math.round(point.age)}</td>
+                          <td className="py-2 pr-3 tabular-nums">{age}</td>
                           <td className="py-2 pr-3 tabular-nums font-medium">
                             {formatCompactCurrency(point.balance)}
                           </td>
@@ -698,58 +709,55 @@ export default function SaveWhatIfWorkspace() {
                               )}>
                                 {Math.abs(diff) < 100 ? "—" : diff > 0 ? `+${formatCompactCurrency(diff)}` : `-${formatCompactCurrency(Math.abs(diff))}`}
                               </td>
+                              <td className="py-2 pr-3 tabular-nums text-xs">
+                                <span className={cn(
+                                  savChanged
+                                    ? compSav > baseSav ? "text-emerald-600 font-medium" : "text-red-500 font-medium"
+                                    : "text-muted-foreground",
+                                )}>
+                                  {formatCompactCurrency(compSav)}
+                                </span>
+                              </td>
+                              <td className="py-2 pr-3 tabular-nums text-xs">
+                                <span className={cn(
+                                  grwChanged
+                                    ? compGrw > baseGrw ? "text-emerald-600 font-medium" : "text-red-500 font-medium"
+                                    : "text-muted-foreground",
+                                )}>
+                                  {formatCompactCurrency(compGrw)}
+                                </span>
+                              </td>
                             </>
-                          ) : null}
-                          {showIncome ? (
-                            <td className="py-2 pr-3 tabular-nums text-xs">
-                              <span className={cn(
-                                incChanged ? "text-[var(--ember)] font-medium" : "text-muted-foreground",
-                              )}>
-                                {formatCompactCurrency(hasComparison ? compInc : baseInc)}
-                              </span>
-                            </td>
-                          ) : null}
-                          {showExpenses ? (
-                            <td className="py-2 pr-3 tabular-nums text-xs">
-                              <span className={cn(
-                                expChanged ? "text-[var(--ember)] font-medium" : "text-muted-foreground",
-                              )}>
-                                {formatCompactCurrency(hasComparison ? compExp : baseExp)}
-                              </span>
-                            </td>
-                          ) : null}
-                          {showSavings ? (
-                            <td className="py-2 pr-3 tabular-nums text-xs">
-                              <span className={cn(
-                                savChanged
-                                  ? compSav > baseSav ? "text-emerald-600 font-medium" : "text-red-500 font-medium"
-                                  : "text-muted-foreground",
-                              )}>
-                                {formatCompactCurrency(hasComparison ? compSav : baseSav)}
-                              </span>
-                            </td>
-                          ) : null}
-                          {showGrowth ? (
-                            <td className="py-2 pr-3 tabular-nums text-xs">
-                              <span className={cn(
-                                grwChanged
-                                  ? compGrw > baseGrw ? "text-emerald-600 font-medium" : "text-red-500 font-medium"
-                                  : "text-muted-foreground",
-                              )}>
-                                {formatCompactCurrency(hasComparison ? compGrw : baseGrw)}
-                              </span>
-                            </td>
-                          ) : null}
+                          ) : (
+                            <>
+                              <td className="py-2 pr-3 tabular-nums text-xs text-muted-foreground">
+                                {formatCompactCurrency(baseSav)}
+                              </td>
+                              <td className="py-2 pr-3 tabular-nums text-xs text-muted-foreground">
+                                {formatCompactCurrency(baseGrw)}
+                              </td>
+                            </>
+                          )}
                           <td className="py-2 text-xs">
-                            {showCompFiBadge ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                🎯 FI
-                              </span>
-                            ) : showBaseFiBadge ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(255,107,53,0.1)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--ember)]">
-                                🎯 FI (base)
-                              </span>
-                            ) : null}
+                            <div className="flex flex-wrap gap-1">
+                              {events.map((evt, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                                >
+                                  {evt}
+                                </span>
+                              ))}
+                              {showCompFiBadge ? (
+                                <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                  🎯 FI
+                                </span>
+                              ) : showBaseFiBadge ? (
+                                <span className="inline-flex items-center rounded-full bg-[rgba(255,107,53,0.1)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--ember)]">
+                                  🎯 FI (base)
+                                </span>
+                              ) : null}
+                            </div>
                           </td>
                         </tr>
                       );
