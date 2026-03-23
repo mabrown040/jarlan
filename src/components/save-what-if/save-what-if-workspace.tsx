@@ -91,8 +91,9 @@ function formatFireDate(yearsToFi: number | null): string {
 /* -------------------------------------------------------------------------- */
 
 function getImpactColor(direction: LifeDecision["direction"]) {
-  if (direction === "positive") return "text-emerald-500";
+  if (direction === "positive") return "text-emerald-600";
   if (direction === "negative") return "text-red-500";
+  if (direction === "neutral") return "text-muted-foreground";
   return "text-amber-500";
 }
 
@@ -106,9 +107,12 @@ function formatParamValue(param: DecisionParam, value: number): string {
       return value < 0
         ? `-$${Math.abs(value).toLocaleString("en-US")}`
         : `$${value.toLocaleString("en-US")}`;
+    case "currency_signed":
+      return (value >= 0 ? "+$" : "-$") + Math.abs(value).toLocaleString("en-US");
     case "percent":
       return `${Math.round(value * 100)}%`;
     case "years":
+      if (value < 1) return `${Math.round(value * 12)} mo`;
       return value === 1 ? "1 yr" : `${value} yr`;
     case "return":
       return `${(value * 100).toFixed(1)}%`;
@@ -404,7 +408,7 @@ export default function SaveWhatIfWorkspace() {
           eyebrow="Life decisions"
           title="How real choices change your timeline"
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {decisionResults.map((result) => {
               const { decision, deltaYears, deltaFireNumber } = result;
               const isSelected = selectedId === decision.id;
@@ -434,6 +438,9 @@ export default function SaveWhatIfWorkspace() {
                         </p>
                         <p className="mt-0.5 text-sm text-muted-foreground">
                           {decision.description}
+                        </p>
+                        <p className="mt-1 text-[11px] text-muted-foreground/60">
+                          e.g. {decision.examples.slice(0, 3).join(", ")}
                         </p>
                       </div>
                     </div>

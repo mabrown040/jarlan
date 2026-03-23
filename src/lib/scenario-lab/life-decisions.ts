@@ -4,7 +4,7 @@ import type { Scenario } from "@/lib/domain/types";
 
 /* ── Parameter system ── */
 
-export type ParamType = "currency" | "percent" | "years" | "return" | "age";
+export type ParamType = "currency" | "currency_signed" | "percent" | "years" | "return" | "age";
 
 export interface DecisionParam {
   id: string;
@@ -21,11 +21,15 @@ export interface DecisionParam {
 export interface LifeDecisionTemplate {
   id: string;
   emoji: string;
+  category: string;
   labelTemplate: string;
   descriptionTemplate: string;
-  direction: "positive" | "negative" | "mixed";
+  /** Examples of what this covers */
+  examples: string[];
   params: DecisionParam[];
   apply: (scenario: Scenario, values: Record<string, number>) => Scenario;
+  /** Determine direction dynamically based on param values */
+  getDirection: (values: Record<string, number>) => "positive" | "negative" | "neutral";
 }
 
 /* ── Resolved decision ── */
@@ -33,9 +37,11 @@ export interface LifeDecisionTemplate {
 export interface LifeDecision {
   id: string;
   emoji: string;
+  category: string;
   label: string;
   description: string;
-  direction: "positive" | "negative" | "mixed";
+  examples: string[];
+  direction: "positive" | "negative" | "neutral";
   template: LifeDecisionTemplate;
   values: Record<string, number>;
   apply: (scenario: Scenario) => Scenario;
@@ -51,7 +57,7 @@ export interface LifeDecisionResult {
   deltaFireNumber: number;
 }
 
-/* ── Template definitions ── */
+/* ── 6 Consolidated Templates ── */
 
 export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate[] {
   const income = scenario.annualIncome;
@@ -60,30 +66,35 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
   const retAge = scenario.profile.retirementAge ?? age + 15;
 
   return [
+    /* ── 1. Income Change ── */
     {
-      id: "raise",
-      emoji: "\u{1F4B0}",
-      labelTemplate: "Get a {amount} raise at age {startAge}",
-      descriptionTemplate: "+{amount}/yr income starting at age {startAge}",
-      direction: "positive",
+      id: "income-change",
+      emoji: "\u{1F4BC}",
+      category: "Income",
+      labelTemplate: "Income changes by {amount}/yr at age {startAge}",
+      descriptionTemplate: "{amount}/yr starting at age {startAge}",
+      examples: ["Raise", "Pay cut", "New job", "Lose a client", "Promotion"],
       params: [
-        { id: "amount", label: "Raise amount", type: "currency", min: 1000, max: 200_000, step: 1000, defaultValue: Math.round(income * 0.05 / 1000) * 1000 || 15_000 },
-        { id: "startAge", label: "Starting age", type: "age", min: age, max: retAge, step: 1, defaultValue: age },
+        { id: "amount", label: "Annual change", type: "currency_signed", min: -100_000, max: 200_000, step: 5000, defaultValue: Math.round(income * 0.05 / 1000) * 1000 || 15_000 },
+        { id: "startAge", label: "Starting at age", type: "age", min: age, max: age + 30, step: 1, defaultValue: age },
       ],
+      getDirection: (v) => v.amount > 0 ? "positive" : v.amount < 0 ? "negative" : "neutral",
       apply: (s, v) => {
         const next = cloneScenario(s);
-        // If starting now, just increase income directly
         if (v.startAge <= s.profile.age) {
-          next.annualIncome += v.amount;
-          next.annualSavings += v.amount;
-          if (next.accounts[0]) next.accounts[0].annualContribution += v.amount;
+          next.annualIncome = Math.max(next.annualIncome + v.amount, 0);
+          next.annualSavings = Math.max(next.annualSavings + v.amount, 0);
+          if (next.accounts[0]) {
+            next.accounts[0].annualContribution = Math.max(
+              next.accounts[0].annualContribution + v.amount, 0,
+            );
+          }
         } else {
-          // Future raise: add as a cash flow event starting at that age
           next.cashFlows.push({
-            id: `raise-${Date.now()}`,
-            name: "Raise",
-            type: "income",
-            amount: v.amount,
+            id: `income-${Date.now()}`,
+            name: v.amount >= 0 ? "Income increase" : "Income decrease",
+            type: v.amount >= 0 ? "income" : "expense",
+            amount: Math.abs(v.amount),
             startAge: v.startAge,
             endAge: null,
             inflationAdjusted: true,
@@ -93,188 +104,20 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
         return next;
       },
     },
+
+    /* ── 2. Lifestyle Change ── */
     {
-      id: "side-hustle",
-      emoji: "\u{1F680}",
-      labelTemplate: "Earn {amount}/yr side income for {duration}",
-      descriptionTemplate: "+{amount}/yr from age {startAge} for {duration}",
-      direction: "positive",
-      params: [
-        { id: "amount", label: "Annual income", type: "currency", min: 1000, max: 100_000, step: 1000, defaultValue: 12_000 },
-        { id: "startAge", label: "Starting age", type: "age", min: age, max: retAge, step: 1, defaultValue: age },
-        { id: "duration", label: "Duration", type: "years", min: 1, max: 20, step: 1, defaultValue: 5 },
-      ],
-      apply: (s, v) => {
-        const next = cloneScenario(s);
-        if (v.startAge <= s.profile.age) {
-          next.annualSavings += v.amount;
-          if (next.accounts[0]) next.accounts[0].annualContribution += v.amount;
-        }
-        // Model as cash flow for the duration
-        next.cashFlows.push({
-          id: `hustle-${Date.now()}`,
-          name: "Side income",
-          type: "income",
-          amount: v.amount,
-          startAge: Math.max(v.startAge, s.profile.age + 1),
-          endAge: v.startAge + v.duration,
-          inflationAdjusted: true,
-          taxable: true,
-        });
-        return next;
-      },
-    },
-    {
-      id: "move-cheaper",
+      id: "lifestyle-change",
       emoji: "\u{1F3E0}",
-      labelTemplate: "Cut expenses by {percent} at age {startAge}",
-      descriptionTemplate: "Reduce spending by {percent} starting at age {startAge}",
-      direction: "positive",
+      category: "Expenses",
+      labelTemplate: "Spending changes by {amount}/yr at age {startAge}",
+      descriptionTemplate: "{amount}/yr in expenses starting at age {startAge}",
+      examples: ["Move cheaper", "Downsize", "Lifestyle upgrade", "Pay off debt", "New hobby"],
       params: [
-        { id: "percent", label: "Expense reduction", type: "percent", min: 0.05, max: 0.50, step: 0.05, defaultValue: 0.20 },
-        { id: "startAge", label: "Starting age", type: "age", min: age, max: retAge, step: 1, defaultValue: age },
+        { id: "amount", label: "Annual change", type: "currency_signed", min: -50_000, max: 50_000, step: 1000, defaultValue: Math.round(expenses * -0.2 / 1000) * 1000 },
+        { id: "startAge", label: "Starting at age", type: "age", min: age, max: age + 30, step: 1, defaultValue: age },
       ],
-      apply: (s, v) => {
-        const cut = Math.round(s.annualExpenses * v.percent / 1000) * 1000;
-        const next = cloneScenario(s);
-        if (v.startAge <= s.profile.age) {
-          next.annualExpenses = Math.max(next.annualExpenses - cut, 0);
-          next.retirementExpenses = Math.max(next.retirementExpenses - cut, 0);
-          next.annualSavings += cut;
-          if (next.accounts[0]) next.accounts[0].annualContribution += cut;
-        } else {
-          // Future expense reduction — reduce retirement expenses
-          next.retirementExpenses = Math.max(next.retirementExpenses - cut, 0);
-        }
-        return next;
-      },
-    },
-    {
-      id: "market-change",
-      emoji: "\u{1F4C9}",
-      labelTemplate: "Market returns at {rate}",
-      descriptionTemplate: "Change real return assumption to {rate}",
-      direction: "mixed",
-      params: [
-        { id: "rate", label: "Real return", type: "return", min: 0.02, max: 0.12, step: 0.005, defaultValue: 0.05 },
-      ],
-      apply: (s, v) => {
-        const next = cloneScenario(s);
-        next.assumptions.expectedRealReturn = v.rate;
-        return next;
-      },
-    },
-    {
-      id: "child",
-      emoji: "\u{1F476}",
-      labelTemplate: "Have a child at age {startAge}",
-      descriptionTemplate: "+{cost}/yr for {duration} starting at age {startAge}",
-      direction: "negative",
-      params: [
-        { id: "cost", label: "Annual cost", type: "currency", min: 5000, max: 50_000, step: 1000, defaultValue: Math.round(expenses * 0.18 / 1000) * 1000 || 18_000 },
-        { id: "startAge", label: "Starting age", type: "age", min: age, max: age + 20, step: 1, defaultValue: age + 1 },
-        { id: "duration", label: "Years of expenses", type: "years", min: 5, max: 25, step: 1, defaultValue: 18 },
-      ],
-      apply: (s, v) => {
-        const next = cloneScenario(s);
-        if (v.startAge <= s.profile.age) {
-          next.annualExpenses += v.cost;
-          next.retirementExpenses += Math.round(v.cost * 0.5); // reduced cost in retirement
-          next.annualSavings = Math.max(next.annualSavings - v.cost, 0);
-          if (next.accounts[0]) {
-            next.accounts[0].annualContribution = Math.max(next.accounts[0].annualContribution - v.cost, 0);
-          }
-        } else {
-          // Future child: add as cash flow expense
-          next.cashFlows.push({
-            id: `child-${Date.now()}`,
-            name: "Child expenses",
-            type: "expense",
-            amount: v.cost,
-            startAge: v.startAge,
-            endAge: v.startAge + v.duration,
-            inflationAdjusted: true,
-            taxable: false,
-          });
-        }
-        return next;
-      },
-    },
-    {
-      id: "windfall",
-      emoji: "\u{1F381}",
-      labelTemplate: "Receive {amount} at age {atAge}",
-      descriptionTemplate: "+{amount} one-time at age {atAge}",
-      direction: "positive",
-      params: [
-        { id: "amount", label: "Amount", type: "currency", min: 10_000, max: 2_000_000, step: 10_000, defaultValue: 100_000 },
-        { id: "atAge", label: "At age", type: "age", min: age, max: age + 30, step: 1, defaultValue: age },
-      ],
-      apply: (s, v) => {
-        const next = cloneScenario(s);
-        if (v.atAge <= s.profile.age) {
-          // Immediate: add to portfolio
-          if (next.accounts[0]) next.accounts[0].currentBalance += v.amount;
-        } else {
-          // Future windfall: add as one-time cash flow
-          next.cashFlows.push({
-            id: `windfall-${Date.now()}`,
-            name: "Windfall",
-            type: "income",
-            amount: v.amount,
-            startAge: v.atAge,
-            endAge: v.atAge + 1,
-            inflationAdjusted: false,
-            taxable: true,
-          });
-        }
-        return next;
-      },
-    },
-    {
-      id: "sabbatical",
-      emoji: "\u{2708}\u{FE0F}",
-      labelTemplate: "Take {duration} off at age {startAge}",
-      descriptionTemplate: "{duration} off work starting at age {startAge}",
-      direction: "negative",
-      params: [
-        { id: "duration", label: "Time off", type: "years", min: 0.5, max: 5, step: 0.5, defaultValue: 1 },
-        { id: "startAge", label: "Starting age", type: "age", min: age, max: retAge, step: 1, defaultValue: age },
-      ],
-      apply: (s, v) => {
-        const next = cloneScenario(s);
-        const cost = Math.round(s.annualExpenses * v.duration);
-        if (v.startAge <= s.profile.age) {
-          // Immediate: deduct from portfolio
-          if (next.accounts[0]) {
-            next.accounts[0].currentBalance = Math.max(next.accounts[0].currentBalance - cost, 0);
-          }
-        } else {
-          // Future: add expense cash flow
-          next.cashFlows.push({
-            id: `sabbatical-${Date.now()}`,
-            name: "Sabbatical expenses",
-            type: "expense",
-            amount: Math.round(s.annualExpenses),
-            startAge: v.startAge,
-            endAge: v.startAge + v.duration,
-            inflationAdjusted: true,
-            taxable: false,
-          });
-        }
-        return next;
-      },
-    },
-    {
-      id: "spending-change",
-      emoji: "\u{2702}\u{FE0F}",
-      labelTemplate: "Change spending by {amount}/yr at age {startAge}",
-      descriptionTemplate: "Adjust expenses by {amount}/yr starting at age {startAge}",
-      direction: "mixed",
-      params: [
-        { id: "amount", label: "Annual change", type: "currency", min: -50_000, max: 50_000, step: 1000, defaultValue: Math.round(expenses * -0.1 / 1000) * 1000 },
-        { id: "startAge", label: "Starting age", type: "age", min: age, max: retAge, step: 1, defaultValue: age },
-      ],
+      getDirection: (v) => v.amount < 0 ? "positive" : v.amount > 0 ? "negative" : "neutral",
       apply: (s, v) => {
         const next = cloneScenario(s);
         if (v.startAge <= s.profile.age) {
@@ -282,11 +125,166 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
           next.retirementExpenses = Math.max(next.retirementExpenses + v.amount, 0);
           next.annualSavings = Math.max(next.annualSavings - v.amount, 0);
           if (next.accounts[0]) {
-            next.accounts[0].annualContribution = Math.max(next.accounts[0].annualContribution - v.amount, 0);
+            next.accounts[0].annualContribution = Math.max(
+              next.accounts[0].annualContribution - v.amount, 0,
+            );
           }
         } else {
           next.retirementExpenses = Math.max(next.retirementExpenses + v.amount, 0);
+          if (v.amount > 0) {
+            next.cashFlows.push({
+              id: `lifestyle-${Date.now()}`,
+              name: "Expense increase",
+              type: "expense",
+              amount: v.amount,
+              startAge: v.startAge,
+              endAge: null,
+              inflationAdjusted: true,
+              taxable: false,
+            });
+          }
         }
+        return next;
+      },
+    },
+
+    /* ── 3. New Dependent ── */
+    {
+      id: "new-dependent",
+      emoji: "\u{1F476}",
+      category: "Expenses",
+      labelTemplate: "New dependent: {cost}/yr for {duration} at age {startAge}",
+      descriptionTemplate: "+{cost}/yr for {duration} starting at age {startAge}",
+      examples: ["Child", "Aging parent", "Supporting a partner", "Pet"],
+      params: [
+        { id: "cost", label: "Annual cost", type: "currency", min: 2000, max: 60_000, step: 1000, defaultValue: Math.round(expenses * 0.18 / 1000) * 1000 || 18_000 },
+        { id: "startAge", label: "Starting at age", type: "age", min: age, max: age + 20, step: 1, defaultValue: age + 1 },
+        { id: "duration", label: "Duration", type: "years", min: 1, max: 30, step: 1, defaultValue: 18 },
+      ],
+      getDirection: () => "negative",
+      apply: (s, v) => {
+        const next = cloneScenario(s);
+        if (v.startAge <= s.profile.age) {
+          next.annualExpenses += v.cost;
+          next.annualSavings = Math.max(next.annualSavings - v.cost, 0);
+          if (next.accounts[0]) {
+            next.accounts[0].annualContribution = Math.max(
+              next.accounts[0].annualContribution - v.cost, 0,
+            );
+          }
+        }
+        next.cashFlows.push({
+          id: `dependent-${Date.now()}`,
+          name: "Dependent expenses",
+          type: "expense",
+          amount: v.cost,
+          startAge: Math.max(v.startAge, s.profile.age),
+          endAge: v.startAge + v.duration,
+          inflationAdjusted: true,
+          taxable: false,
+        });
+        return next;
+      },
+    },
+
+    /* ── 4. Portfolio Event ── */
+    {
+      id: "portfolio-event",
+      emoji: "\u{1F4B0}",
+      category: "Portfolio",
+      labelTemplate: "{amount} at age {atAge}",
+      descriptionTemplate: "One-time {amount} portfolio event at age {atAge}",
+      examples: ["Inheritance", "Home purchase", "Sell a business", "Legal settlement", "Insurance payout", "Gift"],
+      params: [
+        { id: "amount", label: "Amount", type: "currency_signed", min: -500_000, max: 2_000_000, step: 10_000, defaultValue: 100_000 },
+        { id: "atAge", label: "At age", type: "age", min: age, max: age + 40, step: 1, defaultValue: age },
+      ],
+      getDirection: (v) => v.amount > 0 ? "positive" : v.amount < 0 ? "negative" : "neutral",
+      apply: (s, v) => {
+        const next = cloneScenario(s);
+        if (v.atAge <= s.profile.age) {
+          if (next.accounts[0]) {
+            next.accounts[0].currentBalance = Math.max(
+              next.accounts[0].currentBalance + v.amount, 0,
+            );
+          }
+        } else {
+          next.cashFlows.push({
+            id: `portfolio-${Date.now()}`,
+            name: v.amount >= 0 ? "Windfall" : "Major expense",
+            type: v.amount >= 0 ? "income" : "expense",
+            amount: Math.abs(v.amount),
+            startAge: v.atAge,
+            endAge: v.atAge + 1,
+            inflationAdjusted: false,
+            taxable: v.amount > 0,
+          });
+        }
+        return next;
+      },
+    },
+
+    /* ── 5. Career Break ── */
+    {
+      id: "career-break",
+      emoji: "\u{2708}\u{FE0F}",
+      category: "Income",
+      labelTemplate: "Take {duration} off at age {startAge}",
+      descriptionTemplate: "{duration} with no income starting at age {startAge}",
+      examples: ["Sabbatical", "Parental leave", "Health recovery", "Travel year", "Grad school"],
+      params: [
+        { id: "duration", label: "Time off", type: "years", min: 0.25, max: 5, step: 0.25, defaultValue: 1 },
+        { id: "startAge", label: "Starting at age", type: "age", min: age, max: retAge, step: 1, defaultValue: age },
+      ],
+      getDirection: () => "negative",
+      apply: (s, v) => {
+        const next = cloneScenario(s);
+        const annualCost = s.annualExpenses;
+        if (v.startAge <= s.profile.age) {
+          // Immediate: deduct the full cost from portfolio
+          const cost = Math.round(annualCost * v.duration);
+          if (next.accounts[0]) {
+            next.accounts[0].currentBalance = Math.max(
+              next.accounts[0].currentBalance - cost, 0,
+            );
+          }
+        } else {
+          // Future: model as expense + lost savings
+          next.cashFlows.push({
+            id: `break-expense-${Date.now()}`,
+            name: "Career break living costs",
+            type: "expense",
+            amount: annualCost,
+            startAge: v.startAge,
+            endAge: v.startAge + v.duration,
+            inflationAdjusted: true,
+            taxable: false,
+          });
+        }
+        return next;
+      },
+    },
+
+    /* ── 6. Market Outlook ── */
+    {
+      id: "market-outlook",
+      emoji: "\u{1F4C8}",
+      category: "Market",
+      labelTemplate: "Returns at {returnRate}, inflation at {inflation}",
+      descriptionTemplate: "Adjust market assumptions: {returnRate} real return, {inflation} inflation",
+      examples: ["Bull market", "Bear market", "Stagflation", "Golden era", "Lost decade"],
+      params: [
+        { id: "returnRate", label: "Real return", type: "return", min: 0.02, max: 0.12, step: 0.005, defaultValue: scenario.assumptions.expectedRealReturn },
+        { id: "inflation", label: "Inflation", type: "return", min: 0.01, max: 0.08, step: 0.005, defaultValue: scenario.assumptions.inflation },
+      ],
+      getDirection: (v) => {
+        const baseReturn = scenario.assumptions.expectedRealReturn;
+        return v.returnRate > baseReturn ? "positive" : v.returnRate < baseReturn ? "negative" : "neutral";
+      },
+      apply: (s, v) => {
+        const next = cloneScenario(s);
+        next.assumptions.expectedRealReturn = v.returnRate;
+        next.assumptions.inflation = v.inflation;
         return next;
       },
     },
@@ -302,9 +300,11 @@ export function resolveDecision(
   return {
     id: template.id,
     emoji: template.emoji,
+    category: template.category,
     label: interpolate(template.labelTemplate, template.params, values),
     description: interpolate(template.descriptionTemplate, template.params, values),
-    direction: template.direction,
+    examples: template.examples,
+    direction: template.getDirection(values),
     template,
     values,
     apply: (scenario) => template.apply(scenario, values),
@@ -380,11 +380,15 @@ function interpolate(
       case "currency":
         formatted = formatK(val);
         break;
+      case "currency_signed":
+        formatted = (val >= 0 ? "+" : "") + formatK(val);
+        break;
       case "percent":
         formatted = `${Math.round(val * 100)}%`;
         break;
       case "years":
-        formatted = val === 1 ? "1 year" : val === 0.5 ? "6 months" : `${val} years`;
+        if (val < 1) formatted = `${Math.round(val * 12)} months`;
+        else formatted = val === 1 ? "1 year" : `${val} years`;
         break;
       case "return":
         formatted = `${(val * 100).toFixed(1)}%`;
