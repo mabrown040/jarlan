@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Area,
   Bar,
@@ -220,22 +219,13 @@ function MilestoneLabel({
   viewBox?: { x?: number; y?: number };
   milestone: MilestoneMarker;
 }) {
-  const [showTip, setShowTip] = useState(false);
   const x = viewBox?.x ?? 0;
   const yOffset = milestone._offsetY ?? 0;
   const isEvent = milestone.isEvent ?? false;
-
-  // FIRE milestones: prominent, ember-colored, with small dot
-  // Event markers: subtle, gray, smaller text, no dot
   const labelY = 10 + yOffset;
 
   return (
-    <g
-      style={{ cursor: milestone.description ? "pointer" : "default" }}
-      onMouseEnter={() => setShowTip(true)}
-      onMouseLeave={() => setShowTip(false)}
-      onClick={() => setShowTip((v) => !v)}
-    >
+    <g>
       {isEvent ? (
         /* ── Event marker: subtle gray label, no dot ── */
         <text
@@ -266,14 +256,6 @@ function MilestoneLabel({
           </text>
         </>
       )}
-      {showTip && milestone.description ? (
-        <foreignObject x={x - 150} y={labelY - 70} width={300} height={60}>
-          <div className="rounded-xl border border-[var(--ember)]/20 bg-[var(--card)] px-4 py-3 text-[13px] leading-relaxed text-foreground shadow-xl">
-            <span className="mr-1 text-[var(--ember)]">{"\u2726"}</span>
-            {milestone.description}
-          </div>
-        </foreignObject>
-      ) : null}
     </g>
   );
 }
