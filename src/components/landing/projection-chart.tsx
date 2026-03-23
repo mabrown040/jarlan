@@ -186,25 +186,40 @@ function MilestoneLabel({
   const x = viewBox?.x ?? 0;
 
   return (
-    <g>
-      <circle cx={x} cy={30} r={3} fill="var(--ember)" opacity={0.7} />
+    <g
+      style={{ cursor: milestone.description ? "pointer" : "default" }}
+      onMouseEnter={() => setShowTip(true)}
+      onMouseLeave={() => setShowTip(false)}
+      onClick={() => setShowTip((v) => !v)}
+    >
+      {/* Glowing dot */}
+      <circle cx={x} cy={32} r={5} fill="var(--ember)" opacity={0.15} />
+      <circle cx={x} cy={32} r={3.5} fill="var(--ember)" opacity={0.9} />
+      {/* Label badge */}
+      <rect
+        x={x - 40}
+        y={6}
+        width={80}
+        height={20}
+        rx={10}
+        fill="var(--ember)"
+        opacity={0.1}
+      />
       <text
         x={x}
-        y={22}
+        y={20}
         textAnchor="middle"
-        fontSize={10}
-        fontWeight={600}
+        fontSize={11}
+        fontWeight={700}
         fill="var(--ember)"
-        style={{ cursor: milestone.description ? "pointer" : "default" }}
-        onMouseEnter={() => setShowTip(true)}
-        onMouseLeave={() => setShowTip(false)}
-        onClick={() => setShowTip((v) => !v)}
+        letterSpacing={0.3}
       >
         {milestone.label}
       </text>
       {showTip && milestone.description ? (
-        <foreignObject x={x - 130} y={34} width={260} height={70}>
-          <div className="rounded-lg border border-[var(--surface-border)] bg-[var(--card)] px-3 py-2 text-[11px] leading-snug text-muted-foreground shadow-lg">
+        <foreignObject x={x - 150} y={38} width={300} height={90}>
+          <div className="rounded-xl border border-[var(--ember)]/20 bg-[var(--card)] px-4 py-3 text-[13px] leading-relaxed text-foreground shadow-xl">
+            <span className="mr-1 text-[var(--ember)]">{"\u2726"}</span>
             {milestone.description}
           </div>
         </foreignObject>
@@ -316,7 +331,7 @@ export function ProjectionChart({
   return (
     <ChartFrame ariaLabel={ariaLabel} className="h-72 w-full sm:h-96">
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={chartData} margin={{ top: 40, right: 24, left: 8, bottom: 28 }}>
+        <ComposedChart data={chartData} margin={{ top: 44, right: 24, left: 8, bottom: 28 }}>
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="var(--color-border)"
