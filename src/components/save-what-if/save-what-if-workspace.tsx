@@ -112,6 +112,8 @@ function formatParamValue(param: DecisionParam, value: number): string {
       return value === 1 ? "1 yr" : `${value} yr`;
     case "return":
       return `${(value * 100).toFixed(1)}%`;
+    case "age":
+      return `Age ${Math.round(value)}`;
     default:
       return String(value);
   }
