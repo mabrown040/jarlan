@@ -20,10 +20,8 @@ import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select } from "@/components/ui/select";
 import {
-  buildSavingsRateTable,
   calculateFireTypeSummaries,
   calculateQuickFireSummary,
-  calculateYearsToTarget,
   formatCompactCurrency,
   formatPercent,
   formatYears,
@@ -160,15 +158,6 @@ export function QuickFireWorkspace({
   const countryPreset = useMemo(
     () => getCountryPreset(activeScenario.profile.country),
     [activeScenario.profile.country],
-  );
-  const savingsRateTable = useMemo(
-    () =>
-      buildSavingsRateTable(
-        getHouseholdAnnualIncome(activeScenario),
-        activeScenario.assumptions.withdrawalRate,
-        activeScenario.assumptions.expectedRealReturn,
-      ),
-    [activeScenario],
   );
   const currentBalance = useMemo(
     () => getCurrentPortfolioBalance(activeScenario.accounts),
@@ -401,45 +390,6 @@ export function QuickFireWorkspace({
         getHouseholdAnnualIncome(activeScenario),
       )} per year.`
     : null;
-  const sensitivityDeltas = useMemo(() => {
-    const base = activeScenario.annualSavings;
-    return [
-      Math.round(base * -0.20 / 100) * 100,
-      Math.round(base * -0.10 / 100) * 100,
-      Math.round(base * -0.05 / 100) * 100,
-      0,
-      Math.round(base * 0.05 / 100) * 100,
-      Math.round(base * 0.10 / 100) * 100,
-      Math.round(base * 0.20 / 100) * 100,
-    ];
-  }, [activeScenario.annualSavings]);
-  const sensitivityRows = useMemo(
-    () =>
-      sensitivityDeltas.map((delta) => {
-        const nextScenario = cloneScenario(activeScenario);
-        const otherContributionTotal = nextScenario.accounts
-          .filter((_, index) => index !== 0)
-          .reduce((total, account) => total + account.annualContribution, 0);
-        const nextAnnualSavings = Math.max(nextScenario.annualSavings + delta, 0);
-
-        nextScenario.accounts[0].annualContribution = Math.max(
-          nextAnnualSavings - otherContributionTotal,
-          0,
-        );
-        syncScenarioRollups(nextScenario);
-
-        const nextSummary = calculateQuickFireSummary(nextScenario);
-
-        return {
-          delta,
-          annualSavings: nextScenario.annualSavings,
-          yearsToFi: nextSummary.yearsToFi,
-          fireAge: nextSummary.fireAge,
-        };
-      }),
-    [activeScenario, sensitivityDeltas],
-  );
-
   function updateScenario(mutator: (scenario: Scenario) => void) {
     const nextScenario = cloneScenario(activeScenario);
     mutator(nextScenario);
@@ -1027,125 +977,6 @@ export function QuickFireWorkspace({
           </div>
         </div>
 
-        {variant === "module" ? (
-          <div className="space-y-6">
-            <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-              What-if analysis
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              {/* Savings sensitivity */}
-              <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  Savings sensitivity
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  How small changes to your savings rate shift the timeline.
-                </p>
-                <div className="mt-4 overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="text-muted-foreground">
-                      <tr>
-                        <th className="pb-2 pr-4 text-left font-medium">Scenario</th>
-                        <th className="pb-2 pr-4 text-right font-medium">Savings/yr</th>
-                        <th className="pb-2 text-right font-medium">Years to FI</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sensitivityRows.map((row, i) => (
-                        <tr
-                          key={i}
-                          className={cn(
-                            "border-t border-border/30",
-                            row.delta === 0 && "bg-[rgba(255,107,53,0.04)] font-medium",
-                          )}
-                        >
-                          <td className="py-2.5 pr-4">
-                            {row.delta === 0
-                              ? "Current plan"
-                              : `${row.delta > 0 ? "+" : ""}${formatPercent(row.delta / Math.max(activeScenario.annualSavings, 1), 0)}`}
-                          </td>
-                          <td className="py-2.5 pr-4 text-right tabular-nums">
-                            {formatCompactCurrency(row.annualSavings)}
-                          </td>
-                          <td className="py-2.5 text-right tabular-nums font-semibold">
-                            {formatYears(row.yearsToFi)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Shockingly simple math table */}
-              <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  Savings rate vs. time to FI
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Your time to FI depends on one number: how much of your take-home pay you save. Based on your {formatCompactCurrency(currentBalance)} starting balance.
-                </p>
-                <div className="mt-4 overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="text-muted-foreground">
-                      <tr>
-                        <th className="pb-2 pr-4 text-left font-medium">Save</th>
-                        <th className="pb-2 pr-4 text-right font-medium">Spend/yr</th>
-                        <th className="pb-2 pr-4 text-right font-medium">Need</th>
-                        <th className="pb-2 text-right font-medium">Years</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[US_BENCHMARKS.savingsRate, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].map((rate) => {
-                        const takeHome = taxEstimate.takeHome;
-                        const annualSavingsAtRate = takeHome * rate;
-                        const annualSpending = takeHome * (1 - rate);
-                        const fireTarget = annualSpending / activeScenario.assumptions.withdrawalRate;
-                        const effectiveReturn = activeScenario.assumptions.expectedRealReturn - activeScenario.simulationSettings.feeDrag;
-                        const yearsToFi = currentBalance >= fireTarget
-                          ? 0
-                          : calculateYearsToTarget({
-                              currentBalance,
-                              annualContribution: annualSavingsAtRate,
-                              targetBalance: fireTarget,
-                              annualRealReturn: effectiveReturn,
-                            });
-                        const userRate = taxEstimate.afterTaxSavingsRate;
-                        const isClosest = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].reduce((best, r) =>
-                          Math.abs(r - userRate) < Math.abs(best - userRate) ? r : best
-                        ) === rate;
-                        const isUsAvg = rate === US_BENCHMARKS.savingsRate;
-                        return (
-                          <tr
-                            key={rate}
-                            className={cn(
-                              "border-t border-border/30",
-                              isClosest && "bg-[rgba(255,107,53,0.04)]",
-                              isUsAvg && !isClosest && "bg-muted/30",
-                            )}
-                          >
-                            <td className="py-2.5 pr-4 tabular-nums">
-                              {formatPercent(rate, rate === US_BENCHMARKS.savingsRate ? 1 : 0)}
-                              {isClosest ? (
-                                <span className="ml-1.5 text-[0.65rem] font-bold uppercase text-[var(--ember)]">You</span>
-                              ) : null}
-                              {isUsAvg ? (
-                                <span className="ml-1.5 text-[0.65rem] font-medium uppercase text-muted-foreground">US Avg</span>
-                              ) : null}
-                            </td>
-                            <td className="py-2.5 pr-4 text-right tabular-nums">{formatCompactCurrency(annualSpending)}</td>
-                            <td className="py-2.5 pr-4 text-right tabular-nums">{formatCompactCurrency(fireTarget)}</td>
-                            <td className="py-2.5 text-right tabular-nums font-semibold">{formatYears(yearsToFi)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
 
         </div>
       </section>
