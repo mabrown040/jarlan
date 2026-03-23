@@ -38,6 +38,7 @@ import { Select } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import {
+  calculateFireNumber,
   formatCompactCurrency,
   formatCurrency,
   formatPercent,
@@ -45,6 +46,7 @@ import {
   getCurrentPortfolioBalance,
 } from "@/lib/calc";
 import { listScenarioSnapshots, type ScenarioSnapshotRecord } from "@/lib/db";
+import { cn } from "@/lib/utils";
 import type { Scenario } from "@/lib/domain/types";
 import { buildRetirementCheckup } from "@/lib/retirement";
 import {
@@ -116,9 +118,13 @@ function getMonteCarloMode(
 function buildScenarioForStrategy(
   scenario: Scenario,
   type: SupportedStrategyType,
+  overrideBalance?: number,
 ): Scenario {
   const nextScenario = cloneScenario(scenario);
   nextScenario.withdrawalStrategy.type = type;
+  if (overrideBalance !== undefined && nextScenario.accounts.length > 0) {
+    nextScenario.accounts[0].currentBalance = overrideBalance;
+  }
   return nextScenario;
 }
 
@@ -151,6 +157,7 @@ export function HistoricalBacktestWorkspace() {
   const monteCarloRequestTokenRef = useRef(0);
   const heatmapRequestTokenRef = useRef(0);
   const [copied, setCopied] = useState(false);
+  const [portfolioMode, setPortfolioMode] = useState<"fire-target" | "current">("fire-target");
   const [backtestStatus, setBacktestStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [backtestError, setBacktestError] = useState<string | null>(null);
   const [comparisonResults, setComparisonResults] = useState<
@@ -175,6 +182,16 @@ export function HistoricalBacktestWorkspace() {
       successRate: number;
     }>
   >([]);
+
+  const currentBalance = useMemo(
+    () => getCurrentPortfolioBalance(activeScenario.accounts),
+    [activeScenario.accounts],
+  );
+  const fireTarget = useMemo(
+    () => calculateFireNumber(activeScenario.retirementExpenses, activeScenario.assumptions.withdrawalRate),
+    [activeScenario.retirementExpenses, activeScenario.assumptions.withdrawalRate],
+  );
+  const effectivePortfolio = portfolioMode === "fire-target" ? fireTarget : currentBalance;
 
   useGlobalScenarioFormatting(activeScenario);
 
@@ -240,7 +257,7 @@ export function HistoricalBacktestWorkspace() {
           const simulationResult = (await runSimulation({
             kind: "historical",
             datasetVersion: simulationCapabilities.supportedHistoricalDatasets[0],
-            scenario: buildScenarioForStrategy(activeScenario, type),
+            scenario: buildScenarioForStrategy(activeScenario, type, effectivePortfolio),
           })) as HistoricalBacktestResult;
 
           return [type, simulationResult] as const;
@@ -268,7 +285,7 @@ export function HistoricalBacktestWorkspace() {
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [activeScenario, status]);
+  }, [activeScenario, effectivePortfolio, status]);
 
   useEffect(() => {
     if (status !== "ready") {
@@ -297,7 +314,10 @@ export function HistoricalBacktestWorkspace() {
         heatmapWithdrawalRates.flatMap((withdrawalRate) =>
           heatmapDurations.map(async (retirementDuration) => {
             const nextScenario = cloneScenario(activeScenario);
-            const startingBalance = getCurrentPortfolioBalance(nextScenario.accounts);
+            if (nextScenario.accounts.length > 0) {
+              nextScenario.accounts[0].currentBalance = effectivePortfolio;
+            }
+            const startingBalance = effectivePortfolio;
 
             nextScenario.withdrawalStrategy.type = strategyType;
             nextScenario.withdrawalStrategy.initialRate = withdrawalRate;
@@ -341,7 +361,7 @@ export function HistoricalBacktestWorkspace() {
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [activeScenario, status]);
+  }, [activeScenario, effectivePortfolio, status]);
 
   useEffect(() => {
     if (status !== "ready") {
@@ -353,9 +373,14 @@ export function HistoricalBacktestWorkspace() {
       setMonteCarloStatus("loading");
       setMonteCarloError(null);
 
+      const mcScenario = cloneScenario(activeScenario);
+      if (mcScenario.accounts.length > 0) {
+        mcScenario.accounts[0].currentBalance = effectivePortfolio;
+      }
+
       void runSimulation({
         kind: "monte-carlo",
-        scenario: activeScenario,
+        scenario: mcScenario,
         mode: getMonteCarloMode(activeScenario.simulationSettings.simulationType),
         trials: activeScenario.simulationSettings.monteCarloTrials,
       })
@@ -381,12 +406,8 @@ export function HistoricalBacktestWorkspace() {
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [activeScenario, status]);
+  }, [activeScenario, effectivePortfolio, status]);
 
-  const currentBalance = useMemo(
-    () => getCurrentPortfolioBalance(activeScenario.accounts),
-    [activeScenario.accounts],
-  );
   const monteCarloSimulationType = supportedMonteCarloTypes.includes(
     activeScenario.simulationSettings.simulationType as (typeof supportedMonteCarloTypes)[number],
   )
@@ -537,11 +558,34 @@ export function HistoricalBacktestWorkspace() {
         title="Withdrawal Lab"
         description="Compare withdrawal strategies against every historical start date since 1871."
         metrics={[
-          { label: "Portfolio", value: formatCompactCurrency(currentBalance) },
+          { label: "Testing with", value: formatCompactCurrency(effectivePortfolio), accent: portfolioMode === "fire-target" },
           { label: "Strategy", value: selectedStrategyMeta.label, accent: true },
           { label: "Success", value: result ? formatPercent(result.successRate, 1) : "Running..." },
         ]}
       />
+
+      {/* Portfolio mode toggle */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 p-1 text-sm">
+          {(["fire-target", "current"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={cn(
+                "rounded-full px-3 py-1 transition-colors",
+                portfolioMode === mode
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => setPortfolioMode(mode)}
+            >
+              {mode === "fire-target"
+                ? `FIRE target (${formatCompactCurrency(fireTarget)})`
+                : `Current portfolio (${formatCompactCurrency(currentBalance)})`}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="mx-auto max-w-7xl px-6">
         <div className="space-y-8">
