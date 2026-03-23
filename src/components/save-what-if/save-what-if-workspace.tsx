@@ -31,7 +31,7 @@ import {
   type LifeDecision,
   type DecisionParam,
 } from "@/lib/scenario-lab/life-decisions";
-import { buildSensitivityAnalysis } from "@/lib/scenario-lab/analysis";
+// buildSensitivityAnalysis removed — replaced by year-by-year comparison table
 import {
   SCENARIO_QUERY_KEY,
   deserializeScenarioFromSearchParam,
@@ -228,11 +228,6 @@ export default function SaveWhatIfWorkspace() {
       };
     });
   }, [resolvedDecisions, activeScenario, baseSummary]);
-
-  const sensitivity = useMemo(
-    () => buildSensitivityAnalysis(activeScenario),
-    [activeScenario],
-  );
 
   const savingsRateRows = useMemo(
     () =>
@@ -596,35 +591,125 @@ export default function SaveWhatIfWorkspace() {
           ) : null}
         </ChartShell>
 
-        {/* ---- Section 4: Sensitivity (collapsed) ---- */}
+        {/* ---- Section 4: Year-by-year comparison (collapsed) ---- */}
         <CollapsibleSection
-          title="What moves the plan the most"
-          summary="4 key levers ranked by impact"
+          title="Year-by-year breakdown"
+          summary={
+            selectedIds.size > 0
+              ? `${baseSummary.projection.length} years · comparing base vs ${selectedIds.size} change${selectedIds.size === 1 ? "" : "s"}`
+              : `${baseSummary.projection.length} years`
+          }
         >
-          <div className="space-y-4">
-            {sensitivity.map((item, index) => (
-              <div key={item.label} className="space-y-2">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium text-foreground">
-                    <span className="mr-2 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-                      {index + 1}
-                    </span>
-                    {item.label}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {item.improvementYears.toFixed(1)} years faster
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{
-                      width: `${Math.min(Math.max(item.improvementYears * 10, 0), 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                  <th className="pb-3 pr-4 font-medium">Year</th>
+                  <th className="pb-3 pr-4 font-medium">Age</th>
+                  <th className="pb-3 pr-4 font-medium">Base portfolio</th>
+                  {combinedSummary ? (
+                    <>
+                      <th className="pb-3 pr-4 font-medium">With changes</th>
+                      <th className="pb-3 pr-4 font-medium">Difference</th>
+                    </>
+                  ) : null}
+                  <th className="pb-3 pr-4 font-medium">% to FI</th>
+                  <th className="pb-3 font-medium">Target</th>
+                </tr>
+              </thead>
+              <tbody>
+                {baseSummary.projection.map((point, i) => {
+                  const compPoint = combinedSummary?.projection[i];
+                  const diff = compPoint
+                    ? compPoint.balance - point.balance
+                    : 0;
+                  const pctToFi = Math.min(
+                    (point.balance / point.target) * 100,
+                    100,
+                  );
+                  const compPctToFi = compPoint
+                    ? Math.min(
+                        (compPoint.balance / compPoint.target) * 100,
+                        100,
+                      )
+                    : null;
+                  const baseHitFi = pctToFi >= 100;
+                  const compHitFi = compPctToFi !== null && compPctToFi >= 100;
+
+                  return (
+                    <tr
+                      key={point.year}
+                      className={cn(
+                        "border-b border-border/50 transition-colors",
+                        baseHitFi &&
+                          !compHitFi &&
+                          "bg-[rgba(255,107,53,0.04)]",
+                        compHitFi && "bg-emerald-50/50 dark:bg-emerald-950/10",
+                      )}
+                    >
+                      <td className="py-2.5 pr-4 tabular-nums">{point.year}</td>
+                      <td className="py-2.5 pr-4 tabular-nums">{point.age}</td>
+                      <td className="py-2.5 pr-4 tabular-nums font-medium">
+                        {formatCompactCurrency(point.balance)}
+                      </td>
+                      {combinedSummary ? (
+                        <>
+                          <td
+                            className={cn(
+                              "py-2.5 pr-4 tabular-nums font-medium",
+                              compHitFi && "text-emerald-600",
+                            )}
+                          >
+                            {compPoint
+                              ? formatCompactCurrency(compPoint.balance)
+                              : "—"}
+                          </td>
+                          <td
+                            className={cn(
+                              "py-2.5 pr-4 tabular-nums text-xs",
+                              diff > 0
+                                ? "text-emerald-600"
+                                : diff < 0
+                                  ? "text-red-500"
+                                  : "text-muted-foreground",
+                            )}
+                          >
+                            {diff === 0
+                              ? "—"
+                              : diff > 0
+                                ? `+${formatCompactCurrency(diff)}`
+                                : `-${formatCompactCurrency(Math.abs(diff))}`}
+                          </td>
+                        </>
+                      ) : null}
+                      <td className="py-2.5 pr-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                pctToFi >= 100
+                                  ? "bg-emerald-500"
+                                  : "bg-[var(--ember)]",
+                              )}
+                              style={{
+                                width: `${Math.min(pctToFi, 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="tabular-nums text-xs text-muted-foreground">
+                            {Math.round(pctToFi)}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 tabular-nums text-xs text-muted-foreground">
+                        {formatCompactCurrency(point.target)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </CollapsibleSection>
 

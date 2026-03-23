@@ -14,7 +14,7 @@ import {
 import { calculateQuickFireSummary } from "@/lib/calc";
 
 function applyDecisionToScenario(
-  scenario: ReturnType<typeof createTrinityClassicScenario>,
+  scenario: ReturnType<typeof createCoastAccumulatorScenario>,
   id: string,
   overrides: Record<string, number> = {},
 ) {
