@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 
-import { HistoricalBacktestWorkspace } from "@/components/withdrawal/historical-backtest-workspace";
+import CanIRetireWorkspace from "@/components/withdrawal/can-i-retire-workspace";
 
 export default function WithdrawalPage() {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-7xl px-6 py-12">Loading withdrawal module...</div>}>
-      <HistoricalBacktestWorkspace />
+    <Suspense fallback={<div className="mx-auto max-w-7xl px-6 py-12">Loading retirement analysis...</div>}>
+      <CanIRetireWorkspace />
     </Suspense>
   );
 }
