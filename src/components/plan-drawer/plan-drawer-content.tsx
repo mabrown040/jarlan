@@ -26,7 +26,7 @@ import type {
   CurrencyCode,
   Scenario,
 } from "@/lib/domain/types";
-import { getCountryPreset, listCountryPresets } from "@/lib/data";
+import { getCountryPreset, listCountryPresets, listStateTaxPresets } from "@/lib/data";
 import { useScenarioStore } from "@/lib/store";
 import { estimateScenarioTax } from "@/lib/tax";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,7 @@ const accountOwnerOptions: Array<{ value: AccountOwner; label: string }> = [
 ];
 
 const countryPresets = listCountryPresets();
+const stateTaxPresets = listStateTaxPresets();
 const currencyOptions: Array<{ value: CurrencyCode; label: string }> = [
   { value: "USD", label: "US Dollar (USD)" },
   { value: "CAD", label: "Canadian Dollar (CAD)" },
@@ -247,7 +248,7 @@ export function PlanDrawerContent() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <FieldLabel htmlFor="drawer-ret-age" label="Retire at" tooltip="Target age for financial independence. Coast FIRE calculations use this as the compounding horizon." />
-              <NumberInput id="drawer-ret-age" min={18} max={90} inputMode="numeric" value={activeScenario.profile.retirementAge ?? activeScenario.profile.age} onValueChange={updateRetirementAge} />
+              <NumberInput id="drawer-ret-age" min={18} max={90} inputMode="numeric" value={activeScenario.profile.retirementAge ?? activeScenario.profile.age} onValueChange={(v) => { updateRetirementAge(v); updateScenario((s) => { s.simulationSettings.retirementDuration = Math.max(10, 100 - v); }); }} />
             </div>
             <div className="space-y-1.5">
               <FieldLabel htmlFor="drawer-ret-duration" label="Plan horizon" tooltip="How many years the backtest models. ERN recommends 50-60 years for early retirees." />
@@ -277,7 +278,10 @@ export function PlanDrawerContent() {
             <Slider id="drawer-wr" min={0.025} max={0.06} step={0.001} value={[activeScenario.assumptions.withdrawalRate]} onValueChange={([v]) => updateWithdrawalRate(v)} />
           </div>
           <div className="space-y-1.5">
-            <FieldLabel htmlFor="drawer-strategy" label="Strategy" tooltip="The withdrawal method for drawing income each year. Different strategies handle market volatility differently." />
+            <div className="flex items-center justify-between">
+              <FieldLabel htmlFor="drawer-strategy" label="Strategy" tooltip="The withdrawal method for drawing income each year. Different strategies handle market volatility differently." />
+              <a href="/education#safe-withdrawal-rate" className="text-xs font-medium text-primary transition-colors hover:text-primary/80">Learn more →</a>
+            </div>
             <Select id="drawer-strategy" value={activeScenario.withdrawalStrategy.type} onChange={(e) => updateScenario((s) => { s.withdrawalStrategy.type = e.target.value as typeof s.withdrawalStrategy.type; })}>
               <option value="fixed">Fixed real (4% rule)</option>
               <option value="cape_dynamic">CAPE-based dynamic (ERN)</option>
@@ -467,10 +471,19 @@ export function PlanDrawerContent() {
                 {currencyOptions.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
               </Select>
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <FieldLabel htmlFor="drawer-state" label={countryPreset.stateLabel} tooltip="State/province for state income tax estimates." />
-              <Input id="drawer-state" value={activeScenario.profile.state} onChange={(e) => replaceScenario({ ...cloneScenario(activeScenario), profile: { ...activeScenario.profile, state: e.target.value } })} />
-            </div>
+            {countryPreset.code === "US" ? (
+              <div className="space-y-1.5 sm:col-span-2">
+                <FieldLabel htmlFor="drawer-state" label="State" tooltip="Used for state income tax estimates. No-income-tax states (TX, FL, etc.) show 0%." />
+                <Select id="drawer-state" value={activeScenario.profile.state} onChange={(e) => replaceScenario({ ...cloneScenario(activeScenario), profile: { ...activeScenario.profile, state: e.target.value } })}>
+                  {stateTaxPresets.map((s) => (<option key={s.code} value={s.code}>{s.label} ({s.code})</option>))}
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-1.5 sm:col-span-2">
+                <FieldLabel htmlFor="drawer-state" label={countryPreset.stateLabel} tooltip="State/province/region for your location." />
+                <Input id="drawer-state" value={activeScenario.profile.state} onChange={(e) => replaceScenario({ ...cloneScenario(activeScenario), profile: { ...activeScenario.profile, state: e.target.value } })} />
+              </div>
+            )}
           </div>
         </div>
       </CollapsibleSection>

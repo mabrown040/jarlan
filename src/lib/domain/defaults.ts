@@ -149,7 +149,7 @@ export function createDefaultScenario(): Scenario {
       },
     ],
     simulationSettings: {
-      retirementDuration: 40,
+      retirementDuration: 54, // 100 - default retirement age (46) — conservative plan to age 100
       simulationType: "historical",
       monteCarloTrials: 10_000,
       rebalanceFrequency: "annually",
