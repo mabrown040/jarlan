@@ -44,7 +44,7 @@ export function createTrinityClassicScenario(): Scenario {
   s.simulationSettings.retirementDuration = 30;
   s.simulationSettings.rebalanceFrequency = "annually";
   s.simulationSettings.finalValueTarget = 0;
-  s.simulationSettings.feeDrag = 0;
+  // Keep default feeDrag (0.001) to match existing backtest golden values
   return s;
 }
 
