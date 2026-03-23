@@ -118,15 +118,15 @@ function getEffectiveMonthlyReturn(scenario: Scenario) {
  */
 function getMonthlyContributionForYear(scenario: Scenario, yearOffset: number) {
   const incomeGrowth = 1 + (scenario.assumptions.incomeGrowthRate ?? 0);
-  const expenseGrowth = 1 + (scenario.assumptions.expenseGrowthRate ?? 0);
-  const grownIncome = scenario.annualIncome * incomeGrowth ** yearOffset;
-  const grownExpenses = scenario.annualExpenses * expenseGrowth ** yearOffset;
-  const baseSavings = Math.max(grownIncome - grownExpenses, 0);
-  // Also add employer match and other contributions that scale with income
+  // Use the scenario's actual after-tax savings (set by the drawer/tax system)
+  // and grow it by income growth rate. This is tax-aware because annualSavings
+  // is already computed as takeHome - expenses.
+  const grownSavings = scenario.annualSavings * incomeGrowth ** yearOffset;
+  // Also consider explicit account contributions (may be different from savings)
   const baseContribution = getPlannedAnnualInvestmentContribution(scenario);
   const scaledContribution = baseContribution * incomeGrowth ** yearOffset;
-  // Use the larger of income-minus-expenses or scaled contributions
-  const annualContribution = Math.max(baseSavings, scaledContribution);
+  // Use the larger of tax-aware savings or scaled contributions
+  const annualContribution = Math.max(grownSavings, scaledContribution);
   return annualContribution / 12;
 }
 
@@ -177,8 +177,13 @@ export function buildScenarioProjection({
 
   // Year 0: compute current income/expenses
   const year0CfBreakdown = getCashFlowBreakdownAtAge(scenario, scenario.profile.age);
-  const year0DisplayIncome = Math.max(scenario.annualIncome + year0CfBreakdown.income - year0CfBreakdown.lostIncome, 0);
-  const year0DisplayExpenses = scenario.annualExpenses + year0CfBreakdown.expense - year0CfBreakdown.lostIncome;
+  const year0OnBreak = year0CfBreakdown.lostIncome > 0;
+  const year0DisplayIncome = year0OnBreak
+    ? year0CfBreakdown.income
+    : scenario.annualIncome + year0CfBreakdown.income;
+  const year0DisplayExpenses = year0OnBreak
+    ? scenario.annualExpenses
+    : scenario.annualExpenses + year0CfBreakdown.expense;
   projection.push({
     year: 0,
     age: scenario.profile.age,
@@ -217,10 +222,16 @@ export function buildScenarioProjection({
       const grownIncome = scenario.annualIncome * (1 + incomeGrowthRate) ** yearNum;
       const grownExpenses = scenario.annualExpenses * (1 + expenseGrowthRate) ** yearNum;
 
-      // Career break "net cost" CFs represent lost income, not extra expenses.
-      // Subtract lostIncome from the expense total and from income instead.
-      const displayIncome = Math.max(grownIncome + cfBreakdown.income - cfBreakdown.lostIncome, 0);
-      const displayExpenses = grownExpenses + cfBreakdown.expense - cfBreakdown.lostIncome;
+      // Career break handling: when a "Career break net cost" CF is active,
+      // income should show as breakIncome (from income CFs), not grownIncome.
+      // Expenses remain unchanged (the user still spends the same).
+      const onCareerBreak = cfBreakdown.lostIncome > 0;
+      const displayIncome = onCareerBreak
+        ? cfBreakdown.income  // Just break income (e.g., $0 or severance)
+        : grownIncome + cfBreakdown.income;
+      const displayExpenses = onCareerBreak
+        ? grownExpenses  // Normal expenses (no inflated "net cost")
+        : grownExpenses + cfBreakdown.expense;
 
       projection.push({
         year: yearNum,
