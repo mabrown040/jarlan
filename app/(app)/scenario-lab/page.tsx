@@ -1,11 +1,11 @@
 import { Suspense } from "react";
 
-import { ScenarioLabWorkspace } from "@/components/scenario-lab/scenario-lab-workspace";
+import WhatIfWorkspace from "@/components/scenario-lab/what-if-workspace";
 
 export default function ScenarioLabPage() {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-7xl px-6 py-12">Loading scenario lab...</div>}>
-      <ScenarioLabWorkspace />
+    <Suspense fallback={<div className="mx-auto max-w-7xl px-6 py-12">Loading what-if analysis...</div>}>
+      <WhatIfWorkspace />
     </Suspense>
   );
 }
