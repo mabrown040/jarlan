@@ -12,6 +12,7 @@ import {
 } from "@/components/brand";
 import { useHasExistingDraft } from "@/lib/hooks/use-has-existing-draft";
 import { ProjectionChart, ChartLegend, findCrossoverYear } from "@/components/landing/projection-chart";
+import { US_BENCHMARKS, estimateNetWorthPercentile } from "@/lib/data/benchmarks";
 import { buildScenarioProjection } from "@/lib/calc/quick-fire";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { Button } from "@/components/ui/button";
@@ -800,6 +801,14 @@ export function QuickFireWorkspace({
                     </div>
                     <p className="text-sm text-muted-foreground">{formatPercent(summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0, 0)} there · {formatCompactCurrency(currentBalance)} saved</p>
                   </div>
+                  {currentBalance > 0 ? (() => {
+                    const pct = estimateNetWorthPercentile(currentBalance, activeScenario.profile.age);
+                    return pct > 55 ? (
+                      <p className="mt-2 text-xs text-muted-foreground/70">
+                        Your {formatCompactCurrency(currentBalance)} puts you ahead of ~{pct}% of Americans your age.
+                      </p>
+                    ) : null;
+                  })() : null}
                 </button>
                 <button
                   type="button"
@@ -821,6 +830,11 @@ export function QuickFireWorkspace({
                   <p className="mt-3 text-sm text-muted-foreground">
                     {formatCompactCurrency(activeScenario.annualSavings)}/yr at {formatPercent(activeScenario.assumptions.expectedRealReturn, 0)} real return
                   </p>
+                  {summary.fireAge !== null && summary.fireAge < US_BENCHMARKS.averageRetirementAge ? (
+                    <p className="mt-2 text-xs text-muted-foreground/70">
+                      The average American retires at {US_BENCHMARKS.averageRetirementAge}. You&apos;re on track for {summary.fireAge} — that&apos;s {US_BENCHMARKS.averageRetirementAge - summary.fireAge} extra years of freedom.
+                    </p>
+                  ) : null}
                 </button>
                 <button
                   type="button"
@@ -837,6 +851,22 @@ export function QuickFireWorkspace({
                   <p className="mt-3 text-sm text-muted-foreground">
                     {formatCompactCurrency(taxEstimate.actualSavings)} of {formatCompactCurrency(taxEstimate.takeHome)} take-home
                   </p>
+                  {taxEstimate.afterTaxSavingsRate > US_BENCHMARKS.savingsRate ? (() => {
+                    const multiple = Math.round(taxEstimate.afterTaxSavingsRate / US_BENCHMARKS.savingsRate);
+                    return multiple >= 2 ? (
+                      <p className="mt-2 text-xs text-muted-foreground/70">
+                        The US average is {(US_BENCHMARKS.savingsRate * 100).toFixed(1)}%. You save {multiple}× more than most Americans.
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-xs text-muted-foreground/70">
+                        Above the US average of {(US_BENCHMARKS.savingsRate * 100).toFixed(1)}%.
+                      </p>
+                    );
+                  })() : taxEstimate.afterTaxSavingsRate > 0 ? (
+                    <p className="mt-2 text-xs text-muted-foreground/70">
+                      Every dollar saved brings you closer. Even small increases make a big difference over time.
+                    </p>
+                  ) : null}
                 </button>
                 <button
                   type="button"
@@ -1066,7 +1096,7 @@ export function QuickFireWorkspace({
                       </tr>
                     </thead>
                     <tbody>
-                      {[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].map((rate) => {
+                      {[US_BENCHMARKS.savingsRate, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].map((rate) => {
                         const takeHome = taxEstimate.takeHome;
                         const annualSavingsAtRate = takeHome * rate;
                         const annualSpending = takeHome * (1 - rate);
@@ -1084,18 +1114,23 @@ export function QuickFireWorkspace({
                         const isClosest = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].reduce((best, r) =>
                           Math.abs(r - userRate) < Math.abs(best - userRate) ? r : best
                         ) === rate;
+                        const isUsAvg = rate === US_BENCHMARKS.savingsRate;
                         return (
                           <tr
                             key={rate}
                             className={cn(
                               "border-t border-border/30",
                               isClosest && "bg-[rgba(255,107,53,0.04)]",
+                              isUsAvg && !isClosest && "bg-muted/30",
                             )}
                           >
                             <td className="py-2.5 pr-4 tabular-nums">
-                              {formatPercent(rate, 0)}
+                              {formatPercent(rate, rate === US_BENCHMARKS.savingsRate ? 1 : 0)}
                               {isClosest ? (
                                 <span className="ml-1.5 text-[0.65rem] font-bold uppercase text-[var(--ember)]">You</span>
+                              ) : null}
+                              {isUsAvg ? (
+                                <span className="ml-1.5 text-[0.65rem] font-medium uppercase text-muted-foreground">US Avg</span>
                               ) : null}
                             </td>
                             <td className="py-2.5 pr-4 text-right tabular-nums">{formatCompactCurrency(annualSpending)}</td>
