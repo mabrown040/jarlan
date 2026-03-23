@@ -267,12 +267,43 @@ export default function SaveWhatIfWorkspace() {
     return { deltaYears, deltaFireNumber };
   }, [combinedSummary, baseSummary]);
 
-  /* ---- Chart milestones (events + FI) ---- */
+  /* ---- Chart milestones (Coast FIRE, base FIRE, events, combined FIRE) ---- */
   const chartMilestones = useMemo((): MilestoneMarker[] => {
     const markers: MilestoneMarker[] = [];
     const age = activeScenario.profile.age;
+    const retAge = activeScenario.profile.retirementAge ?? age;
+    const effectiveReturn = activeScenario.assumptions.expectedRealReturn - (activeScenario.simulationSettings?.feeDrag ?? 0);
+    const wr = activeScenario.assumptions.withdrawalRate;
+    const expenses = activeScenario.retirementExpenses || activeScenario.annualExpenses;
 
-    // Add event start markers from selected decisions
+    // Coast FIRE: when balance reaches coastTarget (compounding alone finishes)
+    const coastTarget = baseSummary.fireNumber / Math.pow(1 + effectiveReturn, Math.max(retAge - age, 1));
+    const coastPoint = baseSummary.projection.find(
+      (p, i) => i > 0 && p.balance >= coastTarget,
+    );
+    if (coastPoint) {
+      markers.push({
+        year: coastPoint.year,
+        label: "Coast FIRE",
+        target: coastTarget,
+        description: `At ${formatCompactCurrency(coastTarget)} saved, compounding finishes the job by retirement.`,
+      });
+    }
+
+    // Base FIRE: when base scenario crosses target
+    const baseFiPoint = baseSummary.projection.find(
+      (p, i) => i > 0 && p.balance >= p.target,
+    );
+    if (baseFiPoint) {
+      markers.push({
+        year: baseFiPoint.year,
+        label: combinedSummary ? "FIRE (base)" : "FIRE",
+        target: baseSummary.fireNumber,
+        description: `${formatCompactCurrency(baseSummary.fireNumber)} sustains ${formatCompactCurrency(expenses)}/yr at ${(wr * 100).toFixed(0)}% WR.`,
+      });
+    }
+
+    // Event start markers from selected decisions
     for (const d of selectedDecisions) {
       const vals: Record<string, number> = {};
       for (const p of d.template.params) {
@@ -288,22 +319,23 @@ export default function SaveWhatIfWorkspace() {
       }
     }
 
-    // Add FI milestone for combined scenario
+    // Combined scenario FIRE (only when different from base)
     if (combinedSummary) {
-      const fiPoint = combinedSummary.projection.find(
+      const compFiPoint = combinedSummary.projection.find(
         (p, i) => i > 0 && p.balance >= p.target,
       );
-      if (fiPoint) {
+      if (compFiPoint && (!baseFiPoint || compFiPoint.year !== baseFiPoint.year)) {
         markers.push({
-          year: fiPoint.year,
-          label: "FIRE",
-          description: `FI at age ${Math.round(fiPoint.age)}`,
+          year: compFiPoint.year,
+          label: "FIRE (with changes)",
+          target: combinedSummary.fireNumber,
+          description: `FI at age ${Math.round(compFiPoint.age)} with selected changes.`,
         });
       }
     }
 
     return markers;
-  }, [selectedDecisions, combinedSummary, activeScenario.profile.age, baseSummary.projection.length, customValues]);
+  }, [selectedDecisions, combinedSummary, baseSummary, activeScenario, customValues]);
 
   /* ---- Find closest savings rate row for user highlight ---- */
   function isClosestToUser(rate: number): boolean {
