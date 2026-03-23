@@ -320,7 +320,9 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
       },
       apply: (s, v) => {
         const next = cloneScenario(s);
-        const baseReturn = s.assumptions.expectedRealReturn;
+        // Use the ORIGINAL base return (before any market event modifications)
+        // to prevent double-blending when composing multiple decisions
+        const baseReturn = v._originalBaseReturn ?? s.assumptions.expectedRealReturn;
         const yearsToRetirement = Math.max((s.profile.retirementAge ?? s.profile.age + 15) - s.profile.age, 1);
         const eventStart = Math.max(v.startAge - s.profile.age, 0);
         const eventEnd = Math.min(eventStart + v.duration, yearsToRetirement);

@@ -139,7 +139,7 @@ export default function SaveWhatIfWorkspace() {
   useGlobalScenarioFormatting(activeScenario);
 
   /* ---- Selection + custom param state ---- */
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [customValues, setCustomValues] = useState<
     Record<string, Record<string, number>>
   >({});
@@ -247,17 +247,29 @@ export default function SaveWhatIfWorkspace() {
 
   const userSavingsRate = getSavingsRate(activeScenario);
 
-  /* ---- Selected decision + computed comparison summary ---- */
-  const selectedDecision =
-    resolvedDecisions.find((d) => d.id === selectedId) ?? null;
+  /* ---- Combined multi-select scenario ---- */
+  const selectedDecisions = useMemo(
+    () => resolvedDecisions.filter((d) => selectedIds.has(d.id)),
+    [resolvedDecisions, selectedIds],
+  );
 
-  const selectedSummary = useMemo(() => {
-    if (!selectedDecision) return null;
-    return calculateQuickFireSummary(selectedDecision.apply(activeScenario));
-  }, [selectedDecision, activeScenario]);
+  const combinedSummary = useMemo(() => {
+    if (selectedIds.size === 0) return null;
+    let combined = activeScenario;
+    for (const d of selectedDecisions) {
+      combined = d.apply(combined);
+    }
+    return calculateQuickFireSummary(combined);
+  }, [selectedDecisions, selectedIds, activeScenario]);
 
-  const selectedResult =
-    decisionResults.find((r) => r.decision.id === selectedId) ?? null;
+  const combinedDelta = useMemo(() => {
+    if (!combinedSummary) return null;
+    const deltaYears =
+      (baseSummary.yearsToFi ?? Infinity) -
+      (combinedSummary.yearsToFi ?? Infinity);
+    const deltaFireNumber = combinedSummary.fireNumber - baseSummary.fireNumber;
+    return { deltaYears, deltaFireNumber };
+  }, [combinedSummary, baseSummary]);
 
   /* ---- Find closest savings rate row for user highlight ---- */
   function isClosestToUser(rate: number): boolean {
@@ -276,20 +288,26 @@ export default function SaveWhatIfWorkspace() {
 
   /* ---- Handlers ---- */
   function handleCardClick(id: string) {
-    if (selectedId === id) {
-      // Deselect: clear custom values for this decision
-      setSelectedId(null);
-    } else {
-      // Switch selection: clear custom values for the previously selected decision
-      if (selectedId) {
-        setCustomValues((prev) => {
-          const next = { ...prev };
-          delete next[selectedId];
-          return next;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+        // Clear custom values for deselected decision
+        setCustomValues((cv) => {
+          const updated = { ...cv };
+          delete updated[id];
+          return updated;
         });
+      } else {
+        next.add(id);
       }
-      setSelectedId(id);
-    }
+      return next;
+    });
+  }
+
+  function clearAll() {
+    setSelectedIds(new Set());
+    setCustomValues({});
   }
 
   const updateParam = useCallback(
@@ -332,8 +350,8 @@ export default function SaveWhatIfWorkspace() {
         {/* ---- Section 1: Comparison Chart ---- */}
         <ChartShell
           title={
-            selectedDecision
-              ? `${selectedDecision.emoji} ${selectedDecision.label}`
+            selectedIds.size > 0
+              ? `With ${selectedIds.size} change${selectedIds.size === 1 ? "" : "s"}`
               : "Your base case"
           }
         >
@@ -341,16 +359,30 @@ export default function SaveWhatIfWorkspace() {
             data={baseSummary.projection}
             annualContribution={plannedContribution}
             startAge={activeScenario.profile.age}
-            comparisonData={selectedSummary?.projection}
-            comparisonLabel={selectedDecision?.label}
+            comparisonData={combinedSummary?.projection}
+            comparisonLabel={
+              selectedIds.size === 1
+                ? selectedDecisions[0]?.label
+                : selectedIds.size > 1
+                  ? `Combined (${selectedIds.size})`
+                  : undefined
+            }
           />
           <div className="mt-3">
-            <ChartLegend comparisonLabel={selectedDecision?.label} />
+            <ChartLegend
+              comparisonLabel={
+                selectedIds.size === 1
+                  ? selectedDecisions[0]?.label
+                  : selectedIds.size > 1
+                    ? `Combined (${selectedIds.size})`
+                    : undefined
+              }
+            />
           </div>
         </ChartShell>
 
-        {/* ---- Section 2: Impact Summary (only when selected) ---- */}
-        {selectedResult && selectedSummary ? (
+        {/* ---- Section 2: Impact Summary (when any selected) ---- */}
+        {combinedSummary && combinedDelta ? (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
               {/* Card 1: Your plan */}
@@ -360,47 +392,89 @@ export default function SaveWhatIfWorkspace() {
                 description={`${formatYears(baseSummary.yearsToFi)} to FI${baseSummary.fireAge !== null ? ` (age ${Math.round(baseSummary.fireAge)})` : ""}`}
               />
 
-              {/* Card 2: With decision */}
+              {/* Card 2: Combined scenario */}
               <StatCard
-                label={`With ${selectedResult.decision.emoji} ${selectedResult.decision.label}`}
-                value={formatCompactCurrency(selectedSummary.fireNumber)}
-                description={`${formatYears(selectedSummary.yearsToFi)} to FI${selectedSummary.fireAge !== null ? ` (age ${Math.round(selectedSummary.fireAge)})` : ""}`}
+                label={`With ${selectedIds.size} change${selectedIds.size === 1 ? "" : "s"}`}
+                value={formatCompactCurrency(combinedSummary.fireNumber)}
+                description={`${formatYears(combinedSummary.yearsToFi)} to FI${combinedSummary.fireAge !== null ? ` (age ${Math.round(combinedSummary.fireAge)})` : ""}`}
                 tone="accent"
               />
 
-              {/* Card 3: Impact */}
+              {/* Card 3: Combined impact */}
               <StatCard
-                label="Impact"
+                label="Combined impact"
                 value={
-                  selectedResult.deltaYears === 0
+                  combinedDelta.deltaYears === 0
                     ? "No change"
-                    : selectedResult.deltaYears > 0
-                      ? `${Math.abs(selectedResult.deltaYears).toFixed(1)} yrs sooner`
-                      : `${Math.abs(selectedResult.deltaYears).toFixed(1)} yrs later`
+                    : combinedDelta.deltaYears > 0
+                      ? `${Math.abs(combinedDelta.deltaYears).toFixed(1)} yrs sooner`
+                      : `${Math.abs(combinedDelta.deltaYears).toFixed(1)} yrs later`
                 }
                 description={
-                  Math.abs(selectedResult.deltaFireNumber) >= 500
-                    ? `Target ${selectedResult.deltaFireNumber > 0 ? "+" : "-"}${formatCompactCurrency(Math.abs(selectedResult.deltaFireNumber))} ${selectedResult.deltaYears > 0 ? "\u2191" : selectedResult.deltaYears < 0 ? "\u2193" : ""}`
-                    : `${selectedResult.deltaYears > 0 ? "\u2191 Closer to FI" : selectedResult.deltaYears < 0 ? "\u2193 Further from FI" : "No change"}`
+                  Math.abs(combinedDelta.deltaFireNumber) >= 500
+                    ? `Target ${combinedDelta.deltaFireNumber > 0 ? "+" : "-"}${formatCompactCurrency(Math.abs(combinedDelta.deltaFireNumber))} ${combinedDelta.deltaYears > 0 ? "\u2191" : combinedDelta.deltaYears < 0 ? "\u2193" : ""}`
+                    : `${combinedDelta.deltaYears > 0 ? "\u2191 Closer to FI" : combinedDelta.deltaYears < 0 ? "\u2193 Further from FI" : "No change"}`
                 }
                 tone={
-                  selectedResult.deltaYears > 0
+                  combinedDelta.deltaYears > 0
                     ? "success"
-                    : selectedResult.deltaYears < 0
+                    : combinedDelta.deltaYears < 0
                       ? "danger"
                       : "default"
                 }
               />
             </div>
-            <div className="flex justify-center">
+
+            {/* Active decisions tags */}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {selectedDecisions.map((d) => {
+                const result = decisionResults.find(
+                  (r) => r.decision.id === d.id,
+                );
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => handleCardClick(d.id)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--ember)]/30 bg-[rgba(255,107,53,0.06)] px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-[rgba(255,107,53,0.12)]"
+                  >
+                    <span>{d.emoji}</span>
+                    <span>{d.label}</span>
+                    {result ? (
+                      <span
+                        className={cn(
+                          "ml-0.5 text-[10px]",
+                          result.deltaYears > 0
+                            ? "text-emerald-600"
+                            : result.deltaYears < 0
+                              ? "text-red-500"
+                              : "text-muted-foreground",
+                        )}
+                      >
+                        ({result.deltaYears > 0 ? "-" : "+"}
+                        {Math.abs(result.deltaYears).toFixed(1)}yr)
+                      </span>
+                    ) : null}
+                    <span className="text-muted-foreground/60">×</span>
+                  </button>
+                );
+              })}
               <button
                 type="button"
-                onClick={() => setSelectedId(null)}
-                className="rounded-lg border border-border/60 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                onClick={clearAll}
+                className="rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
               >
-                Reset comparison
+                Clear all
               </button>
             </div>
+
+            {/* Note about interaction effects */}
+            {selectedIds.size > 1 ? (
+              <p className="text-center text-[11px] text-muted-foreground/60">
+                Combined impact may differ from the sum of individual changes
+                due to interaction effects.
+              </p>
+            ) : null}
           </div>
         ) : null}
 
@@ -412,7 +486,7 @@ export default function SaveWhatIfWorkspace() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {decisionResults.map((result) => {
               const { decision, deltaYears, deltaFireNumber } = result;
-              const isSelected = selectedId === decision.id;
+              const isSelected = selectedIds.has(decision.id);
               const sooner = deltaYears > 0;
               const fireNumberChanged = Math.abs(deltaFireNumber) >= 500;
 
@@ -515,9 +589,9 @@ export default function SaveWhatIfWorkspace() {
               );
             })}
           </div>
-          {!selectedId ? (
+          {selectedIds.size === 0 ? (
             <p className="mt-4 text-center text-xs text-muted-foreground/60">
-              Click any card to see its impact on the chart above
+              Click any card to see its impact — select multiple to combine
             </p>
           ) : null}
         </ChartShell>
