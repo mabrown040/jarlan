@@ -267,7 +267,7 @@ function MilestoneLabel({
         </>
       )}
       {showTip && milestone.description ? (
-        <foreignObject x={x - 150} y={labelY + 14} width={300} height={90}>
+        <foreignObject x={x - 150} y={labelY - 70} width={300} height={60}>
           <div className="rounded-xl border border-[var(--ember)]/20 bg-[var(--card)] px-4 py-3 text-[13px] leading-relaxed text-foreground shadow-xl">
             <span className="mr-1 text-[var(--ember)]">{"\u2726"}</span>
             {milestone.description}
@@ -459,7 +459,7 @@ export function ProjectionChart({
             // Sort milestones by year and assign vertical offsets to avoid overlap
             const sorted = [...milestones].sort((a, b) => a.year - b.year);
             const OVERLAP_THRESHOLD = 2; // years apart considered "close"
-            const STAGGER_PX = 22; // vertical offset per stagger level
+            const STAGGER_PX = 16; // vertical offset per stagger level
             let prevYear = -999;
             let staggerLevel = 0;
             for (const m of sorted) {
