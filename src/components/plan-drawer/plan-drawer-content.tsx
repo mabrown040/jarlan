@@ -58,7 +58,7 @@ const currencyOptions: Array<{ value: CurrencyCode; label: string }> = [
 ];
 
 const withdrawalStrategyLabels: Record<string, string> = {
-  fixed: "Fixed real (4% rule)",
+  fixed: "Fixed real",
   cape_dynamic: "CAPE dynamic",
   guyton_klinger: "Guyton-Klinger",
   vpw: "VPW",
@@ -241,7 +241,7 @@ export function PlanDrawerContent() {
       {/* ── Retirement ── */}
       <CollapsibleSection
         title="Retirement"
-        summary={`Retire at ${activeScenario.profile.retirementAge ?? "?"} · ${withdrawalStrategyLabels[activeScenario.withdrawalStrategy.type] ?? "Fixed"} · ${formatPercent(activeScenario.assumptions.withdrawalRate, 0)} WR`}
+        summary={`Retire at ${activeScenario.profile.retirementAge ?? "?"} · ${formatPercent(activeScenario.assumptions.withdrawalRate, 1)} ${withdrawalStrategyLabels[activeScenario.withdrawalStrategy.type] ?? "Fixed"}`}
       >
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
