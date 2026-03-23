@@ -181,8 +181,9 @@ export function buildScenarioProjection({
   const year0DisplayIncome = year0OnBreak
     ? year0CfBreakdown.income
     : scenario.annualIncome + year0CfBreakdown.income;
+  const year0OtherExpenseCFs = year0CfBreakdown.expense - year0CfBreakdown.lostIncome;
   const year0DisplayExpenses = year0OnBreak
-    ? scenario.annualExpenses
+    ? scenario.annualExpenses + year0OtherExpenseCFs
     : scenario.annualExpenses + year0CfBreakdown.expense;
   projection.push({
     year: 0,
@@ -222,15 +223,18 @@ export function buildScenarioProjection({
       const grownIncome = scenario.annualIncome * (1 + incomeGrowthRate) ** yearNum;
       const grownExpenses = scenario.annualExpenses * (1 + expenseGrowthRate) ** yearNum;
 
-      // Career break handling: when a "Career break net cost" CF is active,
-      // income should show as breakIncome (from income CFs), not grownIncome.
-      // Expenses remain unchanged (the user still spends the same).
+      // Career break handling: the "Career break net cost" CF bundles
+      // lost income + lost savings into one expense CF. For display:
+      // - Income = just breakIncome (from income CFs), not grownIncome
+      // - Expenses = base expenses + OTHER expense CFs (baby, etc.) but
+      //   excluding the career break "net cost" CF itself
       const onCareerBreak = cfBreakdown.lostIncome > 0;
       const displayIncome = onCareerBreak
         ? cfBreakdown.income  // Just break income (e.g., $0 or severance)
         : grownIncome + cfBreakdown.income;
+      const otherExpenseCFs = cfBreakdown.expense - cfBreakdown.lostIncome;
       const displayExpenses = onCareerBreak
-        ? grownExpenses  // Normal expenses (no inflated "net cost")
+        ? grownExpenses + otherExpenseCFs  // Base + baby/other CFs, minus break net cost
         : grownExpenses + cfBreakdown.expense;
 
       projection.push({
