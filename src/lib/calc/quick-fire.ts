@@ -158,7 +158,7 @@ function calculateScenarioYearsToTarget(
   return null;
 }
 
-function buildScenarioProjection({
+export function buildScenarioProjection({
   scenario,
   targetBalance,
   years,

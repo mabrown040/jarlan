@@ -11,7 +11,8 @@ import {
   PageHero,
 } from "@/components/brand";
 import { useHasExistingDraft } from "@/lib/hooks/use-has-existing-draft";
-import { ProjectionChart } from "@/components/landing/projection-chart";
+import { ProjectionChart, findCrossoverYear } from "@/components/landing/projection-chart";
+import { buildScenarioProjection } from "@/lib/calc/quick-fire";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
@@ -321,6 +322,61 @@ export function QuickFireWorkspace({
       };
     });
   }, [summary, fireTypes, activeScenario, plannedContribution]);
+
+  // Crossover: the year growth exceeds contributions
+  const crossover = useMemo(
+    () => findCrossoverYear(summary.projection, plannedContribution),
+    [summary.projection, plannedContribution],
+  );
+
+  // Uncertainty bands: ±2% return projections
+  const [showBands, setShowBands] = useState(false);
+  const bandProjections = useMemo(() => {
+    if (!showBands) return undefined;
+    const baseReturn = activeScenario.assumptions.expectedRealReturn;
+    const years = summary.projection.length;
+    const pessimistic = buildScenarioProjection({
+      scenario: { ...activeScenario, assumptions: { ...activeScenario.assumptions, expectedRealReturn: Math.max(baseReturn - 0.02, 0) } },
+      targetBalance: summary.fireNumber,
+      years,
+    });
+    const optimistic = buildScenarioProjection({
+      scenario: { ...activeScenario, assumptions: { ...activeScenario.assumptions, expectedRealReturn: baseReturn + 0.02 } },
+      targetBalance: summary.fireNumber,
+      years,
+    });
+    return { pessimistic, optimistic };
+  }, [showBands, activeScenario, summary.fireNumber, summary.projection.length]);
+
+  // Enriched milestones with descriptions
+  const enrichedMilestones = useMemo(() => {
+    if (variant !== "module") return [];
+    const retAge = activeScenario.profile.retirementAge ?? activeScenario.profile.age;
+    const wr = activeScenario.assumptions.withdrawalRate;
+    const expenses = activeScenario.retirementExpenses || activeScenario.annualExpenses;
+    const partTime = activeScenario.assumptions.partTimeIncome;
+    return projectionWithMilestones
+      .filter((p) => p.milestone)
+      .map((p) => {
+        const label = p.milestone!;
+        let target = 0;
+        let description = "";
+        if (label === "Coast FIRE") {
+          const coastT = summary.fireNumber / (1 + activeScenario.assumptions.expectedRealReturn) ** Math.max(retAge - activeScenario.profile.age, 1);
+          target = coastT;
+          description = `At ${formatCompactCurrency(coastT)} saved, you could stop saving entirely and compounding finishes the job by retirement at ${retAge}.`;
+        } else if (label === "FIRE") {
+          target = summary.fireNumber;
+          description = `Financial independence. ${formatCompactCurrency(summary.fireNumber)} sustains ${formatCompactCurrency(expenses)}/year at a ${(wr * 100).toFixed(0)}% withdrawal rate.`;
+        } else if (label === "Barista FIRE") {
+          const baristaT = fireTypes.find((ft) => ft.id === "barista")?.target ?? 0;
+          target = baristaT;
+          description = `Switch to part-time earning ${formatCompactCurrency(partTime)}/yr — your portfolio of ${formatCompactCurrency(baristaT)} covers the rest.`;
+        }
+        return { year: p.year, label, target, description };
+      });
+  }, [projectionWithMilestones, summary, activeScenario, fireTypes, variant]);
+
   const snapshotNarrative =
     summary.yearsToFi === null
       ? `Your current settings do not yet reach ${formatCompactCurrency(
@@ -822,18 +878,40 @@ export function QuickFireWorkspace({
             <ChartShell
               title="Accumulation projection"
               description="How your current pace stacks up against the target."
+              actions={
+                variant === "module" ? (
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={showBands}
+                      onChange={(e) => setShowBands(e.target.checked)}
+                      className="rounded border-border accent-[var(--ember)]"
+                    />
+                    Show range of outcomes
+                  </label>
+                ) : null
+              }
             >
               <ProjectionChart
                 data={summary.projection}
                 annualContribution={plannedContribution}
-                milestones={
-                  variant === "module"
-                    ? projectionWithMilestones
-                        .filter((p) => p.milestone)
-                        .map((p) => ({ year: p.year, label: p.milestone! }))
-                    : []
-                }
+                startAge={activeScenario.profile.age}
+                milestones={enrichedMilestones}
+                showBands={showBands}
+                bandProjections={bandProjections}
               />
+              {variant === "module" && crossover ? (
+                <div className="mt-4 rounded-xl border border-[var(--ember)]/20 bg-[rgba(255,107,53,0.04)] px-4 py-3 text-sm">
+                  <p className="font-medium text-foreground">
+                    <span className="mr-1.5 text-[var(--ember)]">{"\u2726"}</span>
+                    Year {crossover.year}: Your money is making more money than you are
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    Investment growth ({formatCompactCurrency(crossover.growth)}) now exceeds
+                    your total contributions ({formatCompactCurrency(crossover.contributions)}).
+                  </p>
+                </div>
+              ) : null}
               {variant === "module" ? (
                 <CollapsibleSection
                   title="Year-by-year breakdown"
