@@ -8,6 +8,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChartShell,
   CompactPageHeader,
+  EnhancedStatCard,
+  InsightMiniTable,
+  InsightProgressBar,
   SectionHeading,
   StatCard,
 } from "@/components/brand";
@@ -949,52 +952,76 @@ export function HistoricalBacktestWorkspace() {
                       ) : null}
 
                       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <StatCard
+                        <EnhancedStatCard
                           label="Success rate"
                           value={formatPercent(result.successRate, 1)}
-                          description={`95% Wilson interval: ${formatPercent(
-                            result.confidenceInterval.low,
-                            1,
-                          )} to ${formatPercent(
-                            result.confidenceInterval.high,
-                            1,
-                          )}.`}
-                          tone={
-                            result.successRate >= 0.9
-                              ? "success"
-                              : result.successRate >= 0.75
-                                ? "warning"
-                                : "danger"
+                          tone={result.successRate >= 0.9 ? "success" : result.successRate >= 0.75 ? "warning" : "accent"}
+                          insight={
+                            <InsightProgressBar
+                              progress={result.successRate}
+                              label={`${result.successCount} of ${result.periodsTested} periods survived`}
+                              tone={result.successRate >= 0.9 ? "success" : result.successRate >= 0.75 ? "warning" : "accent"}
+                            />
                           }
+                          caption={`95% confidence: ${formatPercent(result.confidenceInterval.low, 1)}–${formatPercent(result.confidenceInterval.high, 1)}`}
+                          learnMore={{
+                            title: "What is success rate?",
+                            content: "The percentage of historical retirement periods where the portfolio survived the full duration. Each period starts in a different month from 1871 to present, using actual stock and bond returns. A 95%+ rate is generally considered robust.",
+                          }}
                         />
-                        <StatCard
-                          label="Median first-year withdrawal"
+                        <EnhancedStatCard
+                          label="First-year withdrawal"
                           value={formatCompactCurrency(result.initialWithdrawal)}
-                          description={`Implied initial withdrawal rate: ${formatPercent(
-                            result.initialWithdrawalRate,
-                            2,
-                          )}.`}
                           tone="accent"
+                          insight={
+                            <InsightMiniTable
+                              rows={[
+                                { label: "Withdrawal rate", value: formatPercent(result.initialWithdrawalRate, 2) },
+                                { label: "Strategy", value: selectedStrategyMeta.label },
+                              ]}
+                            />
+                          }
+                          caption="Initial annual income from your portfolio."
+                          learnMore={{
+                            title: "How is this calculated?",
+                            content: "The first-year withdrawal is determined by your chosen strategy. Fixed real uses portfolio × withdrawal rate. CAPE-based adjusts for market valuation. Guyton-Klinger starts at a higher rate with guardrails that adjust spending based on portfolio performance.",
+                          }}
                         />
-                        <StatCard
+                        <EnhancedStatCard
                           label="Median ending value"
-                          value={formatCompactCurrency(
-                            result.terminalValueStats.median,
-                          )}
-                          description={`10th to 90th percentile: ${formatCompactCurrency(
-                            result.terminalValueStats.p10,
-                          )} to ${formatCompactCurrency(
-                            result.terminalValueStats.p90,
-                          )}.`}
+                          value={formatCompactCurrency(result.terminalValueStats.median)}
+                          insight={
+                            <InsightMiniTable
+                              rows={[
+                                { label: "10th percentile", value: formatCompactCurrency(result.terminalValueStats.p10) },
+                                { label: "50th percentile", value: formatCompactCurrency(result.terminalValueStats.median) },
+                                { label: "90th percentile", value: formatCompactCurrency(result.terminalValueStats.p90) },
+                              ]}
+                            />
+                          }
+                          caption="Portfolio value at end of retirement period."
+                          learnMore={{
+                            title: "Terminal value distribution",
+                            content: "Most historical periods leave a significant estate. The wide range between p10 and p90 reflects sequence-of-returns risk — the same average return can produce very different outcomes depending on the order of good and bad years.",
+                          }}
                         />
-                        <StatCard
-                          label="Median spending band"
-                          value={`${formatCompactCurrency(result.withdrawalSummary.minMedian)} to ${formatCompactCurrency(
-                            result.withdrawalSummary.maxMedian,
-                          )}`}
-                          description={`Average median withdrawal: ${formatCompactCurrency(
-                            result.withdrawalSummary.averageMedian,
-                          )}.`}
+                        <EnhancedStatCard
+                          label="Spending band"
+                          value={formatCompactCurrency(result.withdrawalSummary.averageMedian)}
+                          subtitle="/yr avg"
+                          insight={
+                            <InsightMiniTable
+                              rows={[
+                                { label: "Lowest year", value: formatCompactCurrency(result.withdrawalSummary.minMedian) },
+                                { label: "Highest year", value: formatCompactCurrency(result.withdrawalSummary.maxMedian) },
+                              ]}
+                            />
+                          }
+                          caption="Range of annual spending across the median path."
+                          learnMore={{
+                            title: "Why does spending vary?",
+                            content: "Dynamic strategies (CAPE-based, Guyton-Klinger) adjust spending based on portfolio performance. Fixed real spending stays constant in today's dollars. A wider band means more income volatility but often higher overall success rates.",
+                          }}
                         />
                       </div>
 
