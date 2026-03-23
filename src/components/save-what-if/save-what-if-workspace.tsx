@@ -8,6 +8,7 @@ import { ChartShell, CompactPageHeader, StatCard } from "@/components/brand";
 import {
   ProjectionChart,
   ChartLegend,
+  type MilestoneMarker,
 } from "@/components/landing/projection-chart";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
@@ -266,6 +267,44 @@ export default function SaveWhatIfWorkspace() {
     return { deltaYears, deltaFireNumber };
   }, [combinedSummary, baseSummary]);
 
+  /* ---- Chart milestones (events + FI) ---- */
+  const chartMilestones = useMemo((): MilestoneMarker[] => {
+    const markers: MilestoneMarker[] = [];
+    const age = activeScenario.profile.age;
+
+    // Add event start markers from selected decisions
+    for (const d of selectedDecisions) {
+      const vals: Record<string, number> = {};
+      for (const p of d.template.params) {
+        vals[p.id] = customValues[d.id]?.[p.id] ?? p.defaultValue;
+      }
+      const startAge = vals.startAge ?? vals.atAge ?? age;
+      const year = Math.round(startAge - age);
+      if (year > 0 && year < (baseSummary.projection.length ?? 20)) {
+        markers.push({
+          year,
+          label: `${d.emoji} ${d.label.split(" at ")[0].split(" for ")[0]}`,
+        });
+      }
+    }
+
+    // Add FI milestone for combined scenario
+    if (combinedSummary) {
+      const fiPoint = combinedSummary.projection.find(
+        (p, i) => i > 0 && p.balance >= p.target,
+      );
+      if (fiPoint) {
+        markers.push({
+          year: fiPoint.year,
+          label: "FIRE",
+          description: `FI at age ${Math.round(fiPoint.age)}`,
+        });
+      }
+    }
+
+    return markers;
+  }, [selectedDecisions, combinedSummary, activeScenario.profile.age, baseSummary.projection.length, customValues]);
+
   /* ---- Find closest savings rate row for user highlight ---- */
   function isClosestToUser(rate: number): boolean {
     if (savingsRateRows.length === 0) return false;
@@ -354,6 +393,7 @@ export default function SaveWhatIfWorkspace() {
             data={baseSummary.projection}
             annualContribution={plannedContribution}
             startAge={activeScenario.profile.age}
+            milestones={chartMilestones}
             comparisonData={combinedSummary?.projection}
             comparisonLabel={
               selectedIds.size === 1
