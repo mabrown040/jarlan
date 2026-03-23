@@ -594,34 +594,15 @@ export default function SaveWhatIfWorkspace() {
         {/* ---- Section 4: Year-by-year comparison (collapsed) ---- */}
         {(() => {
           // Determine which contextual columns to show based on selected decisions
-          const showIncome = selectedIds.has("income-change") || selectedIds.has("career-break");
-          const showExpenses = selectedIds.has("lifestyle-change") || selectedIds.has("new-dependent");
+          const showIncome = selectedIds.has("income-change") || selectedIds.has("career-break") || selectedIds.has("new-dependent");
+          const showExpenses = selectedIds.has("lifestyle-change") || selectedIds.has("new-dependent") || selectedIds.has("career-break");
           const showSavings = selectedIds.size > 0;
-          const showReturn = selectedIds.has("market-event");
+          const showGrowth = selectedIds.has("market-event");
+          const hasComparison = combinedSummary != null;
 
-          // Build combined scenario for contextual values
-          let combinedScenarioRef = activeScenario;
-          if (selectedIds.size > 0) {
-            let s = activeScenario;
-            for (const d of selectedDecisions) {
-              s = d.apply(s);
-            }
-            combinedScenarioRef = s;
-          }
-
-          const baseIncome = activeScenario.annualIncome;
-          const baseExpenses = activeScenario.annualExpenses;
-          const baseSavingsAmt = activeScenario.annualSavings;
-          const baseReturn = activeScenario.assumptions.expectedRealReturn;
-          const incomeGrowth = activeScenario.assumptions.incomeGrowthRate ?? 0;
-          const expenseGrowth = activeScenario.assumptions.expenseGrowthRate ?? 0;
-
-          const compIncome = combinedScenarioRef.annualIncome;
-          const compExpenses = combinedScenarioRef.annualExpenses;
-          const compSavingsAmt = combinedScenarioRef.annualSavings;
-          const compReturn = combinedScenarioRef.assumptions.expectedRealReturn;
-          const compIncomeGrowth = combinedScenarioRef.assumptions.incomeGrowthRate ?? 0;
-          const compExpenseGrowth = combinedScenarioRef.assumptions.expenseGrowthRate ?? 0;
+          // Track FIRE milestone (first year balance >= target)
+          let baseHitFiYear: number | null = null;
+          let compHitFiYear: number | null = null;
 
           return (
             <CollapsibleSection
@@ -639,7 +620,7 @@ export default function SaveWhatIfWorkspace() {
                       <th className="pb-3 pr-3 font-medium">Year</th>
                       <th className="pb-3 pr-3 font-medium">Age</th>
                       <th className="pb-3 pr-3 font-medium">Portfolio</th>
-                      {combinedSummary ? (
+                      {hasComparison ? (
                         <>
                           <th className="pb-3 pr-3 font-medium">With changes</th>
                           <th className="pb-3 pr-3 font-medium">Δ</th>
@@ -652,134 +633,124 @@ export default function SaveWhatIfWorkspace() {
                         <th className="pb-3 pr-3 font-medium">Expenses</th>
                       ) : null}
                       {showSavings ? (
-                        <th className="pb-3 pr-3 font-medium">Savings</th>
+                        <th className="pb-3 pr-3 font-medium">Savings/yr</th>
                       ) : null}
-                      {showReturn ? (
-                        <th className="pb-3 pr-3 font-medium">Return</th>
+                      {showGrowth ? (
+                        <th className="pb-3 pr-3 font-medium">Growth</th>
                       ) : null}
+                      <th className="pb-3 font-medium">Milestone</th>
                     </tr>
                   </thead>
                   <tbody>
                     {baseSummary.projection.map((point, i) => {
                       const compPoint = combinedSummary?.projection[i];
-                      const diff = compPoint
-                        ? compPoint.balance - point.balance
-                        : 0;
+                      const diff = compPoint ? compPoint.balance - point.balance : 0;
 
-                      // Grow income/expenses by year for display
-                      const yearBaseIncome = baseIncome * Math.pow(1 + incomeGrowth, i);
-                      const yearBaseExpenses = baseExpenses * Math.pow(1 + expenseGrowth, i);
-                      const yearBaseSavings = baseSavingsAmt * Math.pow(1 + incomeGrowth, i);
-                      const yearCompIncome = compIncome * Math.pow(1 + compIncomeGrowth, i);
-                      const yearCompExpenses = compExpenses * Math.pow(1 + compExpenseGrowth, i);
-                      const yearCompSavings = compSavingsAmt * Math.pow(1 + compIncomeGrowth, i);
+                      // Track FIRE milestones (first crossing only)
+                      const baseAtFi = point.balance >= point.target && point.year > 0;
+                      const compAtFi = compPoint && compPoint.balance >= compPoint.target && compPoint.year > 0;
+                      if (baseAtFi && baseHitFiYear === null) baseHitFiYear = point.year;
+                      if (compAtFi && compHitFiYear === null) compHitFiYear = point.year;
+                      const showBaseFiBadge = point.year === baseHitFiYear;
+                      const showCompFiBadge = hasComparison && point.year === compHitFiYear;
 
-                      const compHitFi =
-                        compPoint &&
-                        compPoint.balance >= compPoint.target;
+                      // Read enriched data directly from projection (no fake growing)
+                      const baseInc = point.income ?? 0;
+                      const baseExp = point.expenses ?? 0;
+                      const baseSav = point.savings ?? 0;
+                      const baseGrw = point.growth ?? 0;
+                      const compInc = compPoint?.income ?? 0;
+                      const compExp = compPoint?.expenses ?? 0;
+                      const compSav = compPoint?.savings ?? 0;
+                      const compGrw = compPoint?.growth ?? 0;
+
+                      // Determine if values changed meaningfully (>$100 difference)
+                      const incChanged = hasComparison && Math.abs(compInc - baseInc) > 100;
+                      const expChanged = hasComparison && Math.abs(compExp - baseExp) > 100;
+                      const savChanged = hasComparison && Math.abs(compSav - baseSav) > 100;
+                      const grwChanged = hasComparison && Math.abs(compGrw - baseGrw) > 100;
 
                       return (
                         <tr
                           key={point.year}
                           className={cn(
                             "border-b border-border/50 transition-colors",
-                            compHitFi &&
-                              "bg-emerald-50/50 dark:bg-emerald-950/10",
+                            showCompFiBadge && "bg-emerald-50/50 dark:bg-emerald-950/10",
+                            showBaseFiBadge && !showCompFiBadge && "bg-[rgba(255,107,53,0.04)]",
                           )}
                         >
                           <td className="py-2 pr-3 tabular-nums">{point.year}</td>
-                          <td className="py-2 pr-3 tabular-nums">{point.age}</td>
+                          <td className="py-2 pr-3 tabular-nums">{Math.round(point.age)}</td>
                           <td className="py-2 pr-3 tabular-nums font-medium">
                             {formatCompactCurrency(point.balance)}
                           </td>
-                          {combinedSummary ? (
+                          {hasComparison ? (
                             <>
-                              <td
-                                className={cn(
-                                  "py-2 pr-3 tabular-nums font-medium",
-                                  compHitFi && "text-emerald-600",
-                                )}
-                              >
-                                {compPoint
-                                  ? formatCompactCurrency(compPoint.balance)
-                                  : "—"}
+                              <td className={cn(
+                                "py-2 pr-3 tabular-nums font-medium",
+                                compAtFi && "text-emerald-600",
+                              )}>
+                                {compPoint ? formatCompactCurrency(compPoint.balance) : "—"}
                               </td>
-                              <td
-                                className={cn(
-                                  "py-2 pr-3 tabular-nums text-xs",
-                                  diff > 0
-                                    ? "text-emerald-600"
-                                    : diff < 0
-                                      ? "text-red-500"
-                                      : "text-muted-foreground",
-                                )}
-                              >
-                                {diff === 0
-                                  ? "—"
-                                  : diff > 0
-                                    ? `+${formatCompactCurrency(diff)}`
-                                    : `-${formatCompactCurrency(Math.abs(diff))}`}
+                              <td className={cn(
+                                "py-2 pr-3 tabular-nums text-xs",
+                                diff > 0 ? "text-emerald-600" : diff < 0 ? "text-red-500" : "text-muted-foreground",
+                              )}>
+                                {Math.abs(diff) < 100 ? "—" : diff > 0 ? `+${formatCompactCurrency(diff)}` : `-${formatCompactCurrency(Math.abs(diff))}`}
                               </td>
                             </>
                           ) : null}
                           {showIncome ? (
                             <td className="py-2 pr-3 tabular-nums text-xs">
-                              {combinedSummary ? (
-                                <span className={cn(
-                                  yearCompIncome !== yearBaseIncome && "text-[var(--ember)] font-medium",
-                                )}>
-                                  {formatCompactCurrency(yearCompIncome)}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">
-                                  {formatCompactCurrency(yearBaseIncome)}
-                                </span>
-                              )}
+                              <span className={cn(
+                                incChanged ? "text-[var(--ember)] font-medium" : "text-muted-foreground",
+                              )}>
+                                {formatCompactCurrency(hasComparison ? compInc : baseInc)}
+                              </span>
                             </td>
                           ) : null}
                           {showExpenses ? (
                             <td className="py-2 pr-3 tabular-nums text-xs">
-                              {combinedSummary ? (
-                                <span className={cn(
-                                  yearCompExpenses !== yearBaseExpenses && "text-[var(--ember)] font-medium",
-                                )}>
-                                  {formatCompactCurrency(yearCompExpenses)}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">
-                                  {formatCompactCurrency(yearBaseExpenses)}
-                                </span>
-                              )}
+                              <span className={cn(
+                                expChanged ? "text-[var(--ember)] font-medium" : "text-muted-foreground",
+                              )}>
+                                {formatCompactCurrency(hasComparison ? compExp : baseExp)}
+                              </span>
                             </td>
                           ) : null}
                           {showSavings ? (
                             <td className="py-2 pr-3 tabular-nums text-xs">
-                              {combinedSummary ? (
-                                <span className={cn(
-                                  yearCompSavings !== yearBaseSavings
-                                    ? yearCompSavings > yearBaseSavings
-                                      ? "text-emerald-600 font-medium"
-                                      : "text-red-500 font-medium"
-                                    : "text-muted-foreground",
-                                )}>
-                                  {formatCompactCurrency(yearCompSavings)}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">
-                                  {formatCompactCurrency(yearBaseSavings)}
-                                </span>
-                              )}
-                            </td>
-                          ) : null}
-                          {showReturn ? (
-                            <td className="py-2 pr-3 tabular-nums text-xs">
                               <span className={cn(
-                                compReturn !== baseReturn && "text-[var(--ember)] font-medium",
+                                savChanged
+                                  ? compSav > baseSav ? "text-emerald-600 font-medium" : "text-red-500 font-medium"
+                                  : "text-muted-foreground",
                               )}>
-                                {(compReturn * 100).toFixed(1)}%
+                                {formatCompactCurrency(hasComparison ? compSav : baseSav)}
                               </span>
                             </td>
                           ) : null}
+                          {showGrowth ? (
+                            <td className="py-2 pr-3 tabular-nums text-xs">
+                              <span className={cn(
+                                grwChanged
+                                  ? compGrw > baseGrw ? "text-emerald-600 font-medium" : "text-red-500 font-medium"
+                                  : "text-muted-foreground",
+                              )}>
+                                {formatCompactCurrency(hasComparison ? compGrw : baseGrw)}
+                              </span>
+                            </td>
+                          ) : null}
+                          <td className="py-2 text-xs">
+                            {showCompFiBadge ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                🎯 FI
+                              </span>
+                            ) : showBaseFiBadge ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(255,107,53,0.1)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--ember)]">
+                                🎯 FI (base)
+                              </span>
+                            ) : null}
+                          </td>
                         </tr>
                       );
                     })}

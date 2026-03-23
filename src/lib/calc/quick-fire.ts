@@ -1,6 +1,7 @@
 import { clamp, roundTo } from "@/lib/utils";
 
 import {
+  getCashFlowBreakdownAtAge,
   getCurrentPortfolioBalance,
   getNetCashFlowAtAge,
   getPlannedAnnualInvestmentContribution,
@@ -169,15 +170,30 @@ export function buildScenarioProjection({
 }) {
   const horizon = Math.max(1, Math.ceil(years));
   const monthlyReturn = getEffectiveMonthlyReturn(scenario);
+  const incomeGrowthRate = scenario.assumptions.incomeGrowthRate ?? 0;
+  const expenseGrowthRate = scenario.assumptions.expenseGrowthRate ?? 0;
   const projection: ProjectionPoint[] = [];
   let balance = getCurrentPortfolioBalance(scenario.accounts);
 
+  // Year 0: compute current income/expenses
+  const year0CfBreakdown = getCashFlowBreakdownAtAge(scenario, scenario.profile.age);
   projection.push({
     year: 0,
     age: scenario.profile.age,
     balance,
     target: targetBalance,
+    contribution: 0,
+    growth: 0,
+    cashFlowNet: year0CfBreakdown.net,
+    income: scenario.annualIncome + year0CfBreakdown.income,
+    expenses: scenario.annualExpenses + year0CfBreakdown.expense,
+    savings: scenario.annualSavings,
   });
+
+  // Track yearly accumulations
+  let yearContributions = 0;
+  let yearCashFlows = 0;
+  let startOfYearBalance = balance;
 
   for (let month = 1; month <= horizon * 12; month += 1) {
     const yearOffset = (month - 1) / 12;
@@ -186,13 +202,36 @@ export function buildScenarioProjection({
     const monthlyCashFlow = getNetCashFlowAtAge(scenario, age) / 12;
     balance = balance * (1 + monthlyReturn) + monthlyContribution + monthlyCashFlow;
 
+    yearContributions += monthlyContribution;
+    yearCashFlows += monthlyCashFlow;
+
     if (month % 12 === 0) {
+      const yearNum = month / 12;
+      const yearAge = scenario.profile.age + yearNum;
+      const yearGrowth = balance - startOfYearBalance - yearContributions - yearCashFlows;
+
+      // Compute income/expenses for this year (with growth rates + cash flows)
+      const cfBreakdown = getCashFlowBreakdownAtAge(scenario, yearAge);
+      const grownIncome = scenario.annualIncome * (1 + incomeGrowthRate) ** yearNum;
+      const grownExpenses = scenario.annualExpenses * (1 + expenseGrowthRate) ** yearNum;
+
       projection.push({
-        year: month / 12,
-        age: scenario.profile.age + month / 12,
+        year: yearNum,
+        age: yearAge,
         balance: roundTo(balance, 0),
         target: targetBalance,
+        contribution: roundTo(yearContributions, 0),
+        growth: roundTo(yearGrowth, 0),
+        cashFlowNet: roundTo(yearCashFlows, 0),
+        income: roundTo(grownIncome + cfBreakdown.income, 0),
+        expenses: roundTo(grownExpenses + cfBreakdown.expense, 0),
+        savings: roundTo(yearContributions + yearCashFlows, 0),
       });
+
+      // Reset accumulators for next year
+      yearContributions = 0;
+      yearCashFlows = 0;
+      startOfYearBalance = balance;
     }
   }
 

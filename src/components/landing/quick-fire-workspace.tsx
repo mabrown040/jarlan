@@ -301,12 +301,15 @@ export function QuickFireWorkspace({
         (m) => !crossed.has(m.label) && point.balance >= m.target && m.target > 0,
       );
       if (milestone) crossed.add(milestone.label);
+      // Use enriched projection data when available, fall back to estimate
       const prevBalance = i > 0 ? summary.projection[i - 1].balance : point.balance;
-      const growth = i > 0 ? point.balance - prevBalance - plannedContribution : 0;
+      const estimatedGrowth = i > 0 ? point.balance - prevBalance - plannedContribution : 0;
+      const growth = point.growth ?? estimatedGrowth;
+      const contribution = point.contribution ?? (i > 0 ? plannedContribution : 0);
       return {
         ...point,
         growth: Math.round(growth),
-        contribution: i > 0 ? plannedContribution : 0,
+        contribution: Math.round(contribution),
         pctToFi: summary.fireNumber > 0 ? point.balance / summary.fireNumber : 0,
         milestone: milestone?.label ?? null,
       };

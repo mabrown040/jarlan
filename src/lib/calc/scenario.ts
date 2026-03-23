@@ -69,6 +69,26 @@ export function getNetCashFlowAtAge(scenario: Scenario, age: number) {
   }, 0);
 }
 
+/** Split cash flows at a given age into income vs expense totals */
+export function getCashFlowBreakdownAtAge(
+  scenario: Scenario,
+  age: number,
+): { income: number; expense: number; net: number } {
+  let income = 0;
+  let expense = 0;
+  for (const cf of scenario.cashFlows) {
+    const isActive =
+      age >= cf.startAge && (cf.endAge === null || age <= cf.endAge);
+    if (!isActive) continue;
+    if (cf.type === "income") {
+      income += cf.amount;
+    } else {
+      expense += cf.amount;
+    }
+  }
+  return { income, expense, net: income - expense };
+}
+
 export function getPlannedAnnualInvestmentContribution(scenario: Scenario) {
   return getAnnualContributionTotal(scenario.accounts) + getEmployerMatchTotal(scenario);
 }

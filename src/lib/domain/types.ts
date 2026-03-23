@@ -191,6 +191,18 @@ export interface ProjectionPoint {
   age: number;
   balance: number;
   target: number;
+  /** Annual contribution to portfolio (savings + employer match, after growth) */
+  contribution?: number;
+  /** Investment growth for the year (balance change minus contributions minus cash flows) */
+  growth?: number;
+  /** Net cash flow events active this year (income CFs - expense CFs) */
+  cashFlowNet?: number;
+  /** Gross income for this year (base + income growth + income cash flows) */
+  income?: number;
+  /** Expenses for this year (base + expense growth + expense cash flows) */
+  expenses?: number;
+  /** Net savings: contribution + cashFlowNet (what actually flows to portfolio) */
+  savings?: number;
 }
 
 export interface QuickFireSummary {
