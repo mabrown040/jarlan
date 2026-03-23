@@ -285,6 +285,9 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
           }
         } else {
           // Future: model the net cost as an expense cash flow
+          // Note: this is one combined CF for portfolio math correctness.
+          // The display layer interprets "Career break net cost" CFs specially
+          // to show income=$breakIncome and expenses=base expenses.
           next.cashFlows.push({
             id: `break-${Date.now()}`,
             name: "Career break net cost",

@@ -69,13 +69,18 @@ export function getNetCashFlowAtAge(scenario: Scenario, age: number) {
   }, 0);
 }
 
-/** Split cash flows at a given age into income vs expense totals */
+/**
+ * Split cash flows at a given age into income vs expense totals.
+ * Also tracks "lost income" from career breaks separately so the display
+ * layer can show income=$0 instead of expenses=$300K+.
+ */
 export function getCashFlowBreakdownAtAge(
   scenario: Scenario,
   age: number,
-): { income: number; expense: number; net: number } {
+): { income: number; expense: number; lostIncome: number; net: number } {
   let income = 0;
   let expense = 0;
+  let lostIncome = 0;
   for (const cf of scenario.cashFlows) {
     const isActive =
       age >= cf.startAge && (cf.endAge === null || age <= cf.endAge);
@@ -83,10 +88,15 @@ export function getCashFlowBreakdownAtAge(
     if (cf.type === "income") {
       income += cf.amount;
     } else {
+      // Career break "net cost" CFs represent lost income + lost savings,
+      // not actual spending increases. Track them separately.
+      if (cf.name === "Career break net cost") {
+        lostIncome += cf.amount;
+      }
       expense += cf.amount;
     }
   }
-  return { income, expense, net: income - expense };
+  return { income, expense, lostIncome, net: income - expense };
 }
 
 export function getPlannedAnnualInvestmentContribution(scenario: Scenario) {

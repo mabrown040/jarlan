@@ -594,6 +594,8 @@ export default function SaveWhatIfWorkspace() {
         {/* ---- Section 4: Year-by-year comparison (collapsed) ---- */}
         {(() => {
           const hasComparison = combinedSummary != null;
+          const showIncome = selectedIds.has("income-change") || selectedIds.has("career-break");
+          const showExpenses = selectedIds.has("lifestyle-change") || selectedIds.has("new-dependent") || selectedIds.has("career-break");
 
           // Build event timing map: which ages have events starting/ending
           const eventTimings: Map<number, string[]> = new Map();
@@ -644,15 +646,16 @@ export default function SaveWhatIfWorkspace() {
                         <>
                           <th className="pb-3 pr-3 font-medium">With changes</th>
                           <th className="pb-3 pr-3 font-medium">Δ</th>
-                          <th className="pb-3 pr-3 font-medium">Savings/yr</th>
-                          <th className="pb-3 pr-3 font-medium">Growth</th>
                         </>
-                      ) : (
-                        <>
-                          <th className="pb-3 pr-3 font-medium">Savings/yr</th>
-                          <th className="pb-3 pr-3 font-medium">Growth</th>
-                        </>
-                      )}
+                      ) : null}
+                      {showIncome ? (
+                        <th className="pb-3 pr-3 font-medium">Income</th>
+                      ) : null}
+                      {showExpenses ? (
+                        <th className="pb-3 pr-3 font-medium">Expenses</th>
+                      ) : null}
+                      <th className="pb-3 pr-3 font-medium">Savings/yr</th>
+                      <th className="pb-3 pr-3 font-medium">Growth</th>
                       <th className="pb-3 font-medium">Events</th>
                     </tr>
                   </thead>
@@ -670,10 +673,16 @@ export default function SaveWhatIfWorkspace() {
                       const showCompFiBadge = hasComparison && point.year === compHitFiYear;
 
                       // Enriched data
+                      const baseInc = point.income ?? 0;
+                      const baseExp = point.expenses ?? 0;
                       const baseSav = point.savings ?? 0;
                       const baseGrw = point.growth ?? 0;
+                      const compInc = compPoint?.income ?? 0;
+                      const compExp = compPoint?.expenses ?? 0;
                       const compSav = compPoint?.savings ?? 0;
                       const compGrw = compPoint?.growth ?? 0;
+                      const incChanged = hasComparison && Math.abs(compInc - baseInc) > 100;
+                      const expChanged = hasComparison && Math.abs(compExp - baseExp) > 100;
                       const savChanged = hasComparison && Math.abs(compSav - baseSav) > 100;
                       const grwChanged = hasComparison && Math.abs(compGrw - baseGrw) > 100;
 
@@ -709,35 +718,44 @@ export default function SaveWhatIfWorkspace() {
                               )}>
                                 {Math.abs(diff) < 100 ? "—" : diff > 0 ? `+${formatCompactCurrency(diff)}` : `-${formatCompactCurrency(Math.abs(diff))}`}
                               </td>
-                              <td className="py-2 pr-3 tabular-nums text-xs">
-                                <span className={cn(
-                                  savChanged
-                                    ? compSav > baseSav ? "text-emerald-600 font-medium" : "text-red-500 font-medium"
-                                    : "text-muted-foreground",
-                                )}>
-                                  {formatCompactCurrency(compSav)}
-                                </span>
-                              </td>
-                              <td className="py-2 pr-3 tabular-nums text-xs">
-                                <span className={cn(
-                                  grwChanged
-                                    ? compGrw > baseGrw ? "text-emerald-600 font-medium" : "text-red-500 font-medium"
-                                    : "text-muted-foreground",
-                                )}>
-                                  {formatCompactCurrency(compGrw)}
-                                </span>
-                              </td>
                             </>
-                          ) : (
-                            <>
-                              <td className="py-2 pr-3 tabular-nums text-xs text-muted-foreground">
-                                {formatCompactCurrency(baseSav)}
-                              </td>
-                              <td className="py-2 pr-3 tabular-nums text-xs text-muted-foreground">
-                                {formatCompactCurrency(baseGrw)}
-                              </td>
-                            </>
-                          )}
+                          ) : null}
+                          {showIncome ? (
+                            <td className="py-2 pr-3 tabular-nums text-xs">
+                              <span className={cn(
+                                incChanged ? "text-[var(--ember)] font-medium" : "text-muted-foreground",
+                              )}>
+                                {formatCompactCurrency(hasComparison ? compInc : baseInc)}
+                              </span>
+                            </td>
+                          ) : null}
+                          {showExpenses ? (
+                            <td className="py-2 pr-3 tabular-nums text-xs">
+                              <span className={cn(
+                                expChanged ? "text-[var(--ember)] font-medium" : "text-muted-foreground",
+                              )}>
+                                {formatCompactCurrency(hasComparison ? compExp : baseExp)}
+                              </span>
+                            </td>
+                          ) : null}
+                          <td className="py-2 pr-3 tabular-nums text-xs">
+                            <span className={cn(
+                              savChanged
+                                ? compSav > baseSav ? "text-emerald-600 font-medium" : "text-red-500 font-medium"
+                                : "text-muted-foreground",
+                            )}>
+                              {formatCompactCurrency(hasComparison ? compSav : baseSav)}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-3 tabular-nums text-xs">
+                            <span className={cn(
+                              grwChanged
+                                ? compGrw > baseGrw ? "text-emerald-600 font-medium" : "text-red-500 font-medium"
+                                : "text-muted-foreground",
+                            )}>
+                              {formatCompactCurrency(hasComparison ? compGrw : baseGrw)}
+                            </span>
+                          </td>
                           <td className="py-2 text-xs">
                             <div className="flex flex-wrap gap-1">
                               {events.map((evt, idx) => (

@@ -177,6 +177,8 @@ export function buildScenarioProjection({
 
   // Year 0: compute current income/expenses
   const year0CfBreakdown = getCashFlowBreakdownAtAge(scenario, scenario.profile.age);
+  const year0DisplayIncome = Math.max(scenario.annualIncome + year0CfBreakdown.income - year0CfBreakdown.lostIncome, 0);
+  const year0DisplayExpenses = scenario.annualExpenses + year0CfBreakdown.expense - year0CfBreakdown.lostIncome;
   projection.push({
     year: 0,
     age: scenario.profile.age,
@@ -185,8 +187,8 @@ export function buildScenarioProjection({
     contribution: 0,
     growth: 0,
     cashFlowNet: year0CfBreakdown.net,
-    income: scenario.annualIncome + year0CfBreakdown.income,
-    expenses: scenario.annualExpenses + year0CfBreakdown.expense,
+    income: year0DisplayIncome,
+    expenses: year0DisplayExpenses,
     savings: scenario.annualSavings,
   });
 
@@ -215,6 +217,11 @@ export function buildScenarioProjection({
       const grownIncome = scenario.annualIncome * (1 + incomeGrowthRate) ** yearNum;
       const grownExpenses = scenario.annualExpenses * (1 + expenseGrowthRate) ** yearNum;
 
+      // Career break "net cost" CFs represent lost income, not extra expenses.
+      // Subtract lostIncome from the expense total and from income instead.
+      const displayIncome = Math.max(grownIncome + cfBreakdown.income - cfBreakdown.lostIncome, 0);
+      const displayExpenses = grownExpenses + cfBreakdown.expense - cfBreakdown.lostIncome;
+
       projection.push({
         year: yearNum,
         age: yearAge,
@@ -223,8 +230,8 @@ export function buildScenarioProjection({
         contribution: roundTo(yearContributions, 0),
         growth: roundTo(yearGrowth, 0),
         cashFlowNet: roundTo(yearCashFlows, 0),
-        income: roundTo(grownIncome + cfBreakdown.income, 0),
-        expenses: roundTo(grownExpenses + cfBreakdown.expense, 0),
+        income: roundTo(displayIncome, 0),
+        expenses: roundTo(displayExpenses, 0),
         savings: roundTo(yearContributions + yearCashFlows, 0),
       });
 
