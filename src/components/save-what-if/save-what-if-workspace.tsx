@@ -463,6 +463,161 @@ export default function SaveWhatIfWorkspace() {
               }
             />
           </div>
+
+          {/* ---- Year-by-year breakdown (inside the chart card) ---- */}
+          {(() => {
+            const hasComparison = combinedSummary != null;
+            const showIncome = selectedIds.has("income-change") || selectedIds.has("career-break");
+            const showExpenses = selectedIds.has("lifestyle-change") || selectedIds.has("new-dependent") || selectedIds.has("career-break");
+
+            // Build event timing map
+            const eventTimings: Map<number, string[]> = new Map();
+            if (hasComparison) {
+              for (const d of selectedDecisions) {
+                const vals: Record<string, number> = {};
+                for (const p of d.template.params) {
+                  vals[p.id] = customValues[d.id]?.[p.id] ?? p.defaultValue;
+                }
+                const startAge = vals.startAge ?? vals.atAge ?? activeScenario.profile.age;
+                const duration = vals.duration ?? null;
+                const existing = eventTimings.get(Math.round(startAge)) ?? [];
+                existing.push(`${d.emoji} ${d.label.split(" at ")[0].split(" for ")[0]}`);
+                eventTimings.set(Math.round(startAge), existing);
+                if (duration && duration > 0) {
+                  const endAge = Math.round(startAge + duration);
+                  const endExisting = eventTimings.get(endAge) ?? [];
+                  endExisting.push(`${d.emoji} ends`);
+                  eventTimings.set(endAge, endExisting);
+                }
+              }
+            }
+
+            let baseHitFiYear: number | null = null;
+            let compHitFiYear: number | null = null;
+
+            return (
+              <CollapsibleSection
+                title="Year-by-year breakdown"
+                summary={
+                  hasComparison
+                    ? `${baseSummary.projection.length} years · base vs ${selectedIds.size} change${selectedIds.size === 1 ? "" : "s"}`
+                    : `${baseSummary.projection.length} years`
+                }
+              >
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      <tr>
+                        <th className="pb-3 pr-3 font-medium">Age</th>
+                        <th className="pb-3 pr-3 font-medium">Portfolio</th>
+                        {hasComparison ? (
+                          <>
+                            <th className="pb-3 pr-3 font-medium">With changes</th>
+                            <th className="pb-3 pr-3 font-medium">Δ</th>
+                          </>
+                        ) : null}
+                        {showIncome ? <th className="pb-3 pr-3 font-medium">Income</th> : null}
+                        {showExpenses ? <th className="pb-3 pr-3 font-medium">Expenses</th> : null}
+                        <th className="pb-3 pr-3 font-medium">Savings/yr</th>
+                        <th className="pb-3 pr-3 font-medium">Growth</th>
+                        <th className="pb-3 font-medium">Events</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {baseSummary.projection.map((point, i) => {
+                        const compPoint = combinedSummary?.projection[i];
+                        const diff = compPoint ? compPoint.balance - point.balance : 0;
+                        const baseAtFi = point.balance >= point.target && point.year > 0;
+                        const compAtFi = compPoint && compPoint.balance >= compPoint.target && compPoint.year > 0;
+                        if (baseAtFi && baseHitFiYear === null) baseHitFiYear = point.year;
+                        if (compAtFi && compHitFiYear === null) compHitFiYear = point.year;
+                        const showBaseFiBadge = point.year === baseHitFiYear;
+                        const showCompFiBadge = hasComparison && point.year === compHitFiYear;
+
+                        const baseInc = point.income ?? 0;
+                        const baseExp = point.expenses ?? 0;
+                        const baseSav = point.savings ?? 0;
+                        const baseGrw = point.growth ?? 0;
+                        const compInc = compPoint?.income ?? 0;
+                        const compExp = compPoint?.expenses ?? 0;
+                        const compSav = compPoint?.savings ?? 0;
+                        const compGrw = compPoint?.growth ?? 0;
+                        const incChanged = hasComparison && Math.abs(compInc - baseInc) > 100;
+                        const expChanged = hasComparison && Math.abs(compExp - baseExp) > 100;
+                        const savChanged = hasComparison && Math.abs(compSav - baseSav) > 100;
+                        const grwChanged = hasComparison && Math.abs(compGrw - baseGrw) > 100;
+
+                        const age = Math.round(point.age);
+                        const events = eventTimings.get(age) ?? [];
+
+                        return (
+                          <tr
+                            key={point.year}
+                            className={cn(
+                              "border-t border-border/40",
+                              showCompFiBadge && "bg-emerald-50/50 dark:bg-emerald-950/10",
+                              showBaseFiBadge && !showCompFiBadge && "bg-[rgba(255,107,53,0.04)]",
+                            )}
+                          >
+                            <td className="py-2 pr-3 tabular-nums">{age}</td>
+                            <td className="py-2 pr-3 tabular-nums font-medium">{formatCompactCurrency(point.balance)}</td>
+                            {hasComparison ? (
+                              <>
+                                <td className={cn("py-2 pr-3 tabular-nums font-medium", compAtFi && "text-emerald-600")}>
+                                  {compPoint ? formatCompactCurrency(compPoint.balance) : "—"}
+                                </td>
+                                <td className={cn("py-2 pr-3 tabular-nums text-xs", diff > 0 ? "text-emerald-600" : diff < 0 ? "text-red-500" : "text-muted-foreground")}>
+                                  {Math.abs(diff) < 100 ? "—" : diff > 0 ? `+${formatCompactCurrency(diff)}` : `-${formatCompactCurrency(Math.abs(diff))}`}
+                                </td>
+                              </>
+                            ) : null}
+                            {showIncome ? (
+                              <td className="py-2 pr-3 tabular-nums text-xs">
+                                <span className={cn(incChanged ? "text-[var(--ember)] font-medium" : "text-muted-foreground")}>
+                                  {formatCompactCurrency(hasComparison ? compInc : baseInc)}
+                                </span>
+                              </td>
+                            ) : null}
+                            {showExpenses ? (
+                              <td className="py-2 pr-3 tabular-nums text-xs">
+                                <span className={cn(expChanged ? "text-[var(--ember)] font-medium" : "text-muted-foreground")}>
+                                  {formatCompactCurrency(hasComparison ? compExp : baseExp)}
+                                </span>
+                              </td>
+                            ) : null}
+                            <td className="py-2 pr-3 tabular-nums text-xs">
+                              <span className={cn(savChanged ? (compSav > baseSav ? "text-emerald-600 font-medium" : "text-red-500 font-medium") : "text-muted-foreground")}>
+                                {formatCompactCurrency(hasComparison ? compSav : baseSav)}
+                              </span>
+                            </td>
+                            <td className="py-2 pr-3 tabular-nums text-xs">
+                              <span className={cn(grwChanged ? (compGrw > baseGrw ? "text-emerald-600 font-medium" : "text-red-500 font-medium") : "text-muted-foreground")}>
+                                {formatCompactCurrency(hasComparison ? compGrw : baseGrw)}
+                              </span>
+                            </td>
+                            <td className="py-2 text-xs">
+                              <div className="flex flex-wrap gap-1">
+                                {events.map((evt, idx) => (
+                                  <span key={idx} className="inline-flex items-center rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                    {evt}
+                                  </span>
+                                ))}
+                                {showCompFiBadge ? (
+                                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">🎯 FI</span>
+                                ) : showBaseFiBadge ? (
+                                  <span className="inline-flex items-center rounded-full bg-[rgba(255,107,53,0.1)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--ember)]">🎯 FI (base)</span>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CollapsibleSection>
+            );
+          })()}
         </ChartShell>
 
         {/* ---- Section 2: Impact Summary (when any selected) ---- */}
@@ -680,8 +835,8 @@ export default function SaveWhatIfWorkspace() {
           ) : null}
         </ChartShell>
 
-        {/* ---- Section 4: Year-by-year comparison (collapsed) ---- */}
-        {(() => {
+        {/* Section 4 removed — year-by-year table is now inside the chart card above */}
+        {false as never && (() => {
           const hasComparison = combinedSummary != null;
           const showIncome = selectedIds.has("income-change") || selectedIds.has("career-break");
           const showExpenses = selectedIds.has("lifestyle-change") || selectedIds.has("new-dependent") || selectedIds.has("career-break");
