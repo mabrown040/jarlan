@@ -57,6 +57,17 @@ const currencyOptions: Array<{ value: CurrencyCode; label: string }> = [
   { value: "AUD", label: "Australian Dollar (AUD)" },
 ];
 
+const withdrawalStrategyLabels: Record<string, string> = {
+  fixed: "Fixed real (4% rule)",
+  cape_dynamic: "CAPE dynamic",
+  guyton_klinger: "Guyton-Klinger",
+  vpw: "VPW",
+  constant_pct: "Constant %",
+  rmd: "RMD-based",
+  floor_ceiling: "Floor & ceiling",
+  spending_smile: "Spending smile",
+};
+
 function syncScenarioRollups(nextScenario: Scenario) {
   nextScenario.annualSavings = nextScenario.accounts.reduce(
     (total, account) => total + account.annualContribution,
@@ -473,6 +484,127 @@ export function PlanDrawerContent() {
               value={[activeScenario.assumptions.withdrawalRate]}
               onValueChange={([v]) => updateWithdrawalRate(v)}
             />
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      {/* Withdrawal settings */}
+      <CollapsibleSection
+        title="Withdrawal settings"
+        summary={`${withdrawalStrategyLabels[activeScenario.withdrawalStrategy.type] ?? activeScenario.withdrawalStrategy.type}, ${activeScenario.simulationSettings.retirementDuration}yr horizon`}
+      >
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <FieldLabel htmlFor="drawer-strategy" label="Strategy" tooltip="The withdrawal method for drawing income each year. Different strategies handle market volatility differently." />
+            <Select
+              id="drawer-strategy"
+              value={activeScenario.withdrawalStrategy.type}
+              onChange={(e) =>
+                updateScenario((s) => {
+                  s.withdrawalStrategy.type = e.target.value as typeof s.withdrawalStrategy.type;
+                })
+              }
+            >
+              <option value="fixed">Fixed real (4% rule)</option>
+              <option value="cape_dynamic">CAPE-based dynamic (ERN)</option>
+              <option value="guyton_klinger">Guyton-Klinger guardrails</option>
+              <option value="vpw">Variable Percentage (VPW)</option>
+              <option value="constant_pct">Constant % of portfolio</option>
+              <option value="rmd">RMD-based</option>
+              <option value="floor_ceiling">Floor &amp; ceiling</option>
+              <option value="spending_smile">Spending smile</option>
+            </Select>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="drawer-ret-duration" label="Retirement duration" tooltip="How many years the backtest models. ERN recommends 50-60 years for early retirees." />
+              <NumberInput
+                id="drawer-ret-duration"
+                min={10}
+                max={60}
+                inputMode="numeric"
+                value={activeScenario.simulationSettings.retirementDuration}
+                onValueChange={(v) =>
+                  updateScenario((s) => {
+                    s.simulationSettings.retirementDuration = Math.round(Math.max(10, Math.min(60, v)));
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="drawer-terminal" label="Terminal target" tooltip="0% = survival only. 100% = preserve the full starting portfolio." />
+              <Select
+                id="drawer-terminal"
+                value={String(activeScenario.simulationSettings.finalValueTarget)}
+                onChange={(e) =>
+                  updateScenario((s) => {
+                    s.simulationSettings.finalValueTarget = Number(e.target.value);
+                  })
+                }
+              >
+                <option value="0">Survival only</option>
+                <option value="0.25">Preserve 25%</option>
+                <option value="1">Preserve 100%</option>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <FieldLabel htmlFor="drawer-stocks" label="Stock allocation" tooltip="The rest goes to bonds. Historical backtests use real stock and bond returns." />
+              <span className="text-sm font-medium">
+                {formatPercent(activeScenario.assetAllocationGlidepath[0]?.allocation.stocks ?? 0.8, 0)} stocks
+              </span>
+            </div>
+            <Slider
+              id="drawer-stocks"
+              min={0}
+              max={1}
+              step={0.05}
+              value={[activeScenario.assetAllocationGlidepath[0]?.allocation.stocks ?? 0.8]}
+              onValueChange={([v]) =>
+                updateScenario((s) => {
+                  if (s.assetAllocationGlidepath.length > 0) {
+                    s.assetAllocationGlidepath[0].allocation.stocks = v;
+                    s.assetAllocationGlidepath[0].allocation.bonds = 1 - v;
+                  }
+                })
+              }
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="drawer-rebalance" label="Rebalancing" tooltip="How often to reset your stock/bond split to the target." />
+              <Select
+                id="drawer-rebalance"
+                value={activeScenario.simulationSettings.rebalanceFrequency}
+                onChange={(e) =>
+                  updateScenario((s) => {
+                    s.simulationSettings.rebalanceFrequency = e.target.value as typeof s.simulationSettings.rebalanceFrequency;
+                  })
+                }
+              >
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="annually">Annually</option>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="drawer-mc-mode" label="Monte Carlo" tooltip="How random returns are generated. Bootstrap uses actual historical returns." />
+              <Select
+                id="drawer-mc-mode"
+                value={activeScenario.simulationSettings.simulationType === "historical" ? "monte_carlo_bootstrap" : activeScenario.simulationSettings.simulationType}
+                onChange={(e) =>
+                  updateScenario((s) => {
+                    s.simulationSettings.simulationType = e.target.value as typeof s.simulationSettings.simulationType;
+                  })
+                }
+              >
+                <option value="monte_carlo_parametric">Parametric</option>
+                <option value="monte_carlo_bootstrap">Bootstrap</option>
+                <option value="monte_carlo_block">Block bootstrap</option>
+                <option value="monte_carlo_regime">Regime switching</option>
+              </Select>
+            </div>
           </div>
         </div>
       </CollapsibleSection>
