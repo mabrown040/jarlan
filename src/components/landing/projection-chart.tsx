@@ -44,6 +44,8 @@ export interface MilestoneMarker {
   label: string;
   target?: number;
   description?: string;
+  /** If true, styled as a subtle event marker instead of a FIRE milestone */
+  isEvent?: boolean;
   /** Vertical offset for staggering overlapping labels (computed internally) */
   _offsetY?: number;
 }
@@ -221,10 +223,11 @@ function MilestoneLabel({
   const [showTip, setShowTip] = useState(false);
   const x = viewBox?.x ?? 0;
   const yOffset = milestone._offsetY ?? 0;
-  const baseY = 6 + yOffset;
-  const dotY = 32 + yOffset;
-  // Dynamic badge width based on label length
-  const labelWidth = Math.max(80, milestone.label.length * 7 + 16);
+  const isEvent = milestone.isEvent ?? false;
+
+  // FIRE milestones: prominent, ember-colored, with small dot
+  // Event markers: subtle, gray, smaller text, no dot
+  const labelY = 10 + yOffset;
 
   return (
     <g
@@ -233,32 +236,38 @@ function MilestoneLabel({
       onMouseLeave={() => setShowTip(false)}
       onClick={() => setShowTip((v) => !v)}
     >
-      {/* Glowing dot */}
-      <circle cx={x} cy={dotY} r={5} fill="var(--ember)" opacity={0.15} />
-      <circle cx={x} cy={dotY} r={3.5} fill="var(--ember)" opacity={0.9} />
-      {/* Label badge */}
-      <rect
-        x={x - labelWidth / 2}
-        y={baseY}
-        width={labelWidth}
-        height={20}
-        rx={10}
-        fill="var(--ember)"
-        opacity={0.1}
-      />
-      <text
-        x={x}
-        y={baseY + 14}
-        textAnchor="middle"
-        fontSize={11}
-        fontWeight={700}
-        fill="var(--ember)"
-        letterSpacing={0.3}
-      >
-        {milestone.label}
-      </text>
+      {isEvent ? (
+        /* ── Event marker: subtle gray label, no dot ── */
+        <text
+          x={x}
+          y={labelY}
+          textAnchor="middle"
+          fontSize={10}
+          fontWeight={500}
+          fill="var(--muted-foreground)"
+          opacity={0.7}
+        >
+          {milestone.label}
+        </text>
+      ) : (
+        /* ── FIRE milestone: clean text + small dot ── */
+        <>
+          <circle cx={x} cy={labelY + 8} r={3} fill="var(--ember)" opacity={0.8} />
+          <text
+            x={x}
+            y={labelY}
+            textAnchor="middle"
+            fontSize={11}
+            fontWeight={700}
+            fill="var(--ember)"
+            letterSpacing={0.3}
+          >
+            {milestone.label}
+          </text>
+        </>
+      )}
       {showTip && milestone.description ? (
-        <foreignObject x={x - 150} y={38} width={300} height={90}>
+        <foreignObject x={x - 150} y={labelY + 14} width={300} height={90}>
           <div className="rounded-xl border border-[var(--ember)]/20 bg-[var(--card)] px-4 py-3 text-[13px] leading-relaxed text-foreground shadow-xl">
             <span className="mr-1 text-[var(--ember)]">{"\u2726"}</span>
             {milestone.description}
@@ -466,9 +475,9 @@ export function ProjectionChart({
               <ReferenceLine
                 key={m.label}
                 x={m.year}
-                stroke="var(--ember)"
-                strokeDasharray="3 3"
-                strokeOpacity={0.4}
+                stroke={m.isEvent ? "var(--muted-foreground)" : "var(--ember)"}
+                strokeDasharray={m.isEvent ? "2 4" : "3 3"}
+                strokeOpacity={m.isEvent ? 0.25 : 0.4}
                 label={<MilestoneLabel milestone={m} />}
               />
             ));

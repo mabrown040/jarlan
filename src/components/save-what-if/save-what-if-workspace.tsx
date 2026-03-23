@@ -284,7 +284,7 @@ export default function SaveWhatIfWorkspace() {
     if (coastPoint) {
       markers.push({
         year: coastPoint.year,
-        label: "Coast FIRE",
+        label: "Coast FI",
         target: coastTarget,
         description: `At ${formatCompactCurrency(coastTarget)} saved, compounding finishes the job by retirement.`,
       });
@@ -297,13 +297,13 @@ export default function SaveWhatIfWorkspace() {
     if (baseFiPoint) {
       markers.push({
         year: baseFiPoint.year,
-        label: combinedSummary ? "FIRE (base)" : "FIRE",
+        label: combinedSummary ? "FI (base)" : "FIRE",
         target: baseSummary.fireNumber,
         description: `${formatCompactCurrency(baseSummary.fireNumber)} sustains ${formatCompactCurrency(expenses)}/yr at ${(wr * 100).toFixed(0)}% WR.`,
       });
     }
 
-    // Event start markers from selected decisions
+    // Event start markers from selected decisions — styled as subtle events
     for (const d of selectedDecisions) {
       const vals: Record<string, number> = {};
       for (const p of d.template.params) {
@@ -315,6 +315,7 @@ export default function SaveWhatIfWorkspace() {
         markers.push({
           year,
           label: `${d.emoji} ${d.label.split(" at ")[0].split(" for ")[0]}`,
+          isEvent: true,
         });
       }
     }
@@ -327,7 +328,7 @@ export default function SaveWhatIfWorkspace() {
       if (compFiPoint && (!baseFiPoint || compFiPoint.year !== baseFiPoint.year)) {
         markers.push({
           year: compFiPoint.year,
-          label: "FIRE (with changes)",
+          label: "FI (new)",
           target: combinedSummary.fireNumber,
           description: `FI at age ${Math.round(compFiPoint.age)} with selected changes.`,
         });
