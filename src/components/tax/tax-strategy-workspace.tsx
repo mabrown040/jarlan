@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   ChartShell,
-  PageHero,
+  CompactPageHeader,
   SectionHeading,
   StatCard,
 } from "@/components/brand";
@@ -237,43 +237,15 @@ export function TaxStrategyWorkspace() {
 
   return (
     <div className="space-y-10 pb-12">
-      <PageHero
-        eyebrow="Tax and account strategy"
-        badges={[
-          { label: "Roth ladder" },
-          { label: "ACA pressure", variant: "secondary" },
-          { label: "Drawdown sequencing", variant: "outline" },
+      <CompactPageHeader
+        title="Tax Strategy"
+        description="Roth conversion ladder, Social Security optimization, ACA room, and drawdown sequencing."
+        metrics={[
+          { label: "Roth conversions", value: formatCompactCurrency(rothPlan.totalPlannedConversions), accent: true },
+          { label: "ACA room", value: formatCompactCurrency(acaProjection.roomRemaining) },
+          { label: "Best SS age", value: String(socialSecurityAnalysis.recommendedClaimAge) },
         ]}
-        title="Tax-aware early retirement planning"
-        description="This first tax module turns the shared scenario into a Roth conversion ladder, Social Security comparison, ACA room check, and drawdown sequence preview."
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Planned conversions
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--flame)]">
-              {formatCompactCurrency(rothPlan.totalPlannedConversions)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              ACA room
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--ash)]">
-              {formatCompactCurrency(acaProjection.roomRemaining)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Best SS age
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--ember-light)]">
-              {socialSecurityAnalysis.recommendedClaimAge}
-            </p>
-          </div>
-        </div>
-      </PageHero>
+      />
 
       <section className="mx-auto max-w-7xl space-y-8 px-6">
         <RetirementReadinessSummary
@@ -313,7 +285,7 @@ export function TaxStrategyWorkspace() {
                   titleClassName="text-xl"
                   description="Filing status and household size shape tax brackets and ACA thresholds."
                 />
-                <FieldLabel htmlFor="tax-country" label="Country" />
+                <FieldLabel htmlFor="tax-country" label="Country" tooltip="Sets tax rules and currency defaults. US has the most detailed tax modeling." />
                 <Select
                   id="tax-country"
                   value={countryPreset.code}
@@ -325,7 +297,7 @@ export function TaxStrategyWorkspace() {
                     </option>
                   ))}
                 </Select>
-                <FieldLabel htmlFor="tax-currency" label="Display currency" />
+                <FieldLabel htmlFor="tax-currency" label="Display currency" tooltip="Currency for display. Doesn't convert values — enter amounts in your local currency." />
                 <Select
                   id="tax-currency"
                   value={activeScenario.currency}

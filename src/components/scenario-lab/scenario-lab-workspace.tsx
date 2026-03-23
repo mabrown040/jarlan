@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   ChartShell,
-  PageHero,
+  CompactPageHeader,
   SectionHeading,
   StatCard,
 } from "@/components/brand";
@@ -183,43 +183,15 @@ export function ScenarioLabWorkspace() {
 
   return (
     <div className="space-y-10 pb-12">
-      <PageHero
-        eyebrow="Scenario lab"
-        badges={[
-          { label: "Scenario comparison" },
-          { label: "Sensitivity analysis", variant: "secondary" },
-          { label: "One more year", variant: "outline" },
+      <CompactPageHeader
+        title="Scenario Lab"
+        description="Compare alternative paths side by side without rebuilding the plan."
+        metrics={[
+          { label: "FIRE number", value: formatCompactCurrency(baseSummary.fireNumber), accent: true },
+          { label: "Years to FI", value: formatYears(baseSummary.yearsToFi) },
+          { label: "One more year", value: formatCompactCurrency(oneMoreYear.extraRetirementBalance) },
         ]}
-        title="Compare alternative paths without rebuilding the plan"
-        description="The scenario lab uses the shared base case as the control, then layers deltas on top so you can compare savings, spending, return, and retirement-age changes side by side."
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Base FIRE number
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--flame)]">
-              {formatCompactCurrency(baseSummary.fireNumber)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Base years to FI
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--ash)]">
-              {formatYears(baseSummary.yearsToFi)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              One more year boost
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--ember-light)]">
-              {formatCompactCurrency(oneMoreYear.extraRetirementBalance)}
-            </p>
-          </div>
-        </div>
-      </PageHero>
+      />
 
       <section className="mx-auto max-w-7xl space-y-8 px-6">
         <ProUpgradePrompt

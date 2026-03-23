@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   ChartShell,
-  PageHero,
+  CompactPageHeader,
   SectionHeading,
   StatCard,
 } from "@/components/brand";
@@ -30,7 +30,6 @@ import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scen
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
 import { Select } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -531,43 +530,15 @@ export function HistoricalBacktestWorkspace() {
 
   return (
     <div className="space-y-10 pb-12">
-      <PageHero
-        eyebrow="Withdrawal strategy lab"
-        badges={[
-          { label: "Historical backtesting" },
-          { label: "Strategy comparison", variant: "secondary" },
-          { label: "Worker-backed analysis", variant: "outline" },
+      <CompactPageHeader
+        title="Withdrawal Lab"
+        description="Compare withdrawal strategies against every historical start date since 1871."
+        metrics={[
+          { label: "Portfolio", value: formatCompactCurrency(currentBalance) },
+          { label: "Strategy", value: selectedStrategyMeta.label, accent: true },
+          { label: "Success", value: result ? formatPercent(result.successRate, 1) : "Running..." },
         ]}
-        title="Compare withdrawal strategies against every historical start date"
-        description="This withdrawal lab now runs fixed real spending, CAPE-based withdrawals, and Guyton-Klinger guardrails side by side across the bundled Shiller dataset so you can compare durability and spending behavior from one scenario."
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Starting portfolio
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--ash)]">
-              {formatCompactCurrency(currentBalance)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Active strategy
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--flame)]">
-              {selectedStrategyMeta.label}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Live result
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--ember-light)]">
-              {result ? formatPercent(result.successRate, 1) : "Running"}
-            </p>
-          </div>
-        </div>
-      </PageHero>
+      />
 
       <section className="mx-auto max-w-7xl px-6">
         <div className="space-y-8">
@@ -648,7 +619,7 @@ export function HistoricalBacktestWorkspace() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label htmlFor="withdrawal-strategy">Active strategy</Label>
+                  <FieldLabel htmlFor="withdrawal-strategy" label="Active strategy" tooltip="The withdrawal method for drawing income each year. Different strategies handle market volatility differently." />
                   <Select
                     id="withdrawal-strategy"
                     value={selectedStrategy}
@@ -850,7 +821,7 @@ export function HistoricalBacktestWorkspace() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="rebalance-frequency">Rebalancing</Label>
+                  <FieldLabel htmlFor="rebalance-frequency" label="Rebalancing" tooltip="How often to reset your stock/bond split to the target allocation." />
                   <Select
                     id="rebalance-frequency"
                     value={activeScenario.simulationSettings.rebalanceFrequency}
@@ -870,7 +841,7 @@ export function HistoricalBacktestWorkspace() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="terminal-target">Terminal value target</Label>
+                  <FieldLabel htmlFor="terminal-target" label="Terminal value target" tooltip="What % of your starting portfolio you want left at the end. 0% = survival only, 100% = full preservation." />
                   <Select
                     id="terminal-target"
                     value={String(activeScenario.simulationSettings.finalValueTarget)}
@@ -887,7 +858,7 @@ export function HistoricalBacktestWorkspace() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label htmlFor="monte-carlo-mode">Monte Carlo mode</Label>
+                  <FieldLabel htmlFor="monte-carlo-mode" label="Monte Carlo mode" tooltip="How random returns are generated. Bootstrap uses actual historical returns; parametric draws from a distribution." />
                   <Select
                     id="monte-carlo-mode"
                     value={monteCarloSimulationType}
