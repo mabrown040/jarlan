@@ -24,6 +24,7 @@ const GROWTH_COLOR = "var(--ember)";
 const OPTIMISTIC_COLOR = "#22c55e";
 const PESSIMISTIC_COLOR = "#ef4444";
 const BASE_LINE_COLOR = "#ff6b35";
+const COMPARISON_COLOR = "#7c3aed"; // purple — distinct from base ember
 
 /* ── Types ── */
 
@@ -231,6 +232,7 @@ function MilestoneLabel({
 /* ── Legend ── */
 
 export function ChartLegend({ showBands, comparisonLabel }: { showBands?: boolean; comparisonLabel?: string }) {
+  const useLineStyle = showBands || !!comparisonLabel;
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] text-muted-foreground">
       {showBands ? (
@@ -248,7 +250,20 @@ export function ChartLegend({ showBands, comparisonLabel }: { showBands?: boolea
             Pessimistic (-2%)
           </span>
         </>
+      ) : comparisonLabel ? (
+        /* Comparison mode: show line legends for base + comparison */
+        <>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-0.5 w-4 rounded" style={{ background: BASE_LINE_COLOR }} />
+            Your plan
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-0.5 w-4 rounded border-b-2 border-dashed" style={{ borderColor: COMPARISON_COLOR }} />
+            {comparisonLabel}
+          </span>
+        </>
       ) : (
+        /* Default bar mode */
         <>
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: CONTRIBUTIONS_COLOR }} />
@@ -260,12 +275,6 @@ export function ChartLegend({ showBands, comparisonLabel }: { showBands?: boolea
           </span>
         </>
       )}
-      {comparisonLabel ? (
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-0.5 w-4 rounded border-b-2 border-dashed" style={{ borderColor: "#7c3aed" }} />
-          {comparisonLabel}
-        </span>
-      ) : null}
     </div>
   );
 }
@@ -308,8 +317,6 @@ function DualAxisTick({
 }
 
 /* ── Main Chart ── */
-
-const COMPARISON_COLOR = "#7c3aed"; // purple — distinct from base ember
 
 export function ProjectionChart({
   data,
@@ -380,7 +387,7 @@ export function ProjectionChart({
           {/* Tooltip */}
           <RechartsTooltip
             content={<ChartTooltip startAge={startAge} showBands={showBands} />}
-            cursor={showBands ? { stroke: "var(--color-muted-foreground)", strokeOpacity: 0.2 } : { fill: "var(--color-muted-foreground)", opacity: 0.04 }}
+            cursor={showBands || comparisonData ? { stroke: "var(--color-muted-foreground)", strokeOpacity: 0.2 } : { fill: "var(--color-muted-foreground)", opacity: 0.04 }}
           />
 
           {/* FIRE target horizontal reference */}
@@ -420,51 +427,55 @@ export function ProjectionChart({
             />
           ) : null}
 
-          {showBands ? (
-            /* ── Line mode: 3 lines with shaded range ── */
+          {showBands || comparisonData ? (
+            /* ── Line mode: used for bands OR comparison ── */
             <>
-              {/* Shaded band between optimistic and pessimistic */}
-              <Area
-                dataKey="optimistic"
-                type="monotone"
-                fill="rgba(34,197,94,0.1)"
-                stroke="none"
-                isAnimationActive={false}
-                dot={false}
-                name="optimistic"
-              />
-              <Area
-                dataKey="pessimistic"
-                type="monotone"
-                fill="var(--card)"
-                stroke="none"
-                isAnimationActive={false}
-                dot={false}
-                name="pessimistic"
-              />
-              {/* Lines */}
-              <Line
-                dataKey="optimistic"
-                type="monotone"
-                stroke={OPTIMISTIC_COLOR}
-                strokeWidth={1.5}
-                strokeOpacity={0.6}
-                strokeDasharray="4 3"
-                dot={false}
-                isAnimationActive={false}
-                name="optimistic-line"
-              />
-              <Line
-                dataKey="pessimistic"
-                type="monotone"
-                stroke={PESSIMISTIC_COLOR}
-                strokeWidth={1.5}
-                strokeOpacity={0.6}
-                strokeDasharray="4 3"
-                dot={false}
-                isAnimationActive={false}
-                name="pessimistic-line"
-              />
+              {/* Uncertainty bands (only when showBands is on) */}
+              {showBands ? (
+                <>
+                  <Area
+                    dataKey="optimistic"
+                    type="monotone"
+                    fill="rgba(34,197,94,0.1)"
+                    stroke="none"
+                    isAnimationActive={false}
+                    dot={false}
+                    name="optimistic"
+                  />
+                  <Area
+                    dataKey="pessimistic"
+                    type="monotone"
+                    fill="var(--card)"
+                    stroke="none"
+                    isAnimationActive={false}
+                    dot={false}
+                    name="pessimistic"
+                  />
+                  <Line
+                    dataKey="optimistic"
+                    type="monotone"
+                    stroke={OPTIMISTIC_COLOR}
+                    strokeWidth={1.5}
+                    strokeOpacity={0.6}
+                    strokeDasharray="4 3"
+                    dot={false}
+                    isAnimationActive={false}
+                    name="optimistic-line"
+                  />
+                  <Line
+                    dataKey="pessimistic"
+                    type="monotone"
+                    stroke={PESSIMISTIC_COLOR}
+                    strokeWidth={1.5}
+                    strokeOpacity={0.6}
+                    strokeDasharray="4 3"
+                    dot={false}
+                    isAnimationActive={false}
+                    name="pessimistic-line"
+                  />
+                </>
+              ) : null}
+              {/* Base case line */}
               <Line
                 dataKey="total"
                 type="monotone"
@@ -476,7 +487,7 @@ export function ProjectionChart({
               />
             </>
           ) : (
-            /* ── Bar mode: stacked bars ── */
+            /* ── Bar mode: stacked bars (default) ── */
             <>
               <Bar
                 dataKey="contributions"
