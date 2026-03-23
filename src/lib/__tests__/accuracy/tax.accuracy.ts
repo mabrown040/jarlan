@@ -6,7 +6,7 @@
  *
  * Source: IRS 2025 tax brackets from data/tax_brackets.json
  */
-import { describe, it } from "vitest";
+import { describe, it, expect } from "vitest";
 import { golden } from "./_fixtures/golden";
 import { estimateFederalTax, estimateScenarioTax } from "@/lib/tax";
 import { createTaxHeavyScenario } from "./_fixtures/scenarios";

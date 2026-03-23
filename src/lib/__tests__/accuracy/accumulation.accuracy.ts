@@ -66,8 +66,8 @@ describe("Accumulation Engine — Golden Tests", () => {
     expect(result).toBeLessThan(18);
     golden("accumulation.years-to-fi.basic", {
       input: { balance: 185_000, contribution: 36_000, target: 1_350_000, return: 0.05 },
-      expected: result, // Pin the actual computed value
-      actual: result,
+      expected: result ?? 0, // Pin the actual computed value
+      actual: result ?? 0,
       tolerance: 0,
       methodology: "Monthly compounding FV iteration to target",
     });
@@ -86,7 +86,7 @@ describe("Accumulation Engine — Golden Tests", () => {
         annualContribution: 0,
         targetBalance: 1_350_000,
         annualRealReturn: 0.05,
-      }),
+      }) ?? 0,
       tolerance: 0,
       methodology: "Balance exceeds target → 0 years",
     });

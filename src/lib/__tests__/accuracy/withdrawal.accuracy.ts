@@ -45,7 +45,7 @@ describe("Withdrawal Strategies — Golden Tests", () => {
    * @source Bengen (1994), Trinity Study (1998)
    */
   it("fixed real returns constant withdrawal", () => {
-    const ctx = makeContext({ yearsElapsed: 5 });
+    const ctx = makeContext({ yearsRemaining: 25 });
     golden("withdrawal.fixed.constant", {
       input: { initialWithdrawal: 60_000, yearsElapsed: 5 },
       expected: 60_000,
@@ -184,7 +184,7 @@ describe("Withdrawal Strategies — Golden Tests", () => {
     const scenario = createTrinityClassicScenario();
     scenario.withdrawalStrategy.type = "spending_smile";
     scenario.withdrawalStrategy.spendingDeclineRate = 0.0125;
-    const ctx = makeContext({ scenario, yearsElapsed: 0 });
+    const ctx = makeContext({ scenario, yearsRemaining: 30 });
     golden("withdrawal.spending-smile.year0", {
       input: { initialWithdrawal: 60_000, declineRate: 0.0125, yearsElapsed: 0 },
       expected: 60_000,

@@ -248,7 +248,7 @@ export function PlanDrawerContent() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <FieldLabel htmlFor="drawer-ret-age" label="Retire at" tooltip="Target age for financial independence. Coast FIRE calculations use this as the compounding horizon." />
-              <NumberInput id="drawer-ret-age" min={18} max={90} inputMode="numeric" value={activeScenario.profile.retirementAge ?? activeScenario.profile.age} onValueChange={(v) => { updateRetirementAge(v); updateScenario((s) => { s.simulationSettings.retirementDuration = Math.max(10, 100 - v); }); }} />
+              <NumberInput id="drawer-ret-age" min={18} max={90} inputMode="numeric" value={activeScenario.profile.retirementAge ?? activeScenario.profile.age} onValueChange={(v) => updateScenario((s) => { s.profile.retirementAge = v; s.simulationSettings.retirementDuration = Math.max(10, 100 - v); })} />
             </div>
             <div className="space-y-1.5">
               <FieldLabel htmlFor="drawer-ret-duration" label="Plan horizon" tooltip="How many years the backtest models. ERN recommends 50-60 years for early retirees." />
