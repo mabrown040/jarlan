@@ -102,6 +102,7 @@ function ChartTooltip({
   label,
   startAge,
   showBands,
+  comparisonLabel,
 }: {
   active?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,21 +110,24 @@ function ChartTooltip({
   label?: string | number;
   startAge: number;
   showBands?: boolean;
+  comparisonLabel?: string;
 }) {
   if (!active || !payload?.length || label == null) return null;
 
-  // Pull from the underlying data point — works in both bar and line mode
-  const dataPoint = payload[0]?.payload as ChartDataPoint | undefined;
+  const dataPoint = payload[0]?.payload as (ChartDataPoint & { comparison?: number }) | undefined;
   if (!dataPoint) return null;
 
+  const total = dataPoint.total;
   const contributions = dataPoint.contributions;
   const growth = dataPoint.growth;
-  const total = dataPoint.total;
+  const comparison = dataPoint.comparison;
   const optimistic = dataPoint.optimistic;
   const pessimistic = dataPoint.pessimistic;
   const year = dataPoint.year;
   const age = startAge + year;
   const growthPct = total > 0 ? Math.round((growth / total) * 100) : 0;
+  const hasComparison = comparisonLabel && comparison != null;
+  const delta = hasComparison ? comparison - total : 0;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--surface-border)] bg-[var(--card)] shadow-[0_4px_24px_rgba(26,17,24,0.1)]">
@@ -133,42 +137,71 @@ function ChartTooltip({
           Year {year}{" "}
           <span className="text-muted-foreground">(Age {age})</span>
         </p>
-        <div className="mt-2.5 space-y-1 text-muted-foreground">
-          <p>
-            {showBands ? "Base case" : "Total portfolio"}:{" "}
-            <span className="font-semibold text-foreground">
-              {formatCompactCurrency(total)}
-            </span>
-          </p>
-          <div className="my-2 border-t border-border/40" />
-          <p className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-sm" style={{ background: CONTRIBUTIONS_COLOR }} />
-            Contributions: {formatCompactCurrency(contributions)}
-          </p>
-          <p className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-sm" style={{ background: BASE_LINE_COLOR }} />
-            Growth: {formatCompactCurrency(growth)}
-          </p>
-          {showBands && optimistic != null && pessimistic != null ? (
-            <>
+
+        {hasComparison ? (
+          /* ── Comparison mode: show both paths side by side ── */
+          <div className="mt-2.5 space-y-1.5">
+            <p className="flex items-center justify-between gap-4">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="inline-block h-0.5 w-3 rounded" style={{ background: BASE_LINE_COLOR }} />
+                Your plan
+              </span>
+              <span className="font-semibold text-foreground">{formatCompactCurrency(total)}</span>
+            </p>
+            <p className="flex items-center justify-between gap-4">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="inline-block h-0.5 w-3 rounded border-b border-dashed" style={{ borderColor: COMPARISON_COLOR }} />
+                {comparisonLabel}
+              </span>
+              <span className="font-semibold" style={{ color: COMPARISON_COLOR }}>{formatCompactCurrency(comparison)}</span>
+            </p>
+            <div className="border-t border-border/40 pt-1.5">
+              <p className="text-xs font-semibold" style={{ color: delta > 0 ? "#22c55e" : delta < 0 ? "#ef4444" : "var(--color-muted-foreground)" }}>
+                {delta > 0 ? "+" : ""}{formatCompactCurrency(delta)} {delta > 0 ? "ahead" : delta < 0 ? "behind" : "same"}
+              </p>
+            </div>
+          </div>
+        ) : (
+          /* ── Default mode: show breakdown ── */
+          <>
+            <div className="mt-2.5 space-y-1 text-muted-foreground">
+              <p>
+                {showBands ? "Base case" : "Total portfolio"}:{" "}
+                <span className="font-semibold text-foreground">
+                  {formatCompactCurrency(total)}
+                </span>
+              </p>
               <div className="my-2 border-t border-border/40" />
               <p className="flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-sm" style={{ background: OPTIMISTIC_COLOR, opacity: 0.5 }} />
-                If +2% return: {formatCompactCurrency(optimistic)}
+                <span className="inline-block h-2 w-2 rounded-sm" style={{ background: CONTRIBUTIONS_COLOR }} />
+                Contributions: {formatCompactCurrency(contributions)}
               </p>
               <p className="flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-sm" style={{ background: PESSIMISTIC_COLOR, opacity: 0.5 }} />
-                If -2% return: {formatCompactCurrency(pessimistic)}
+                <span className="inline-block h-2 w-2 rounded-sm" style={{ background: BASE_LINE_COLOR }} />
+                Growth: {formatCompactCurrency(growth)}
               </p>
-            </>
-          ) : null}
-        </div>
-        <p
-          className="mt-2.5 text-xs font-semibold"
-          style={{ color: growthPct > 50 ? "var(--ember)" : "var(--color-muted-foreground)" }}
-        >
-          Growth is {growthPct}% of total{growthPct > 50 ? " \u{1F4C8}" : ""}
-        </p>
+              {showBands && optimistic != null && pessimistic != null ? (
+                <>
+                  <div className="my-2 border-t border-border/40" />
+                  <p className="flex items-center gap-1.5">
+                    <span className="inline-block h-2 w-2 rounded-sm" style={{ background: OPTIMISTIC_COLOR, opacity: 0.5 }} />
+                    If +2% return: {formatCompactCurrency(optimistic)}
+                  </p>
+                  <p className="flex items-center gap-1.5">
+                    <span className="inline-block h-2 w-2 rounded-sm" style={{ background: PESSIMISTIC_COLOR, opacity: 0.5 }} />
+                    If -2% return: {formatCompactCurrency(pessimistic)}
+                  </p>
+                </>
+              ) : null}
+            </div>
+            <p
+              className="mt-2.5 text-xs font-semibold"
+              style={{ color: growthPct > 50 ? "var(--ember)" : "var(--color-muted-foreground)" }}
+            >
+              Growth is {growthPct}% of total{growthPct > 50 ? " \u{1F4C8}" : ""}
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
@@ -386,7 +419,7 @@ export function ProjectionChart({
 
           {/* Tooltip */}
           <RechartsTooltip
-            content={<ChartTooltip startAge={startAge} showBands={showBands} />}
+            content={<ChartTooltip startAge={startAge} showBands={showBands} comparisonLabel={comparisonLabel} />}
             cursor={showBands || comparisonData ? { stroke: "var(--color-muted-foreground)", strokeOpacity: 0.2 } : { fill: "var(--color-muted-foreground)", opacity: 0.04 }}
           />
 
