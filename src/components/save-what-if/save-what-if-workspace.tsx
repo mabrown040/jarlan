@@ -276,7 +276,7 @@ export default function SaveWhatIfWorkspace() {
     const wr = activeScenario.assumptions.withdrawalRate;
     const expenses = activeScenario.retirementExpenses || activeScenario.annualExpenses;
 
-    // Coast FIRE: when balance reaches coastTarget (compounding alone finishes)
+    // Coast FIRE (base): when base balance reaches coastTarget
     const coastTarget = baseSummary.fireNumber / Math.pow(1 + effectiveReturn, Math.max(retAge - age, 1));
     const coastPoint = baseSummary.projection.find(
       (p, i) => i > 0 && p.balance >= coastTarget,
@@ -284,10 +284,26 @@ export default function SaveWhatIfWorkspace() {
     if (coastPoint) {
       markers.push({
         year: coastPoint.year,
-        label: "Coast FI",
+        label: combinedSummary ? "Coast FI (base)" : "Coast FI",
         target: coastTarget,
         description: `At ${formatCompactCurrency(coastTarget)} saved, compounding finishes the job by retirement.`,
       });
+    }
+
+    // Coast FIRE (new): when combined balance reaches its own coastTarget
+    if (combinedSummary) {
+      const compCoastTarget = combinedSummary.fireNumber / Math.pow(1 + effectiveReturn, Math.max(retAge - age, 1));
+      const compCoastPoint = combinedSummary.projection.find(
+        (p, i) => i > 0 && p.balance >= compCoastTarget,
+      );
+      if (compCoastPoint && (!coastPoint || compCoastPoint.year !== coastPoint.year)) {
+        markers.push({
+          year: compCoastPoint.year,
+          label: "Coast FI (new)",
+          target: compCoastTarget,
+          description: `With changes, coast target is ${formatCompactCurrency(compCoastTarget)}. Compounding finishes by retirement.`,
+        });
+      }
     }
 
     // Base FIRE: when base scenario crosses target
