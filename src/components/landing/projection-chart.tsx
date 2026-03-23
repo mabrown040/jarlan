@@ -103,25 +103,26 @@ function ChartTooltip({
   showBands,
 }: {
   active?: boolean;
-  payload?: Array<{ dataKey: string; value: number }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload?: Array<{ dataKey: string; value: number; payload?: any }>;
   label?: string | number;
   startAge: number;
   showBands?: boolean;
 }) {
   if (!active || !payload?.length || label == null) return null;
 
-  const contributions = payload.find((p) => p.dataKey === "contributions")?.value ?? 0;
-  const growth = payload.find((p) => p.dataKey === "growth")?.value ?? 0;
-  const total = payload.find((p) => p.dataKey === "total")?.value ?? (contributions + growth);
-  const optimistic = payload.find((p) => p.dataKey === "optimistic")?.value;
-  const pessimistic = payload.find((p) => p.dataKey === "pessimistic")?.value;
-  const displayTotal = showBands ? total : contributions + growth;
-  const growthPct = displayTotal > 0 ? Math.round((growth / displayTotal) * 100) : 0;
+  // Pull from the underlying data point — works in both bar and line mode
+  const dataPoint = payload[0]?.payload as ChartDataPoint | undefined;
+  if (!dataPoint) return null;
 
-  // Extract year from label (label is the age string in line mode, year number in bar mode)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const year = typeof label === "number" ? label : (payload.find((p) => p.dataKey === "contributions") as any)?.payload?.year ?? 0;
-  const age = startAge + (typeof year === "number" ? year : 0);
+  const contributions = dataPoint.contributions;
+  const growth = dataPoint.growth;
+  const total = dataPoint.total;
+  const optimistic = dataPoint.optimistic;
+  const pessimistic = dataPoint.pessimistic;
+  const year = dataPoint.year;
+  const age = startAge + year;
+  const growthPct = total > 0 ? Math.round((growth / total) * 100) : 0;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--surface-border)] bg-[var(--card)] shadow-[0_4px_24px_rgba(26,17,24,0.1)]">
@@ -133,9 +134,9 @@ function ChartTooltip({
         </p>
         <div className="mt-2.5 space-y-1 text-muted-foreground">
           <p>
-            Total portfolio:{" "}
+            {showBands ? "Base case" : "Total portfolio"}:{" "}
             <span className="font-semibold text-foreground">
-              {formatCompactCurrency(displayTotal)}
+              {formatCompactCurrency(total)}
             </span>
           </p>
           <div className="my-2 border-t border-border/40" />
