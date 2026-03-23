@@ -193,7 +193,7 @@ export default function WhatIfWorkspace() {
       {/* ---- Header ---- */}
       <CompactPageHeader
         title="What if?"
-        description="See which levers move your plan the most, and compare alternative paths side by side."
+        description="Compare alternative retirement paths side by side."
         metrics={[
           {
             label: "FIRE number",
@@ -203,10 +203,6 @@ export default function WhatIfWorkspace() {
           {
             label: "Years to FI",
             value: formatYears(baseSummary.yearsToFi),
-          },
-          {
-            label: "Top lever",
-            value: topSensitivityLever,
           },
         ]}
         actions={
@@ -237,40 +233,7 @@ export default function WhatIfWorkspace() {
           description="Keep experimenting freely, then move into Pro when you want this lab plus saved comparisons and recurring review infrastructure."
         />
 
-        {/* ---- Section 1: Sensitivity Ranking (lead) ---- */}
-        <ChartShell
-          eyebrow="Sensitivity"
-          title="What moves the plan the most"
-          description="Ranked by impact on years-to-FI. Focus your energy on the levers that matter."
-        >
-          <div className="space-y-4">
-            {sensitivity.map((item, index) => (
-              <div key={item.label} className="space-y-2">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium text-foreground">
-                    <span className="mr-2 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-                      {index + 1}
-                    </span>
-                    {item.label}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {item.improvementYears.toFixed(1)} years faster
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{
-                      width: `${Math.min(Math.max(item.improvementYears * 10, 0), 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </ChartShell>
-
-        {/* ---- Section 2: One More Year ---- */}
+        {/* ---- Section 1: One More Year ---- */}
         <ChartShell
           eyebrow="Marginal benefit"
           title="One more year of work"

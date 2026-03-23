@@ -26,7 +26,10 @@ const navGroups: NavGroup[] = [
     id: "save",
     label: "Save",
     href: "/accumulation",
-    items: [{ href: "/accumulation", label: "Your plan", tier: "free" }],
+    items: [
+      { href: "/accumulation", label: "Your plan", tier: "free" },
+      { href: "/save-what-if", label: "What if?", tier: "free" },
+    ],
   },
   {
     id: "spend",
