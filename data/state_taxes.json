@@ -1,0 +1,10 @@
+{
+  "version": "v1",
+  "states": [
+    { "code": "CA", "label": "California", "effectiveOrdinaryRate": 0.093 },
+    { "code": "NY", "label": "New York", "effectiveOrdinaryRate": 0.0685 },
+    { "code": "TX", "label": "Texas", "effectiveOrdinaryRate": 0.0 },
+    { "code": "FL", "label": "Florida", "effectiveOrdinaryRate": 0.0 },
+    { "code": "WA", "label": "Washington", "effectiveOrdinaryRate": 0.0 }
+  ]
+}

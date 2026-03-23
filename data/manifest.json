@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-03-21T19:30:13.744Z",
+  "datasets": [
+    {
+      "id": "shiller-monthly",
+      "version": "v1",
+      "source": "Robert Shiller data library",
+      "cadence": "monthly",
+      "path": "data/shiller.json",
+      "status": "ready",
+      "startDate": "1871-01",
+      "endDate": "2023-09",
+      "recordCount": 1833
+    },
+    {
+      "id": "ssa-mortality",
+      "version": "v1",
+      "source": "Social Security Administration actuarial tables",
+      "cadence": "annual",
+      "path": "data/mortality.json",
+      "status": "ready",
+      "recordCount": 102
+    },
+    {
+      "id": "irs-tax-brackets",
+      "version": "v1",
+      "source": "IRS tax bracket publications",
+      "cadence": "annual",
+      "path": "data/tax_brackets.json",
+      "status": "ready"
+    },
+    {
+      "id": "aca-poverty-levels",
+      "version": "v1",
+      "source": "Federal poverty level guidance",
+      "cadence": "annual",
+      "path": "data/aca_poverty_levels.json",
+      "status": "ready"
+    },
+    {
+      "id": "aca-benchmark-premiums",
+      "version": "v1",
+      "source": "Starter benchmark silver premium table by state and age band",
+      "cadence": "annual",
+      "path": "data/aca_premiums.json",
+      "status": "ready"
+    },
+    {
+      "id": "us-state-tax-starter",
+      "version": "v1",
+      "source": "Starter effective state tax presets",
+      "cadence": "manual",
+      "path": "data/state_taxes.json",
+      "status": "ready"
+    },
+    {
+      "id": "country-presets",
+      "version": "v1",
+      "source": "Product country and currency readiness presets",
+      "cadence": "manual",
+      "path": "data/country_presets.json",
+      "status": "ready"
+    },
+    {
+      "id": "expanded-asset-coverage",
+      "version": "starter-v1",
+      "source": "Planned monthly return series coverage manifest",
+      "cadence": "manual",
+      "path": "data/returns_monthly.json",
+      "status": "placeholder"
+    }
+  ]
+}

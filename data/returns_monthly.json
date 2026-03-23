@@ -1,0 +1,11 @@
+{
+  "version": "starter-v1",
+  "status": "placeholder",
+  "series": [
+    { "id": "us_large_cap", "label": "US large cap", "startDate": "1871-01", "endDate": "2023-09", "recordCount": 1833 },
+    { "id": "us_small_cap_value", "label": "US small cap value", "startDate": "1926-01", "endDate": "2023-09", "recordCount": 1173 },
+    { "id": "reits", "label": "REITs", "startDate": "1972-01", "endDate": "2023-09", "recordCount": 621 },
+    { "id": "tips", "label": "TIPS", "startDate": "1997-01", "endDate": "2023-09", "recordCount": 321 },
+    { "id": "international_developed", "label": "International developed", "startDate": "1970-01", "endDate": "2023-09", "recordCount": 645 }
+  ]
+}

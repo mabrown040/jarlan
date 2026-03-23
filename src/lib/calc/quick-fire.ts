@@ -1,0 +1,301 @@
+import { clamp, roundTo } from "@/lib/utils";
+
+import {
+  getCurrentPortfolioBalance,
+  getNetCashFlowAtAge,
+  getPlannedAnnualInvestmentContribution,
+  getSavingsRate,
+  getYearsUntilRetirement,
+} from "@/lib/calc/scenario";
+import type { ProjectionPoint, QuickFireSummary, Scenario } from "@/lib/domain/types";
+
+export interface SavingsRateTableRow {
+  savingsRate: number;
+  annualExpenses: number;
+  annualSavings: number;
+  fireNumber: number;
+  yearsToFi: number | null;
+}
+
+export function calculateFireNumber(
+  annualExpenses: number,
+  withdrawalRate: number,
+) {
+  return annualExpenses / withdrawalRate;
+}
+
+export function calculateYearsToTarget({
+  currentBalance,
+  annualContribution,
+  targetBalance,
+  annualRealReturn,
+  maxYears = 80,
+}: {
+  currentBalance: number;
+  annualContribution: number;
+  targetBalance: number;
+  annualRealReturn: number;
+  maxYears?: number;
+}) {
+  if (currentBalance >= targetBalance) {
+    return 0;
+  }
+
+  const monthlyReturn = annualRealReturn / 12;
+  const monthlyContribution = annualContribution / 12;
+  let balance = currentBalance;
+
+  for (let month = 1; month <= maxYears * 12; month += 1) {
+    balance = balance * (1 + monthlyReturn) + monthlyContribution;
+
+    if (balance >= targetBalance) {
+      return roundTo(month / 12, 1);
+    }
+  }
+
+  return null;
+}
+
+export function buildProjection({
+  currentBalance,
+  annualContribution,
+  targetBalance,
+  currentAge,
+  annualRealReturn,
+  years,
+}: {
+  currentBalance: number;
+  annualContribution: number;
+  targetBalance: number;
+  currentAge: number;
+  annualRealReturn: number;
+  years: number;
+}): ProjectionPoint[] {
+  const horizon = Math.max(1, Math.ceil(years));
+  const monthlyReturn = annualRealReturn / 12;
+  const monthlyContribution = annualContribution / 12;
+  const projection: ProjectionPoint[] = [];
+  let balance = currentBalance;
+
+  projection.push({
+    year: 0,
+    age: currentAge,
+    balance,
+    target: targetBalance,
+  });
+
+  for (let month = 1; month <= horizon * 12; month += 1) {
+    balance = balance * (1 + monthlyReturn) + monthlyContribution;
+
+    if (month % 12 === 0) {
+      projection.push({
+        year: month / 12,
+        age: currentAge + month / 12,
+        balance: roundTo(balance, 0),
+        target: targetBalance,
+      });
+    }
+  }
+
+  return projection;
+}
+
+/**
+ * Compute the effective monthly return after subtracting fee drag.
+ */
+function getEffectiveMonthlyReturn(scenario: Scenario) {
+  const effectiveAnnual =
+    scenario.assumptions.expectedRealReturn - scenario.simulationSettings.feeDrag;
+  return effectiveAnnual / 12;
+}
+
+/**
+ * Compute the monthly contribution for a given year offset, accounting for
+ * income and expense growth rates. Income and expenses grow in real terms
+ * each year, and savings = income - expenses, which means contributions
+ * grow as income outpaces expenses.
+ */
+function getMonthlyContributionForYear(scenario: Scenario, yearOffset: number) {
+  const incomeGrowth = 1 + (scenario.assumptions.incomeGrowthRate ?? 0);
+  const expenseGrowth = 1 + (scenario.assumptions.expenseGrowthRate ?? 0);
+  const grownIncome = scenario.annualIncome * incomeGrowth ** yearOffset;
+  const grownExpenses = scenario.annualExpenses * expenseGrowth ** yearOffset;
+  const baseSavings = Math.max(grownIncome - grownExpenses, 0);
+  // Also add employer match and other contributions that scale with income
+  const baseContribution = getPlannedAnnualInvestmentContribution(scenario);
+  const scaledContribution = baseContribution * incomeGrowth ** yearOffset;
+  // Use the larger of income-minus-expenses or scaled contributions
+  const annualContribution = Math.max(baseSavings, scaledContribution);
+  return annualContribution / 12;
+}
+
+function calculateScenarioYearsToTarget(
+  scenario: Scenario,
+  targetBalance: number,
+  maxYears = 80,
+) {
+  const currentBalance = getCurrentPortfolioBalance(scenario.accounts);
+
+  if (currentBalance >= targetBalance) {
+    return 0;
+  }
+
+  const monthlyReturn = getEffectiveMonthlyReturn(scenario);
+  let balance = currentBalance;
+
+  for (let month = 1; month <= maxYears * 12; month += 1) {
+    const yearOffset = (month - 1) / 12;
+    const age = scenario.profile.age + yearOffset;
+    const monthlyContribution = getMonthlyContributionForYear(scenario, Math.floor(yearOffset));
+    const monthlyCashFlow = getNetCashFlowAtAge(scenario, age) / 12;
+    balance = balance * (1 + monthlyReturn) + monthlyContribution + monthlyCashFlow;
+
+    if (balance >= targetBalance) {
+      return roundTo(month / 12, 1);
+    }
+  }
+
+  return null;
+}
+
+function buildScenarioProjection({
+  scenario,
+  targetBalance,
+  years,
+}: {
+  scenario: Scenario;
+  targetBalance: number;
+  years: number;
+}) {
+  const horizon = Math.max(1, Math.ceil(years));
+  const monthlyReturn = getEffectiveMonthlyReturn(scenario);
+  const projection: ProjectionPoint[] = [];
+  let balance = getCurrentPortfolioBalance(scenario.accounts);
+
+  projection.push({
+    year: 0,
+    age: scenario.profile.age,
+    balance,
+    target: targetBalance,
+  });
+
+  for (let month = 1; month <= horizon * 12; month += 1) {
+    const yearOffset = (month - 1) / 12;
+    const age = scenario.profile.age + yearOffset;
+    const monthlyContribution = getMonthlyContributionForYear(scenario, Math.floor(yearOffset));
+    const monthlyCashFlow = getNetCashFlowAtAge(scenario, age) / 12;
+    balance = balance * (1 + monthlyReturn) + monthlyContribution + monthlyCashFlow;
+
+    if (month % 12 === 0) {
+      projection.push({
+        year: month / 12,
+        age: scenario.profile.age + month / 12,
+        balance: roundTo(balance, 0),
+        target: targetBalance,
+      });
+    }
+  }
+
+  return projection;
+}
+
+export function calculateQuickFireSummary(scenario: Scenario): QuickFireSummary {
+  const currentBalance = getCurrentPortfolioBalance(scenario.accounts);
+  // If expenses grow in real terms (lifestyle creep), project forward to retirement
+  const yearsToRetirement = Math.max(
+    (scenario.profile.retirementAge ?? scenario.profile.age) - scenario.profile.age,
+    0,
+  );
+  const expenseGrowth = 1 + (scenario.assumptions.expenseGrowthRate ?? 0);
+  const projectedRetirementExpenses =
+    scenario.retirementExpenses * expenseGrowth ** yearsToRetirement;
+  const fireNumber = calculateFireNumber(
+    projectedRetirementExpenses,
+    scenario.assumptions.withdrawalRate,
+  );
+  const saferFireNumber = calculateFireNumber(
+    projectedRetirementExpenses,
+    scenario.assumptions.saferWithdrawalRate,
+  );
+  const yearsToFi = calculateScenarioYearsToTarget(scenario, fireNumber);
+  const projectionYears = clamp(
+    Math.max(
+      12,
+      (scenario.profile.retirementAge ?? scenario.profile.age + 12) -
+        scenario.profile.age,
+      Math.ceil(yearsToFi ?? 0) + 5,
+    ),
+    12,
+    60,
+  );
+
+  // Coast FIRE target: the amount you need TODAY so that compounding alone
+  // reaches the FIRE number by your target retirement age.
+  const effectiveReturn =
+    scenario.assumptions.expectedRealReturn - scenario.simulationSettings.feeDrag;
+  const coastFiTarget =
+    yearsToRetirement > 0 && effectiveReturn > 0
+      ? fireNumber / (1 + effectiveReturn) ** yearsToRetirement
+      : fireNumber;
+
+  // Coast age: when does your accumulating portfolio reach the coastFiTarget?
+  // Once it does, you can stop saving — compounding alone finishes the job by retirement.
+  const coastAge =
+    currentBalance >= coastFiTarget
+      ? scenario.profile.age // already coasting
+      : scenario.assumptions.expectedRealReturn > 0
+        ? calculateScenarioYearsToTarget(scenario, coastFiTarget) !== null
+          ? roundTo(
+              scenario.profile.age +
+                (calculateScenarioYearsToTarget(scenario, coastFiTarget) ?? 0),
+              1,
+            )
+          : null
+        : null;
+
+  return {
+    fireNumber,
+    saferFireNumber,
+    yearsToFi,
+    fireAge: yearsToFi === null ? null : roundTo(scenario.profile.age + yearsToFi, 1),
+    coastGap: coastFiTarget - currentBalance,
+    coastAge,
+    savingsRate: getSavingsRate(scenario),
+    projection: buildScenarioProjection({
+      scenario,
+      targetBalance: fireNumber,
+      years: projectionYears,
+    }),
+  };
+}
+
+export function buildSavingsRateTable(
+  annualIncome: number,
+  withdrawalRate: number,
+  annualRealReturn: number,
+) {
+  if (annualIncome <= 0) {
+    return [] satisfies SavingsRateTableRow[];
+  }
+
+  const rates = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7];
+
+  return rates.map((savingsRate) => {
+    const annualSavings = annualIncome * savingsRate;
+    const annualExpenses = annualIncome - annualSavings;
+    const fireNumber = calculateFireNumber(annualExpenses, withdrawalRate);
+
+    return {
+      savingsRate,
+      annualExpenses,
+      annualSavings,
+      fireNumber,
+      yearsToFi: calculateYearsToTarget({
+        currentBalance: 0,
+        annualContribution: annualSavings,
+        targetBalance: fireNumber,
+        annualRealReturn,
+      }),
+    };
+  });
+}

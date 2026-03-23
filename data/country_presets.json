@@ -1,0 +1,45 @@
+{
+  "version": "v1",
+  "countries": [
+    {
+      "code": "US",
+      "label": "United States",
+      "currency": "USD",
+      "locale": "en-US",
+      "stateLabel": "State",
+      "readiness": "Full tax and ACA logic lives here first."
+    },
+    {
+      "code": "CA",
+      "label": "Canada",
+      "currency": "CAD",
+      "locale": "en-CA",
+      "stateLabel": "Province",
+      "readiness": "Currency, UI, and planning surfaces are ready while country-specific tax logic continues."
+    },
+    {
+      "code": "GB",
+      "label": "United Kingdom",
+      "currency": "GBP",
+      "locale": "en-GB",
+      "stateLabel": "Region",
+      "readiness": "Currency, UI, and planning surfaces are ready while country-specific tax logic continues."
+    },
+    {
+      "code": "EU",
+      "label": "Eurozone",
+      "currency": "EUR",
+      "locale": "de-DE",
+      "stateLabel": "Region",
+      "readiness": "Currency, UI, and planning surfaces are ready while country-specific tax logic continues."
+    },
+    {
+      "code": "AU",
+      "label": "Australia",
+      "currency": "AUD",
+      "locale": "en-AU",
+      "stateLabel": "State/Territory",
+      "readiness": "Currency, UI, and planning surfaces are ready while country-specific tax logic continues."
+    }
+  ]
+}
