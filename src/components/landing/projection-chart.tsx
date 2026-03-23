@@ -230,7 +230,7 @@ function MilestoneLabel({
 
 /* ── Legend ── */
 
-export function ChartLegend({ showBands }: { showBands?: boolean }) {
+export function ChartLegend({ showBands, comparisonLabel }: { showBands?: boolean; comparisonLabel?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] text-muted-foreground">
       {showBands ? (
@@ -260,6 +260,12 @@ export function ChartLegend({ showBands }: { showBands?: boolean }) {
           </span>
         </>
       )}
+      {comparisonLabel ? (
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-0.5 w-4 rounded border-b-2 border-dashed" style={{ borderColor: "#7c3aed" }} />
+          {comparisonLabel}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -303,6 +309,8 @@ function DualAxisTick({
 
 /* ── Main Chart ── */
 
+const COMPARISON_COLOR = "#7c3aed"; // purple — distinct from base ember
+
 export function ProjectionChart({
   data,
   annualContribution = 0,
@@ -310,6 +318,8 @@ export function ProjectionChart({
   startAge = 30,
   showBands = false,
   bandProjections,
+  comparisonData,
+  comparisonLabel,
   ariaLabel = "Portfolio projection showing contributions and investment growth over time.",
 }: {
   data: ProjectionPoint[];
@@ -318,15 +328,23 @@ export function ProjectionChart({
   startAge?: number;
   showBands?: boolean;
   bandProjections?: { pessimistic: ProjectionPoint[]; optimistic: ProjectionPoint[] };
+  comparisonData?: ProjectionPoint[];
+  comparisonLabel?: string;
   ariaLabel?: string;
 }) {
-  const { chartData, crossover } = buildChartData(
+  const { chartData: rawChartData, crossover } = buildChartData(
     data,
     annualContribution,
     startAge,
     showBands ? bandProjections : undefined,
   );
   const target = data[0]?.target ?? 0;
+
+  // Merge comparison data into chart points
+  const chartData = rawChartData.map((point, i) => ({
+    ...point,
+    comparison: comparisonData?.[i]?.balance,
+  }));
 
   return (
     <ChartFrame ariaLabel={ariaLabel} className="h-72 w-full sm:h-96">
@@ -478,6 +496,20 @@ export function ProjectionChart({
               />
             </>
           )}
+
+          {/* Comparison overlay line (when a what-if scenario is selected) */}
+          {comparisonData ? (
+            <Line
+              dataKey="comparison"
+              type="monotone"
+              stroke={COMPARISON_COLOR}
+              strokeWidth={2.5}
+              strokeDasharray="6 3"
+              dot={false}
+              isAnimationActive={false}
+              name="comparison"
+            />
+          ) : null}
         </ComposedChart>
       </ResponsiveContainer>
     </ChartFrame>

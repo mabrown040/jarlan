@@ -2,10 +2,15 @@
 
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ChartShell, CompactPageHeader } from "@/components/brand";
+import { ChartShell, CompactPageHeader, StatCard } from "@/components/brand";
+import {
+  ProjectionChart,
+  ChartLegend,
+} from "@/components/landing/projection-chart";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import {
   calculateFireNumber,
   calculateQuickFireSummary,
@@ -16,9 +21,12 @@ import {
   formatYears,
   getSavingsRate,
 } from "@/lib/calc";
+import { getPlannedAnnualInvestmentContribution } from "@/lib/calc/scenario";
 import { US_BENCHMARKS } from "@/lib/data/benchmarks";
-import { evaluateLifeDecisions } from "@/lib/scenario-lab/life-decisions";
-import type { LifeDecisionResult } from "@/lib/scenario-lab/life-decisions";
+import {
+  evaluateLifeDecisions,
+  type LifeDecisionResult,
+} from "@/lib/scenario-lab/life-decisions";
 import { buildSensitivityAnalysis } from "@/lib/scenario-lab/analysis";
 import {
   SCENARIO_QUERY_KEY,
@@ -29,7 +37,7 @@ import { useScenarioStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
-/*  Savings rate table config                                                 */
+/*  Savings rate table config                                                  */
 /* -------------------------------------------------------------------------- */
 
 const SAVINGS_RATE_ROWS = [0.046, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
@@ -76,25 +84,19 @@ function formatFireDate(yearsToFi: number | null): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Decision card color helpers                                               */
+/*  Decision card color helpers                                                */
 /* -------------------------------------------------------------------------- */
 
-function getImpactColor(direction: LifeDecisionResult["decision"]["direction"]) {
+function getImpactColor(
+  direction: LifeDecisionResult["decision"]["direction"],
+) {
   if (direction === "positive") return "text-emerald-500";
   if (direction === "negative") return "text-red-500";
   return "text-amber-500";
 }
 
-function getImpactBorderColor(
-  direction: LifeDecisionResult["decision"]["direction"],
-) {
-  if (direction === "positive") return "border-emerald-500/20";
-  if (direction === "negative") return "border-red-500/20";
-  return "border-amber-500/20";
-}
-
 /* -------------------------------------------------------------------------- */
-/*  Component                                                                 */
+/*  Component                                                                  */
 /* -------------------------------------------------------------------------- */
 
 export default function SaveWhatIfWorkspace() {
@@ -106,6 +108,9 @@ export default function SaveWhatIfWorkspace() {
   const hasInitialized = useRef(false);
 
   useGlobalScenarioFormatting(activeScenario);
+
+  /* ---- Selection state ---- */
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   /* ---- Initialize from URL or storage ---- */
   useEffect(() => {
@@ -151,7 +156,12 @@ export default function SaveWhatIfWorkspace() {
     [activeScenario],
   );
 
-  const lifeDecisions = useMemo(
+  const plannedContribution = useMemo(
+    () => getPlannedAnnualInvestmentContribution(activeScenario),
+    [activeScenario],
+  );
+
+  const decisionResults = useMemo(
     () => evaluateLifeDecisions(activeScenario),
     [activeScenario],
   );
@@ -174,13 +184,17 @@ export default function SaveWhatIfWorkspace() {
 
   const userSavingsRate = getSavingsRate(activeScenario);
 
-  const topLifeDecision = useMemo(() => {
-    if (lifeDecisions.length === 0) return "---";
-    const best = lifeDecisions.reduce((a, b) =>
-      Math.abs(a.deltaYears) > Math.abs(b.deltaYears) ? a : b,
-    );
-    return best.decision.label;
-  }, [lifeDecisions]);
+  /* ---- Selected decision + computed comparison summary ---- */
+  const selectedDecision =
+    decisionResults.find((r) => r.decision.id === selectedId)?.decision ?? null;
+
+  const selectedSummary = useMemo(() => {
+    if (!selectedDecision) return null;
+    return calculateQuickFireSummary(selectedDecision.apply(activeScenario));
+  }, [selectedDecision, activeScenario]);
+
+  const selectedResult =
+    decisionResults.find((r) => r.decision.id === selectedId) ?? null;
 
   /* ---- Find closest savings rate row for user highlight ---- */
   function isClosestToUser(rate: number): boolean {
@@ -197,12 +211,17 @@ export default function SaveWhatIfWorkspace() {
     return rate === closest;
   }
 
+  /* ---- Toggle handler ---- */
+  function handleCardClick(id: string) {
+    setSelectedId((prev) => (prev === id ? null : id));
+  }
+
   return (
     <div className="space-y-8 pb-12">
-      {/* ---- Section 1: Header ---- */}
+      {/* ---- Header ---- */}
       <CompactPageHeader
         title="What if?"
-        description="See how real-life decisions change your path to financial independence."
+        description="Click any scenario below to see how it changes your path to financial independence."
         metrics={[
           {
             label: "FIRE number",
@@ -214,31 +233,113 @@ export default function SaveWhatIfWorkspace() {
             value: formatYears(baseSummary.yearsToFi),
           },
           {
-            label: "Top decision impact",
-            value: topLifeDecision,
+            label: "FI age",
+            value:
+              baseSummary.fireAge !== null
+                ? `${Math.round(baseSummary.fireAge)}`
+                : "---",
           },
         ]}
       />
 
       <section className="mx-auto max-w-7xl space-y-8 px-6">
-        {/* ---- Section 2: Life Decision Scenarios ---- */}
+        {/* ---- Section 1: Comparison Chart ---- */}
+        <ChartShell
+          title={
+            selectedDecision
+              ? `${selectedDecision.emoji} ${selectedDecision.label}`
+              : "Your base case"
+          }
+        >
+          <ProjectionChart
+            data={baseSummary.projection}
+            annualContribution={plannedContribution}
+            startAge={activeScenario.profile.age}
+            comparisonData={selectedSummary?.projection}
+            comparisonLabel={selectedDecision?.label}
+          />
+          <div className="mt-3">
+            <ChartLegend comparisonLabel={selectedDecision?.label} />
+          </div>
+        </ChartShell>
+
+        {/* ---- Section 2: Impact Summary (only when selected) ---- */}
+        {selectedResult && selectedSummary ? (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              {/* Card 1: Your plan */}
+              <StatCard
+                label="Your plan"
+                value={formatCompactCurrency(baseSummary.fireNumber)}
+                description={`${formatYears(baseSummary.yearsToFi)} to FI${baseSummary.fireAge !== null ? ` (age ${Math.round(baseSummary.fireAge)})` : ""}`}
+              />
+
+              {/* Card 2: With decision */}
+              <StatCard
+                label={`With ${selectedResult.decision.emoji} ${selectedResult.decision.label}`}
+                value={formatCompactCurrency(selectedSummary.fireNumber)}
+                description={`${formatYears(selectedSummary.yearsToFi)} to FI${selectedSummary.fireAge !== null ? ` (age ${Math.round(selectedSummary.fireAge)})` : ""}`}
+                tone="accent"
+              />
+
+              {/* Card 3: Impact */}
+              <StatCard
+                label="Impact"
+                value={
+                  selectedResult.deltaYears === 0
+                    ? "No change"
+                    : selectedResult.deltaYears > 0
+                      ? `${Math.abs(selectedResult.deltaYears).toFixed(1)} yrs sooner`
+                      : `${Math.abs(selectedResult.deltaYears).toFixed(1)} yrs later`
+                }
+                description={
+                  Math.abs(selectedResult.deltaFireNumber) >= 500
+                    ? `Target ${selectedResult.deltaFireNumber > 0 ? "+" : "-"}${formatCompactCurrency(Math.abs(selectedResult.deltaFireNumber))} ${selectedResult.deltaYears > 0 ? "\u2191" : selectedResult.deltaYears < 0 ? "\u2193" : ""}`
+                    : `${selectedResult.deltaYears > 0 ? "\u2191 Closer to FI" : selectedResult.deltaYears < 0 ? "\u2193 Further from FI" : "No change"}`
+                }
+                tone={
+                  selectedResult.deltaYears > 0
+                    ? "success"
+                    : selectedResult.deltaYears < 0
+                      ? "danger"
+                      : "default"
+                }
+              />
+            </div>
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                className="rounded-lg border border-border/60 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              >
+                Reset comparison
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* ---- Section 3: Life Decision Cards ---- */}
         <ChartShell
           eyebrow="Life decisions"
           title="How real choices change your timeline"
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            {lifeDecisions.map((result) => {
+            {decisionResults.map((result) => {
               const { decision, deltaYears, deltaFireNumber } = result;
+              const isSelected = selectedId === decision.id;
               const sooner = deltaYears > 0;
               const fireNumberChanged = Math.abs(deltaFireNumber) >= 500;
 
               return (
-                <div
+                <button
                   key={decision.id}
+                  type="button"
+                  onClick={() => handleCardClick(decision.id)}
                   className={cn(
-                    "rounded-xl border p-4 transition-colors",
-                    getImpactBorderColor(decision.direction),
-                    "bg-muted/30 hover:bg-muted/50",
+                    "rounded-xl border p-4 text-left transition-all",
+                    isSelected
+                      ? "border-[var(--ember)] bg-[rgba(255,107,53,0.05)] ring-1 ring-[var(--ember)]/20"
+                      : "border-border/60 bg-card hover:border-[var(--ember)]/30",
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -262,8 +363,8 @@ export default function SaveWhatIfWorkspace() {
                       {deltaYears === 0
                         ? "No change"
                         : sooner
-                          ? `FIRE ${Math.abs(deltaYears).toFixed(1)} years sooner`
-                          : `FIRE ${Math.abs(deltaYears).toFixed(1)} years later`}
+                          ? `${Math.abs(deltaYears).toFixed(1)} years sooner \u2191`
+                          : `${Math.abs(deltaYears).toFixed(1)} years later \u2193`}
                     </p>
                     {fireNumberChanged ? (
                       <p className="text-xs text-muted-foreground">
@@ -273,17 +374,21 @@ export default function SaveWhatIfWorkspace() {
                       </p>
                     ) : null}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
+          {!selectedId ? (
+            <p className="mt-4 text-center text-xs text-muted-foreground/60">
+              Click any card to see its impact on the chart above
+            </p>
+          ) : null}
         </ChartShell>
 
-        {/* ---- Section 3: Sensitivity Ranking ---- */}
-        <ChartShell
-          eyebrow="Sensitivity"
+        {/* ---- Section 4: Sensitivity (collapsed) ---- */}
+        <CollapsibleSection
           title="What moves the plan the most"
-          description="Ranked by impact on years-to-FI. Focus your energy on the levers that matter."
+          summary="4 key levers ranked by impact"
         >
           <div className="space-y-4">
             {sensitivity.map((item, index) => (
@@ -310,12 +415,12 @@ export default function SaveWhatIfWorkspace() {
               </div>
             ))}
           </div>
-        </ChartShell>
+        </CollapsibleSection>
 
-        {/* ---- Section 4: Savings Rate Table ---- */}
-        <ChartShell
-          eyebrow="Reference"
+        {/* ---- Section 5: Savings Rate Table (collapsed) ---- */}
+        <CollapsibleSection
           title="Savings rate vs. time to FI"
+          summary="10%\u201380% with FIRE dates"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -388,7 +493,7 @@ export default function SaveWhatIfWorkspace() {
               </tbody>
             </table>
           </div>
-        </ChartShell>
+        </CollapsibleSection>
       </section>
     </div>
   );

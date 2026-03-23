@@ -716,7 +716,7 @@ export function QuickFireWorkspace({
                 <Link href={"/withdrawal" as Route}>Stress-test retirement</Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link href={"/scenario-lab" as Route}>Compare scenarios</Link>
+                <Link href={"/save-what-if" as Route}>What if?</Link>
               </Button>
             </div>
           </div>
