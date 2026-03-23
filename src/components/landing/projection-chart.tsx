@@ -44,6 +44,8 @@ export interface MilestoneMarker {
   label: string;
   target?: number;
   description?: string;
+  /** Vertical offset for staggering overlapping labels (computed internally) */
+  _offsetY?: number;
 }
 
 export interface CrossoverInfo {
@@ -218,6 +220,11 @@ function MilestoneLabel({
 }) {
   const [showTip, setShowTip] = useState(false);
   const x = viewBox?.x ?? 0;
+  const yOffset = milestone._offsetY ?? 0;
+  const baseY = 6 + yOffset;
+  const dotY = 32 + yOffset;
+  // Dynamic badge width based on label length
+  const labelWidth = Math.max(80, milestone.label.length * 7 + 16);
 
   return (
     <g
@@ -227,13 +234,13 @@ function MilestoneLabel({
       onClick={() => setShowTip((v) => !v)}
     >
       {/* Glowing dot */}
-      <circle cx={x} cy={32} r={5} fill="var(--ember)" opacity={0.15} />
-      <circle cx={x} cy={32} r={3.5} fill="var(--ember)" opacity={0.9} />
+      <circle cx={x} cy={dotY} r={5} fill="var(--ember)" opacity={0.15} />
+      <circle cx={x} cy={dotY} r={3.5} fill="var(--ember)" opacity={0.9} />
       {/* Label badge */}
       <rect
-        x={x - 40}
-        y={6}
-        width={80}
+        x={x - labelWidth / 2}
+        y={baseY}
+        width={labelWidth}
         height={20}
         rx={10}
         fill="var(--ember)"
@@ -241,7 +248,7 @@ function MilestoneLabel({
       />
       <text
         x={x}
-        y={20}
+        y={baseY + 14}
         textAnchor="middle"
         fontSize={11}
         fontWeight={700}
@@ -438,17 +445,34 @@ export function ProjectionChart({
             />
           ) : null}
 
-          {/* Milestone reference lines */}
-          {milestones.map((m) => (
-            <ReferenceLine
-              key={m.label}
-              x={m.year}
-              stroke="var(--ember)"
-              strokeDasharray="3 3"
-              strokeOpacity={0.4}
-              label={<MilestoneLabel milestone={m} />}
-            />
-          ))}
+          {/* Milestone reference lines — stagger overlapping labels */}
+          {(() => {
+            // Sort milestones by year and assign vertical offsets to avoid overlap
+            const sorted = [...milestones].sort((a, b) => a.year - b.year);
+            const OVERLAP_THRESHOLD = 2; // years apart considered "close"
+            const STAGGER_PX = 22; // vertical offset per stagger level
+            let prevYear = -999;
+            let staggerLevel = 0;
+            for (const m of sorted) {
+              if (Math.abs(m.year - prevYear) <= OVERLAP_THRESHOLD) {
+                staggerLevel += 1;
+              } else {
+                staggerLevel = 0;
+              }
+              m._offsetY = staggerLevel * STAGGER_PX;
+              prevYear = m.year;
+            }
+            return sorted.map((m) => (
+              <ReferenceLine
+                key={m.label}
+                x={m.year}
+                stroke="var(--ember)"
+                strokeDasharray="3 3"
+                strokeOpacity={0.4}
+                label={<MilestoneLabel milestone={m} />}
+              />
+            ));
+          })()}
 
           {/* Crossover: subtle dotted line */}
           {crossover ? (
