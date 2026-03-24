@@ -572,7 +572,7 @@ export default function SaveWhatIfWorkspace() {
           title={
             selectedIds.size > 0
               ? `With ${selectedIds.size} change${selectedIds.size === 1 ? "" : "s"}`
-              : "Your base case"
+              : "Accumulation projection"
           }
         >
           <ProjectionChart
