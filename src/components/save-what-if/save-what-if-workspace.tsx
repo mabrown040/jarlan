@@ -430,7 +430,125 @@ export default function SaveWhatIfWorkspace() {
       />
 
       <section className="mx-auto max-w-7xl space-y-8 px-6">
-        {/* ---- Section 1: Comparison Chart ---- */}
+        {/* ---- Life Decision Cards (primary interaction — shown first) ---- */}
+        <ChartShell
+          eyebrow="Life decisions"
+          title="How real choices change your timeline"
+        >
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {decisionResults.map((result) => {
+              const { decision, deltaYears, deltaFireNumber } = result;
+              const isSelected = selectedIds.has(decision.id);
+              const sooner = deltaYears > 0;
+              const fireNumberChanged = Math.abs(deltaFireNumber) >= 500;
+
+              return (
+                <div
+                  key={decision.id}
+                  className={cn(
+                    "rounded-xl border transition-all",
+                    isSelected
+                      ? "border-[var(--ember)] bg-[rgba(255,107,53,0.05)] ring-1 ring-[var(--ember)]/20"
+                      : "border-border/60 bg-card hover:border-[var(--ember)]/30",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleCardClick(decision.id)}
+                    className="w-full p-4 text-left"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-1.5 font-medium text-foreground">
+                          <span>{decision.emoji}</span>
+                          <span className="flex-1">{decision.label}</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex-shrink-0 cursor-help rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/80">?</span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                              {decision.methodology}
+                            </TooltipContent>
+                          </Tooltip>
+                        </p>
+                        <p className="mt-0.5 text-sm text-muted-foreground">
+                          {decision.description}
+                        </p>
+                        <p className="mt-1 text-[11px] text-muted-foreground/60">
+                          e.g. {decision.examples.slice(0, 3).join(", ")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-1">
+                      <p
+                        className={cn(
+                          "text-sm font-semibold",
+                          getImpactColor(decision.direction),
+                        )}
+                      >
+                        {deltaYears === 0
+                          ? "No change"
+                          : sooner
+                            ? `${Math.abs(deltaYears).toFixed(1)} years sooner \u2191`
+                            : `${Math.abs(deltaYears).toFixed(1)} years later \u2193`}
+                      </p>
+                      {fireNumberChanged ? (
+                        <p className="text-xs text-muted-foreground">
+                          Target changes by{" "}
+                          {deltaFireNumber > 0 ? "+" : "-"}$
+                          {Math.round(Math.abs(deltaFireNumber) / 1000)}K
+                        </p>
+                      ) : null}
+                    </div>
+                  </button>
+
+                  {/* ---- Inline parameter inputs (only when selected) ---- */}
+                  {isSelected && decision.template.params.length > 0 ? (
+                    <div className="px-4 pb-4">
+                      {decision.template.params.map((param) => {
+                        const currentValue =
+                          customValues[decision.id]?.[param.id] ??
+                          param.defaultValue;
+
+                        return (
+                          <div
+                            key={param.id}
+                            className="mt-3 border-t border-border/40 pt-3"
+                          >
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>{param.label}</span>
+                              <span className="font-medium text-foreground">
+                                {formatParamValue(param, currentValue)}
+                              </span>
+                            </div>
+                            <div className="mt-2">
+                              <Slider
+                                min={param.min}
+                                max={param.max}
+                                step={param.step}
+                                value={[currentValue]}
+                                onValueChange={([v]) =>
+                                  updateParam(decision.id, param.id, v)
+                                }
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+          {selectedIds.size === 0 ? (
+            <p className="mt-4 text-center text-xs text-muted-foreground/60">
+              Click any card to see its impact — select multiple to combine
+            </p>
+          ) : null}
+        </ChartShell>
+
+        {/* ---- Comparison Chart ---- */}
         <ChartShell
           title={
             selectedIds.size > 0
@@ -717,123 +835,7 @@ export default function SaveWhatIfWorkspace() {
           </div>
         ) : null}
 
-        {/* ---- Section 3: Life Decision Cards ---- */}
-        <ChartShell
-          eyebrow="Life decisions"
-          title="How real choices change your timeline"
-        >
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {decisionResults.map((result) => {
-              const { decision, deltaYears, deltaFireNumber } = result;
-              const isSelected = selectedIds.has(decision.id);
-              const sooner = deltaYears > 0;
-              const fireNumberChanged = Math.abs(deltaFireNumber) >= 500;
-
-              return (
-                <div
-                  key={decision.id}
-                  className={cn(
-                    "rounded-xl border transition-all",
-                    isSelected
-                      ? "border-[var(--ember)] bg-[rgba(255,107,53,0.05)] ring-1 ring-[var(--ember)]/20"
-                      : "border-border/60 bg-card hover:border-[var(--ember)]/30",
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleCardClick(decision.id)}
-                    className="w-full p-4 text-left"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="flex items-center gap-1.5 font-medium text-foreground">
-                          <span>{decision.emoji}</span>
-                          <span className="flex-1">{decision.label}</span>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="flex-shrink-0 cursor-help rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/80">?</span>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs text-xs leading-relaxed">
-                              {decision.methodology}
-                            </TooltipContent>
-                          </Tooltip>
-                        </p>
-                        <p className="mt-0.5 text-sm text-muted-foreground">
-                          {decision.description}
-                        </p>
-                        <p className="mt-1 text-[11px] text-muted-foreground/60">
-                          e.g. {decision.examples.slice(0, 3).join(", ")}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-3 space-y-1">
-                      <p
-                        className={cn(
-                          "text-sm font-semibold",
-                          getImpactColor(decision.direction),
-                        )}
-                      >
-                        {deltaYears === 0
-                          ? "No change"
-                          : sooner
-                            ? `${Math.abs(deltaYears).toFixed(1)} years sooner \u2191`
-                            : `${Math.abs(deltaYears).toFixed(1)} years later \u2193`}
-                      </p>
-                      {fireNumberChanged ? (
-                        <p className="text-xs text-muted-foreground">
-                          Target changes by{" "}
-                          {deltaFireNumber > 0 ? "+" : "-"}$
-                          {Math.round(Math.abs(deltaFireNumber) / 1000)}K
-                        </p>
-                      ) : null}
-                    </div>
-                  </button>
-
-                  {/* ---- Inline parameter inputs (only when selected) ---- */}
-                  {isSelected && decision.template.params.length > 0 ? (
-                    <div className="px-4 pb-4">
-                      {decision.template.params.map((param) => {
-                        const currentValue =
-                          customValues[decision.id]?.[param.id] ??
-                          param.defaultValue;
-
-                        return (
-                          <div
-                            key={param.id}
-                            className="mt-3 border-t border-border/40 pt-3"
-                          >
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <span>{param.label}</span>
-                              <span className="font-medium text-foreground">
-                                {formatParamValue(param, currentValue)}
-                              </span>
-                            </div>
-                            <div className="mt-2">
-                              <Slider
-                                min={param.min}
-                                max={param.max}
-                                step={param.step}
-                                value={[currentValue]}
-                                onValueChange={([v]) =>
-                                  updateParam(decision.id, param.id, v)
-                                }
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-          {selectedIds.size === 0 ? (
-            <p className="mt-4 text-center text-xs text-muted-foreground/60">
-              Click any card to see its impact — select multiple to combine
-            </p>
-          ) : null}
-        </ChartShell>
+        {/* Life Decision Cards moved to top of page */}
 
 
         {/* ---- Section 5: Savings Rate Table (collapsed) ---- */}
