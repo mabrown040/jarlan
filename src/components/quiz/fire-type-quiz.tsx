@@ -379,7 +379,13 @@ export function FireTypeQuiz() {
               step={1_000}
               inputMode="numeric"
               value={answers.currentPortfolio}
-              onValueChange={(value) => setAnswer("currentPortfolio", value)}
+              onValueChange={(value) => {
+                setAnswer("currentPortfolio", value);
+                // Default: all portfolio goes to taxable until user splits in the next step
+                setAnswer("taxableBalance", value);
+                setAnswer("traditionalBalance", 0);
+                setAnswer("rothBalance", 0);
+              }}
             />
           </div>
         );
