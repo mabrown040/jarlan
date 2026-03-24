@@ -712,9 +712,20 @@ export function QuickFireWorkspace({
                               {ft.label}
                             </p>
                           </div>
-                          <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
-                            {formatCompactCurrency(ft.target)}
-                          </p>
+                          {ft.id === "coast" && summary.coastAge !== null ? (
+                            <>
+                              <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
+                                Age {Math.round(summary.coastAge)}
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {Math.max(Math.round(summary.coastAge) - activeScenario.profile.age, 0)} years from now · need {formatCompactCurrency(ft.target)} today
+                              </p>
+                            </>
+                          ) : (
+                            <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
+                              {formatCompactCurrency(ft.target)}
+                            </p>
+                          )}
                           <div className="mt-3 space-y-1">
                             <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                               <div
@@ -728,11 +739,6 @@ export function QuickFireWorkspace({
                               ? "Work part-time in retirement to supplement a smaller portfolio. Add expected post-FIRE income in your plan to see the target."
                               : ft.description}
                           </p>
-                          {ft.id === "coast" && summary.coastAge !== null ? (
-                            <p className="mt-2 text-xs font-medium text-[var(--ember)]">
-                              Coast at age {Math.round(summary.coastAge)}
-                            </p>
-                          ) : null}
                         </div>
                         <div className="mt-4 border-t border-border/40 pt-4">
                           <Link
