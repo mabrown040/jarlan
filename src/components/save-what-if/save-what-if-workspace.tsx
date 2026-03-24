@@ -1,6 +1,7 @@
 "use client";
 
 import type { Route } from "next";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -572,7 +573,7 @@ export default function SaveWhatIfWorkspace() {
           title={
             selectedIds.size > 0
               ? `With ${selectedIds.size} change${selectedIds.size === 1 ? "" : "s"}`
-              : "Accumulation projection"
+              : "Save projection"
           }
         >
           <ProjectionChart
@@ -857,83 +858,24 @@ export default function SaveWhatIfWorkspace() {
         {/* Life Decision Cards moved to top of page */}
 
 
-        {/* ---- Section 5: Savings Rate Table (collapsed) ---- */}
-        <CollapsibleSection
-          title="Savings rate vs. time to FI"
-          summary="10%\u201380% with FIRE dates"
+        {/* ---- Learn link (savings rate table moved to /education/savings-rate) ---- */}
+        <Link
+          href="/education/savings-rate"
+          className="flex items-center justify-between rounded-2xl bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.05)]"
         >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                  <th className="pb-3 pr-4 font-medium">Save %</th>
-                  <th className="pb-3 pr-4 font-medium">Spend/yr</th>
-                  <th className="pb-3 pr-4 font-medium">FIRE #</th>
-                  <th className="pb-3 pr-4 font-medium">Years</th>
-                  <th className="pb-3 font-medium">FIRE Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {savingsRateRows.map((row) => {
-                  const isUser = isClosestToUser(row.rate);
-                  const isUsAvg = row.rate === US_BENCHMARKS.savingsRate;
-
-                  return (
-                    <tr
-                      key={row.rate}
-                      className={cn(
-                        "border-b border-border/50 transition-colors",
-                        isUser &&
-                          "bg-[rgba(255,107,53,0.06)] font-semibold",
-                        isUsAvg && !isUser && "bg-muted/40",
-                      )}
-                    >
-                      <td className="py-3 pr-4">
-                        <span className="flex items-center gap-2">
-                          {formatPercent(row.rate, 1)}
-                          {isUser ? (
-                            <span className="inline-flex items-center rounded-full bg-[var(--ember)] px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-white">
-                              YOU
-                            </span>
-                          ) : null}
-                          {isUsAvg && !isUser ? (
-                            <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-muted-foreground">
-                              US AVG
-                            </span>
-                          ) : null}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-4">
-                        {formatCurrency(row.annualExpenses)}
-                      </td>
-                      <td className="py-3 pr-4">
-                        {formatCompactCurrency(row.fireNumber)}
-                      </td>
-                      <td
-                        className={cn(
-                          "py-3 pr-4",
-                          isUser && "text-[var(--ember)]",
-                        )}
-                      >
-                        {row.yearsToFi === null
-                          ? "Never"
-                          : `${row.yearsToFi.toFixed(1)}`}
-                      </td>
-                      <td
-                        className={cn(
-                          "py-3",
-                          isUser && "text-[var(--ember)]",
-                        )}
-                      >
-                        {formatFireDate(row.yearsToFi)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--ember)]">
+              📚 Learn
+            </p>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              How savings rate determines your timeline
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              The shockingly simple math behind early retirement — personalized with your numbers.
+            </p>
           </div>
-        </CollapsibleSection>
+          <span className="text-lg text-muted-foreground">→</span>
+        </Link>
       </section>
     </div>
   );

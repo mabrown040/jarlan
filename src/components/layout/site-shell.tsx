@@ -51,7 +51,10 @@ const navGroups: NavGroup[] = [
     id: "learn",
     label: "Learn",
     href: "/education",
-    items: [{ href: "/education", label: "Education hub", tier: "free" }],
+    items: [
+      { href: "/education", label: "Overview", tier: "free" },
+      { href: "/education/savings-rate", label: "Savings rate", tier: "free" },
+    ],
   },
   {
     id: "pro",

@@ -1048,7 +1048,7 @@ export function QuickFireWorkspace({
             {variant === "module" && <InlineControls />}
 
             <ChartShell
-              title="Accumulation projection"
+              title="Save projection"
               description="How your current pace stacks up against the target."
               actions={
                 variant === "module" ? (

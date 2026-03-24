@@ -1,4 +1,9 @@
-import { ChartShell, PageHero, SectionHeading } from "@/components/brand";
+"use client";
+
+import type { Route } from "next";
+import Link from "next/link";
+import { useMemo } from "react";
+import { SectionHeading } from "@/components/brand";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   educationAnchors,
@@ -6,77 +11,212 @@ import {
   educationGlossary,
   educationReferences,
 } from "@/lib/education/content";
+import { useScenarioStore } from "@/lib/store/use-scenario-store";
+import { calculateQuickFireSummary, getCurrentPortfolioBalance, getSavingsRate } from "@/lib/calc";
+import { estimateScenarioTax } from "@/lib/tax/strategy";
+import { formatCompactCurrency, formatPercent } from "@/lib/calc/format";
+
+/* ── Topic card definitions ────────────────────────────────── */
+interface TopicCard {
+  title: string;
+  description: string;
+  href: string | null; // null = coming soon
+  emoji: string;
+  getPersonalized?: (ctx: PersonalContext) => string | null;
+}
+
+interface PersonalContext {
+  income: number;
+  expenses: number;
+  savingsRate: number;
+  fireNumber: number;
+  yearsToFi: number;
+  fireAge: number;
+  coastAge: number | null;
+  withdrawalRate: number;
+  taxSavings401k: number;
+}
+
+const TOPICS: TopicCard[] = [
+  {
+    title: "Savings Rate",
+    description: "How fast you can retire depends on one number",
+    href: "/education/savings-rate",
+    emoji: "📊",
+    getPersonalized: (ctx) =>
+      ctx.income > 0
+        ? `At ${formatPercent(ctx.savingsRate, 1)}, you reach FI in ${ctx.yearsToFi.toFixed(1)} years (age ${ctx.fireAge})`
+        : null,
+  },
+  {
+    title: "Safe Withdrawal Rate",
+    description: "The percentage you can safely spend each year in retirement",
+    href: null,
+    emoji: "🛡️",
+    getPersonalized: (ctx) =>
+      ctx.fireNumber > 0
+        ? `Your ${formatPercent(ctx.withdrawalRate, 0)} rate means ${formatCompactCurrency(ctx.expenses)}/yr from ${formatCompactCurrency(ctx.fireNumber)}`
+        : null,
+  },
+  {
+    title: "Coast FIRE",
+    description: "Stop saving and let compounding finish the job",
+    href: null,
+    emoji: "⛵",
+    getPersonalized: (ctx) =>
+      ctx.coastAge !== null && ctx.coastAge > 0
+        ? `You could stop saving at age ${ctx.coastAge} and still reach FI`
+        : null,
+  },
+  {
+    title: "Tax-Efficient Savings",
+    description: "Where you save matters as much as how much",
+    href: null,
+    emoji: "🏦",
+    getPersonalized: (ctx) =>
+      ctx.taxSavings401k > 0
+        ? `Your pre-tax 401(k) saves ~${formatCompactCurrency(ctx.taxSavings401k)} in taxes this year`
+        : null,
+  },
+  {
+    title: "Sequence of Returns Risk",
+    description: "The biggest threat to early retirees",
+    href: null,
+    emoji: "📉",
+    getPersonalized: () => null, // requires backtest data, future enhancement
+  },
+];
 
 export function EducationWorkspace() {
+  const activeScenario = useScenarioStore((s) => s.activeScenario);
+  const hasData = activeScenario.annualIncome > 0;
+
+  const personalCtx = useMemo<PersonalContext | null>(() => {
+    if (!hasData) return null;
+    const summary = calculateQuickFireSummary(activeScenario);
+    const taxInfo = estimateScenarioTax(activeScenario);
+    const trad401k = activeScenario.accounts
+      .filter((a) => a.type === "traditional_401k" || a.type === "hsa")
+      .reduce((sum, a) => sum + a.annualContribution, 0);
+    // Rough tax savings from pre-tax contributions (~25% effective marginal rate)
+    const taxSavings401k = Math.round(trad401k * 0.25);
+
+    return {
+      income: activeScenario.annualIncome,
+      expenses: activeScenario.annualExpenses,
+      savingsRate: taxInfo.afterTaxSavingsRate,
+      fireNumber: summary.fireNumber,
+      yearsToFi: summary.yearsToFi ?? 99,
+      fireAge: Math.round(activeScenario.profile.age + (summary.yearsToFi ?? 99)),
+      coastAge: summary.coastAge ? Math.round(summary.coastAge) : null,
+      withdrawalRate: activeScenario.assumptions.withdrawalRate,
+      taxSavings401k,
+    };
+  }, [activeScenario, hasData]);
+
   return (
     <div className="space-y-10 pb-12">
-      <PageHero
-        eyebrow="Education hub"
-        badges={[
-          { label: "Glossary" },
-          { label: "Research library", variant: "secondary" },
-          { label: "Source-linked defaults", variant: "outline" },
-        ]}
-        title="Learn the math behind the planner"
-        description="This hub keeps the educational layer server-rendered and readable while linking the live calculators back to the research, concepts, and defaults they use."
-      />
+      {/* Header */}
+      <section className="mx-auto max-w-7xl px-6 pt-8">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
+          Learn
+        </p>
+        <h1 className="mt-2 font-display text-3xl tracking-[-0.03em] text-foreground sm:text-4xl">
+          Understand the math behind your plan
+        </h1>
+        <p className="mt-3 text-base text-muted-foreground">
+          Every concept comes alive with your actual numbers. The more you tell Calcifer about your
+          situation, the more personalized these insights become.
+        </p>
+      </section>
 
-      <section className="mx-auto max-w-7xl space-y-8 px-6">
-        <ChartShell
-          eyebrow="How to use this"
-          title="Three reading paths"
-          description="Start simple, then opt into more technical material only when you want it."
-        >
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-border/60 bg-card/40 p-4 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Beginner</p>
-              <p className="mt-2">
-                Start with the quick FIRE number, then read the glossary entries for
-                withdrawal rate, savings rate, and Coast FIRE.
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/60 bg-card/40 p-4 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Intermediate</p>
-              <p className="mt-2">
-                Move into historical backtesting, sequence risk, and the difference
-                between fixed and dynamic withdrawal strategies.
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/60 bg-card/40 p-4 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Advanced</p>
-              <p className="mt-2">
-                Use the research links to dive into CAPE-based spending, mortality
-                framing, and tax-aware early-retirement tactics.
-              </p>
-            </div>
-          </div>
-        </ChartShell>
+      {/* Personalized Topic Cards */}
+      <section className="mx-auto max-w-7xl px-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {TOPICS.map((topic) => {
+            const personalized = personalCtx ? topic.getPersonalized?.(personalCtx) : null;
+            const isComingSoon = topic.href === null;
 
-        <section className="space-y-6">
-          <SectionHeading
-            eyebrow="Glossary"
-            title="Core FIRE concepts"
-            description="Short definitions for the terms that show up most often across the app."
-          />
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {educationGlossary.map((entry) => (
-              <Card key={entry.term} id={entry.id}>
-                <CardHeader>
-                  <SectionHeading
-                    eyebrow="Concept"
-                    title={entry.term}
-                    titleAs="h3"
-                    titleClassName="text-[1.35rem]"
-                  />
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {entry.description}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
+            const cardContent = (
+              <div className="flex h-full flex-col justify-between rounded-2xl bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.05)]">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{topic.emoji}</span>
+                    <h3 className="font-display text-lg tracking-[-0.02em] text-foreground">
+                      {topic.title}
+                    </h3>
+                    {isComingSoon && (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        Coming soon
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">{topic.description}</p>
+                  {personalized && (
+                    <p className="mt-3 rounded-lg bg-[rgba(255,107,53,0.05)] px-3 py-2 text-xs font-medium text-[var(--ember)]">
+                      {personalized}
+                    </p>
+                  )}
+                  {!personalized && hasData && topic.getPersonalized && (
+                    <p className="mt-3 text-xs text-muted-foreground/60 italic">
+                      Personalized data coming soon
+                    </p>
+                  )}
+                  {!hasData && topic.getPersonalized && (
+                    <p className="mt-3 text-xs text-muted-foreground/60">
+                      Take the quiz to personalize →
+                    </p>
+                  )}
+                </div>
+                {!isComingSoon && (
+                  <p className="mt-4 text-sm font-medium text-[var(--ember)]">
+                    Read article →
+                  </p>
+                )}
+              </div>
+            );
 
+            if (isComingSoon) {
+              return <div key={topic.title} className="opacity-70">{cardContent}</div>;
+            }
+
+            return (
+              <Link key={topic.title} href={topic.href as Route} className="block">
+                {cardContent}
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Glossary */}
+      <section className="mx-auto max-w-7xl space-y-6 px-6">
+        <SectionHeading
+          eyebrow="Glossary"
+          title="Core FIRE concepts"
+          description="Short definitions for the terms that show up most often across the app."
+        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {educationGlossary.map((entry) => (
+            <Card key={entry.term} id={entry.id}>
+              <CardHeader>
+                <SectionHeading
+                  eyebrow="Concept"
+                  title={entry.term}
+                  titleAs="h3"
+                  titleClassName="text-[1.35rem]"
+                />
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                {entry.description}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Defaults + Research */}
+      <section className="mx-auto max-w-7xl px-6">
         <div className="grid gap-6 xl:grid-cols-[1fr,1fr]">
           <Card>
             <CardHeader>
