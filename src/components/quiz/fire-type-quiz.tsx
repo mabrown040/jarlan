@@ -50,7 +50,8 @@ const stageStep: QuizStep = {
 const allQuestionSteps: QuizStep[] = [
   { key: "currentAge", title: "How old are you today?", description: "This sets the starting point for the rest of the timeline and Coast FIRE math." },
   { key: "targetFiAge", title: "When would full financial independence feel ideal?", description: "Think about the age where optional work becomes more valuable than mandatory work." },
-  { key: "annualIncome", title: "What is your annual gross income?", description: "Pre-tax income from all sources. This determines your savings rate and timeline." },
+  { key: "annualIncome", title: "What is your annual gross income?", description: "Pre-tax household income from all sources. This determines your savings rate and timeline." },
+  { key: "filingStatus", title: "How do you file taxes?", description: "This affects your tax brackets, contribution limits, and take-home pay estimate." },
   { key: "annualSpending", title: "What annual spending level feels comfortable?", description: "Use a real-world number, not the absolute minimum you could survive on for a year." },
   { key: "currentPortfolio", title: "How much is already invested toward FIRE?", description: "A current portfolio helps calculate Coast FIRE and your overall progress." },
   { key: "accountSplit", title: "Where is your money?", description: "Account types matter for tax-efficient withdrawals in retirement. Skip if you're not sure." },
@@ -63,9 +64,9 @@ const allQuestionSteps: QuizStep[] = [
 ];
 
 const stageQuestionKeys: Record<FireStage, Array<keyof FireTypeQuizAnswers | "accountSplit" | "contributionSplit">> = {
-  curious: ["currentAge", "targetFiAge", "annualIncome", "annualSpending", "currentPortfolio", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
-  saving: ["currentAge", "targetFiAge", "annualIncome", "annualSpending", "currentPortfolio", "accountSplit", "contributionSplit", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
-  pre_retirement: ["currentAge", "targetFiAge", "annualSpending", "currentPortfolio", "accountSplit", "partTimePreference", "flexibility", "riskTolerance"],
+  curious: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "annualSpending", "currentPortfolio", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
+  saving: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "annualSpending", "currentPortfolio", "accountSplit", "contributionSplit", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
+  pre_retirement: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "annualSpending", "currentPortfolio", "accountSplit", "partTimePreference", "flexibility", "riskTolerance"],
   retired: ["currentAge", "annualSpending", "currentPortfolio", "accountSplit", "flexibility"],
 };
 
@@ -317,6 +318,43 @@ export function FireTypeQuiz() {
             />
           </div>
         );
+      case "filingStatus":
+        return (
+          <div className="space-y-4">
+            <ChoiceGrid
+              value={answers.filingStatus}
+              onChange={(value) => {
+                setAnswer("filingStatus", value);
+                // Reset partner 401k when switching to single
+                if (value === "single" || value === "head_of_household") {
+                  setAnswer("partnerHas401k", false);
+                }
+              }}
+              options={[
+                { value: "single", label: "Single", description: "Filing individually." },
+                { value: "married_joint", label: "Married filing jointly", description: "Combined household income. Wider tax brackets and doubled contribution limits." },
+                { value: "head_of_household", label: "Head of household", description: "Unmarried with dependents. Wider brackets than single." },
+                { value: "married_separate", label: "Married filing separately", description: "Filing separately. Narrower brackets, limited deductions." },
+              ]}
+            />
+            {(answers.filingStatus === "married_joint" || answers.filingStatus === "married_separate") && (
+              <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={answers.partnerHas401k}
+                    onChange={(e) => setAnswer("partnerHas401k", e.target.checked)}
+                    className="h-4 w-4 rounded border-border accent-[var(--ember)]"
+                  />
+                  My partner also has access to a 401(k)
+                </label>
+                <p className="text-[10px] text-muted-foreground">
+                  This doubles the household 401(k) contribution limit to ~$47K/yr.
+                </p>
+              </div>
+            )}
+          </div>
+        );
       case "annualSpending":
         return (
           <div className="space-y-3">
@@ -431,7 +469,10 @@ export function FireTypeQuiz() {
           </div>
         );
       case "contributionSplit": {
-        const limits = getContributionLimits(answers.currentAge);
+        const limits = getContributionLimits(answers.currentAge, {
+          filingStatus: answers.filingStatus,
+          partnerHas401k: answers.partnerHas401k,
+        });
         // Estimate take-home using current traditional contribution for pre-tax deduction
         const grossIncome = answers.annualIncome;
         const tradContrib = answers.traditionalContribution;
@@ -464,7 +505,7 @@ export function FireTypeQuiz() {
             </p>
             <div className="space-y-3">
               <div>
-                <FieldLabel htmlFor="quiz-trad-cont" label={`Tax-deferred 401(k) — limit $${(limits.traditional401k / 1000).toFixed(1)}K/yr${catchUpNote}`} />
+                <FieldLabel htmlFor="quiz-trad-cont" label={`Tax-deferred 401(k)${limits.partnerHas401k ? " (household)" : ""} — limit $${(limits.traditional401k / 1000).toFixed(1)}K/yr${catchUpNote}`} />
                 <NumberInput
                   id="quiz-trad-cont"
                   min={0}

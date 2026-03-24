@@ -1,6 +1,6 @@
 import { calculateFireTypeSummaries } from "@/lib/calc";
 import { cloneScenario, createDefaultScenario, createDefaultAccount } from "@/lib/domain";
-import type { Account, FireTypeSummary, Scenario } from "@/lib/domain/types";
+import type { Account, FilingStatus, FireTypeSummary, Scenario } from "@/lib/domain/types";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
 import { clamp, roundTo } from "@/lib/utils";
 
@@ -18,6 +18,8 @@ export interface FireTypeQuizAnswers {
   currentAge: number;
   targetFiAge: number;
   annualIncome: number;
+  filingStatus: FilingStatus;
+  partnerHas401k: boolean;
   annualSpending: number;
   currentPortfolio: number;
   // Account allocation (balances — must sum to currentPortfolio)
@@ -50,19 +52,35 @@ export interface FireTypeRecommendation {
   suggestedPartTimeIncome: number;
 }
 
-/** 2025 contribution limits — age-aware */
-export function getContributionLimits(age: number) {
+/** 2025 contribution limits — age-aware, filing-status-aware */
+export function getContributionLimits(
+  age: number,
+  opts?: { filingStatus?: FilingStatus; partnerHas401k?: boolean },
+) {
   const is50Plus = age >= 50;
   const isSuperCatchUp = age >= 60 && age <= 63;
+  const isMarried = opts?.filingStatus === "married_joint" || opts?.filingStatus === "married_separate";
+  const partnerHas401k = isMarried && (opts?.partnerHas401k ?? false);
+
+  // Per-person limits
+  const personal401k = isSuperCatchUp ? 34_750 : is50Plus ? 31_000 : 23_500;
+  const personalIra = is50Plus ? 8_000 : 7_000;
+
+  // Household limits (double if married with both contributing)
   return {
-    traditional401k: isSuperCatchUp ? 34_750 : is50Plus ? 31_000 : 23_500,
-    rothIra: is50Plus ? 8_000 : 7_000,
-    megaBackdoorRoth: 46_000,
-    total401k: is50Plus ? 77_500 : 70_000,
+    traditional401k: partnerHas401k ? personal401k * 2 : personal401k,
+    rothIra: isMarried ? personalIra * 2 : personalIra,
+    megaBackdoorRoth: partnerHas401k ? 92_000 : 46_000,
+    total401k: (is50Plus ? 77_500 : 70_000) * (partnerHas401k ? 2 : 1),
+    // Per-person reference (useful for labels)
+    personal401kLimit: personal401k,
+    personalIraLimit: personalIra,
+    isMarried,
+    partnerHas401k,
   };
 }
 
-/** Static reference for backward compat (under-50 defaults) */
+/** Static reference for backward compat (under-50 single defaults) */
 export const CONTRIBUTION_LIMITS = getContributionLimits(34);
 
 export const DEFAULT_FIRE_TYPE_QUIZ_ANSWERS: FireTypeQuizAnswers = {
@@ -70,6 +88,8 @@ export const DEFAULT_FIRE_TYPE_QUIZ_ANSWERS: FireTypeQuizAnswers = {
   currentAge: 34,
   targetFiAge: 46,
   annualIncome: 128_000,
+  filingStatus: "single",
+  partnerHas401k: false,
   annualSpending: 54_000,
   currentPortfolio: 185_000,
   traditionalBalance: 0,
@@ -165,6 +185,7 @@ export function buildScenarioFromQuizAnswers(
     clamp(answers.targetFiAge, scenario.profile.age, 90),
   );
   scenario.annualIncome = Math.max(answers.annualIncome, 0);
+  scenario.profile.filingStatus = answers.filingStatus;
   scenario.annualExpenses = Math.max(answers.annualSpending, 0);
   scenario.retirementExpenses = Math.max(answers.annualSpending, 0);
   // Build accounts from quiz allocation (up to 3 accounts)
