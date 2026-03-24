@@ -46,6 +46,7 @@ import {
   deserializeScenarioFromSearchParam,
 } from "@/lib/share";
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
+import { MoneyFlowSankey } from "@/components/charts/money-flow-sankey";
 import { InlineControls } from "@/components/plan/inline-controls";
 import { cn } from "@/lib/utils";
 
@@ -672,6 +673,21 @@ export function QuickFireWorkspace({
                 })()}
               </div>
             </section>
+
+            {/* Section 2.5: Money Flow Sankey */}
+            {activeScenario.annualIncome > 0 && (
+              <section className="mx-auto max-w-7xl px-6">
+                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+                  <h2 className="font-display text-xl tracking-[-0.03em] text-foreground">
+                    Where your money goes
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    How your gross income flows through taxes, spending, and into your investment accounts.
+                  </p>
+                  <MoneyFlowSankey scenario={activeScenario} />
+                </div>
+              </section>
+            )}
 
             {/* Section 3: Three Paths to Freedom */}
             <section className="mx-auto max-w-7xl px-6">
