@@ -213,7 +213,16 @@ export function buildScenarioFromQuizAnswers(
   // (Traditional 401k contributions now reduce taxable income automatically)
   const { takeHome } = estimateScenarioTax(scenario);
   const taxAwareSavings = Math.max(takeHome - answers.annualSpending, 0);
-  scenario.annualSavings = accounts.reduce((sum, a) => sum + a.annualContribution, 0) || taxAwareSavings;
+  const totalContributions = accounts.reduce((sum, a) => sum + a.annualContribution, 0);
+
+  // If no contributions were allocated (user skipped the step), put all savings
+  // into the taxable account as a fallback
+  if (totalContributions === 0 && taxAwareSavings > 0) {
+    const taxable = accounts.find((a) => a.type === "taxable");
+    if (taxable) taxable.annualContribution = taxAwareSavings;
+  }
+
+  scenario.annualSavings = totalContributions > 0 ? totalContributions : taxAwareSavings;
 
   // Post-FIRE income (from conditional follow-up or legacy fallback)
   scenario.assumptions.partTimeIncome = answers.postFireIncome > 0
