@@ -90,7 +90,14 @@ export function SavingsRateArticle() {
               : "Take the quiz to see this table with your personal numbers."}
           </p>
 
-          {tableRows.length > 0 ? (
+          {tableRows.length > 0 ? (() => {
+            // Find the single closest row to the user's savings rate
+            const closestIdx = hasData
+              ? tableRows.reduce((bestIdx, row, i) =>
+                  Math.abs(row.rate - userSavingsRate) < Math.abs(tableRows[bestIdx].rate - userSavingsRate) ? i : bestIdx, 0)
+              : -1;
+
+            return (
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-left text-sm">
                 <thead className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
@@ -103,13 +110,8 @@ export function SavingsRateArticle() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tableRows.map((row) => {
-                    const isUser =
-                      hasData &&
-                      Math.abs(row.rate - userSavingsRate) <=
-                        Math.min(
-                          ...tableRows.map((r) => Math.abs(r.rate - userSavingsRate)),
-                        ) + 0.001;
+                  {tableRows.map((row, rowIdx) => {
+                    const isUser = rowIdx === closestIdx;
                     const isUsAvg = Math.abs(row.rate - US_BENCHMARKS.savingsRate) < 0.005;
                     const yrs = row.yearsToFi ?? 999;
                     const fireYear = currentYear + Math.ceil(yrs);
@@ -165,7 +167,8 @@ export function SavingsRateArticle() {
                 </tbody>
               </table>
             </div>
-          ) : (
+          );
+          })() : (
             <div className="mt-4 rounded-lg bg-muted/50 p-6 text-center">
               <p className="text-sm text-muted-foreground">
                 Enter your income to see personalized savings rate data.
