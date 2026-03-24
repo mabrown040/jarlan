@@ -12,7 +12,7 @@ import {
 } from "@/components/brand";
 import { useHasExistingDraft } from "@/lib/hooks/use-has-existing-draft";
 import { ProjectionChart, ChartLegend, findCrossoverYear } from "@/components/landing/projection-chart";
-import { US_BENCHMARKS, estimateNetWorthPercentile } from "@/lib/data/benchmarks";
+import { US_BENCHMARKS, estimateNetWorthPercentile, getMedianNetWorthForAge } from "@/lib/data/benchmarks";
 import { buildScenarioProjection } from "@/lib/calc/quick-fire";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { Button } from "@/components/ui/button";
@@ -523,184 +523,354 @@ export function QuickFireWorkspace({
           </>
         ) : (
           <>
+            {/* Section 1: Hero Status Bar */}
             <section className="mx-auto max-w-7xl px-6 pt-8">
-              {/* Compact status bar */}
-              <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-                <h1 className="font-display text-3xl tracking-[-0.03em] text-foreground">
-                  Welcome back
-                </h1>
-                <div className="flex items-baseline gap-4 text-sm text-muted-foreground">
-                  <span>
-                    Target{" "}
-                    <span className="font-semibold text-[var(--ember)]">
+              <button
+                type="button"
+                onClick={() => drawerStore.open("basics")}
+                className="group w-full rounded-2xl bg-card p-6 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl" aria-hidden="true">
+                      {(() => {
+                        const traditionalType = fireTypes.find((ft) => ft.id === "traditional");
+                        const coastType = fireTypes.find((ft) => ft.id === "coast");
+                        const baristaType = fireTypes.find((ft) => ft.id === "barista");
+                        if (coastType && coastType.progress >= 0.9) return "\u2615";
+                        if (baristaType && activeScenario.assumptions.partTimeIncome > 0 && baristaType.progress >= 0.9) return "\u2615";
+                        return "\uD83D\uDD25";
+                      })()}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-display text-lg tracking-[-0.02em] text-foreground">
+                        {(() => {
+                          const coastType = fireTypes.find((ft) => ft.id === "coast");
+                          if (coastType && coastType.progress >= 1) return "Coast FIRE";
+                          return "Traditional FIRE";
+                        })()}
+                      </span>
+                      <span className="rounded-full bg-[rgba(255,107,53,0.1)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-[var(--ember)]">
+                        Recommended
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Target:{" "}
+                    <span className="font-semibold text-foreground">
                       {formatCompactCurrency(summary.fireNumber)}
                     </span>
-                  </span>
-                  <span className="text-border">·</span>
-                  <span>
+                  </p>
+                </div>
+
+                {/* Progress bar */}
+                <div className="mt-4">
+                  <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[var(--ember)] to-[var(--flame)] transition-all duration-500"
+                      style={{ width: `${Math.min(progressToFire * 100, 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-sm text-muted-foreground">
                     <span className="font-semibold text-foreground">
-                      {formatYears(summary.yearsToFi)}
+                      {formatPercent(Math.min(progressToFire, 1), 0)}
                     </span>
-                    {" "}to go
-                  </span>
-                  <span className="text-border">·</span>
+                    {" · "}
+                    {formatCompactCurrency(currentBalance)} of {formatCompactCurrency(summary.fireNumber)}
+                  </p>
+                </div>
+
+                {/* Inline metrics */}
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  {summary.fireAge !== null ? (
+                    <span>
+                      FI at age{" "}
+                      <span className="font-semibold text-foreground">{Math.round(summary.fireAge)}</span>
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">FI age not yet reachable</span>
+                  )}
+                  <span className="text-border">{"\u00B7"}</span>
                   <span>
-                    <span className="font-semibold text-foreground">
-                      {formatPercent(summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0, 0)}
-                    </span>
-                    {" "}saved
+                    <span className="font-semibold text-foreground">{formatYears(summary.yearsToFi)}</span>
+                    {" "}away
+                  </span>
+                  <span className="text-border">{"\u00B7"}</span>
+                  <span>
+                    <span className="font-semibold text-foreground">{formatPercent(summary.savingsRate, 0)}</span>
+                    {" "}savings rate
                   </span>
                 </div>
-              </div>
+              </button>
+            </section>
 
-              {/* Progress bar */}
-              <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-[var(--ember)] to-[var(--flame)] transition-all duration-500"
-                  style={{ width: `${Math.min((summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0) * 100, 100)}%` }}
-                />
+            {/* Section 2: Your Numbers */}
+            <section className="mx-auto max-w-7xl px-6">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {/* Take-home */}
+                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Take-home</p>
+                  <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
+                    {formatCompactCurrency(taxEstimate.takeHome)}
+                    <span className="text-base font-normal text-muted-foreground">/yr</span>
+                  </p>
+                  <p className="mt-3 text-sm text-muted-foreground">After federal + state taxes</p>
+                </div>
+
+                {/* Savings */}
+                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Savings</p>
+                  <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
+                    {formatCompactCurrency(taxEstimate.actualSavings)}
+                    <span className="text-base font-normal text-muted-foreground">/yr</span>
+                  </p>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    {formatPercent(taxEstimate.afterTaxSavingsRate, 0)} rate
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground/70">
+                    US average: {(US_BENCHMARKS.savingsRate * 100).toFixed(1)}%
+                  </p>
+                </div>
+
+                {/* Tax Estimate */}
+                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Tax estimate</p>
+                  <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
+                    {formatCompactCurrency(taxEstimate.totalTax)}
+                    <span className="text-base font-normal text-muted-foreground">/yr</span>
+                  </p>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    {formatPercent(taxEstimate.effectiveRate, 0)} effective
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground/70">
+                    {activeScenario.profile.filingStatus === "single"
+                      ? "Single filer"
+                      : activeScenario.profile.filingStatus === "married_joint"
+                        ? "Married filing jointly"
+                        : activeScenario.profile.filingStatus === "married_separate"
+                          ? "Married filing separately"
+                          : "Head of household"}
+                  </p>
+                </div>
+
+                {/* Peer Comparison */}
+                {(() => {
+                  const age = activeScenario.profile.age;
+                  const percentile = estimateNetWorthPercentile(currentBalance, age);
+                  const { median: medianForAge } = getMedianNetWorthForAge(age);
+                  return (
+                    <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">You vs peers</p>
+                      <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
+                        Top {100 - percentile}%
+                      </p>
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        for age {age}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground/70">
+                        Median: {formatCompactCurrency(medianForAge)}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             </section>
 
-            {/* Navigation hub cards */}
-            <section className="mx-auto max-w-7xl px-6 pt-8">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {/* Your Plan */}
-                <Link
-                  href={"/accumulation" as Route}
-                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(255,107,53,0.1)]">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+            {/* Section 3: Three Paths to Freedom */}
+            <section className="mx-auto max-w-7xl px-6">
+              <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
+                Your paths to freedom
+              </h2>
+              <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                {fireTypes
+                  .filter((ft) => {
+                    if (ft.id === "traditional" || ft.id === "coast") return true;
+                    if (ft.id === "barista" && activeScenario.assumptions.partTimeIncome > 0) return true;
+                    return false;
+                  })
+                  .map((ft) => {
+                    const isRecommended = (() => {
+                      const coastType = fireTypes.find((t) => t.id === "coast");
+                      if (coastType && coastType.progress >= 1) return ft.id === "coast";
+                      return ft.id === "traditional";
+                    })();
+                    const cta =
+                      ft.id === "traditional"
+                        ? "Open Your Plan"
+                        : ft.id === "coast"
+                          ? "Explore Coast FI"
+                          : "Explore Barista FI";
+                    const href =
+                      ft.id === "traditional"
+                        ? "/accumulation"
+                        : ft.id === "coast"
+                          ? "/accumulation"
+                          : "/accumulation";
+                    return (
+                      <div
+                        key={ft.id}
+                        className="flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
+                              {ft.label}
+                            </p>
+                            {isRecommended ? (
+                              <span className="rounded-full bg-[rgba(255,107,53,0.1)] px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-[var(--ember)]">
+                                Recommended
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
+                            {formatCompactCurrency(ft.target)}
+                          </p>
+                          <div className="mt-3 space-y-1">
+                            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-[var(--flame)] to-[var(--ember)]"
+                                style={{ width: `${Math.min(Math.max(ft.progress, 0), 1) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                          <p className="mt-3 text-sm text-muted-foreground">{ft.description}</p>
+                          {ft.id === "coast" && summary.coastAge !== null ? (
+                            <p className="mt-2 text-xs font-medium text-[var(--ember)]">
+                              Coast at age {Math.round(summary.coastAge)}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="mt-4 border-t border-border/40 pt-4">
+                          <Link
+                            href={href as Route}
+                            className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
+                          >
+                            {cta} {"\u2192"}
+                          </Link>
+                        </div>
                       </div>
-                      <h3 className="font-semibold text-foreground">Your Plan</h3>
-                    </div>
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Projections, milestones, and what-if analysis for your path to FI.
-                    </p>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
-                    <span className="text-xs text-muted-foreground">
-                      {summary.fireAge !== null ? `FI at age ${summary.fireAge}` : "Set up your plan"}
-                    </span>
-                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
-                  </div>
-                </Link>
+                    );
+                  })}
+              </div>
+            </section>
 
-                {/* Withdrawal Lab */}
-                <Link
-                  href={"/withdrawal" as Route}
-                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(99,102,241,0.1)]">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/><path d="M12 6v6l4 2"/></svg>
-                      </div>
-                      <h3 className="font-semibold text-foreground">Stress-test retirement</h3>
+            {/* Section 4: Quick Actions */}
+            <section className="mx-auto max-w-7xl px-6">
+              <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
+                Explore your tools
+              </h2>
+              <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                {/* Save */}
+                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(255,107,53,0.1)]">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
                     </div>
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Historical backtests and Monte Carlo sims against 150+ years of market data.
-                    </p>
+                    <h3 className="font-semibold text-foreground">Save</h3>
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
-                    <span className="text-xs text-muted-foreground">Will your money last?</span>
-                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
+                  <div className="mt-4 space-y-3">
+                    <Link
+                      href={"/accumulation" as Route}
+                      className="group block"
+                    >
+                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                        Your Plan {"\u2192"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Projections, milestones, and year-by-year breakdown.</p>
+                    </Link>
+                    <Link
+                      href={"/save-what-if" as Route}
+                      className="group block"
+                    >
+                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                        What if? {"\u2192"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">See how changes to savings, returns, or lifestyle shift your timeline.</p>
+                    </Link>
                   </div>
-                </Link>
+                </div>
 
-                {/* FIRE Quiz */}
-                <Link
-                  href={"/quiz" as Route}
-                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(247,201,72,0.15)]">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--flame)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><circle cx="12" cy="12" r="10"/><path d="M12 17h.01"/></svg>
-                      </div>
-                      <h3 className="font-semibold text-foreground">FIRE quiz</h3>
+                {/* Spend */}
+                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(99,102,241,0.1)]">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/><path d="M12 6v6l4 2"/></svg>
                     </div>
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Find the FIRE style that fits your personality and goals.
-                    </p>
+                    <h3 className="font-semibold text-foreground">Spend</h3>
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
-                    <span className="text-xs text-muted-foreground">Retake anytime</span>
-                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
+                  <div className="mt-4 space-y-3">
+                    <Link
+                      href={"/withdrawal" as Route}
+                      className="group block"
+                    >
+                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                        Can I retire? {"\u2192"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Historical backtests and Monte Carlo stress tests.</p>
+                    </Link>
+                    <Link
+                      href={"/tax-strategy" as Route}
+                      className="group block"
+                    >
+                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                        Income plan {"\u2192"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Roth conversions, drawdown sequencing, and ACA planning.</p>
+                    </Link>
                   </div>
-                </Link>
-
-                {/* Tax Strategy */}
-                <Link
-                  href={"/tax-strategy" as Route}
-                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(16,185,129,0.1)]">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
-                      </div>
-                      <h3 className="font-semibold text-foreground">Tax strategy</h3>
-                      <span className="rounded-full border border-[rgba(255,107,53,0.22)] bg-[rgba(255,107,53,0.08)] px-1.5 py-0.5 font-mono text-[0.5rem] uppercase tracking-[0.14em] text-[var(--ember)]">Pro</span>
-                    </div>
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Roth conversions, drawdown sequencing, and ACA planning.
-                    </p>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
-                    <span className="text-xs text-muted-foreground">Optimize your withdrawals</span>
-                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
-                  </div>
-                </Link>
+                </div>
 
                 {/* Track */}
-                <Link
-                  href={"/dashboard" as Route}
-                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(168,85,247,0.1)]">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                      </div>
-                      <h3 className="font-semibold text-foreground">Track progress</h3>
-                      <span className="rounded-full border border-[rgba(255,107,53,0.22)] bg-[rgba(255,107,53,0.08)] px-1.5 py-0.5 font-mono text-[0.5rem] uppercase tracking-[0.14em] text-[var(--ember)]">Pro</span>
+                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(168,85,247,0.1)]">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                     </div>
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Net worth snapshots, portfolio checkups, and milestone tracking.
-                    </p>
+                    <h3 className="font-semibold text-foreground">Track</h3>
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
-                    <span className="text-xs text-muted-foreground">Monitor your journey</span>
-                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
+                  <div className="mt-4 space-y-3">
+                    <Link
+                      href={"/dashboard" as Route}
+                      className="group block"
+                    >
+                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                        Dashboard {"\u2192"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Net worth snapshots, portfolio checkups, and milestone tracking.</p>
+                    </Link>
                   </div>
-                </Link>
-
-                {/* Learn */}
-                <Link
-                  href={"/education" as Route}
-                  className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(59,130,246,0.1)]">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                      </div>
-                      <h3 className="font-semibold text-foreground">Learn</h3>
-                    </div>
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Research-backed guides on withdrawal rates, asset allocation, and FIRE strategies.
-                    </p>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-4">
-                    <span className="text-xs text-muted-foreground">Understand the math</span>
-                    <span className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">→</span>
-                  </div>
-                </Link>
+                </div>
               </div>
+            </section>
+
+            {/* Section 5: Personalized Insight */}
+            <section className="mx-auto max-w-7xl px-6">
+              {(() => {
+                let insightMessage: string;
+                if (taxEstimate.afterTaxSavingsRate > 0.5) {
+                  const multiple = Math.round(taxEstimate.afterTaxSavingsRate / US_BENCHMARKS.savingsRate);
+                  insightMessage = `You're saving ${formatPercent(taxEstimate.afterTaxSavingsRate, 0)} of your take-home pay — that's ${multiple}x the US average. At this rate, your money is doing serious heavy lifting.`;
+                } else if (summary.coastAge !== null && summary.coastAge <= activeScenario.profile.age + 3) {
+                  insightMessage = `You're within striking distance of Coast FI. Once you hit ${formatCompactCurrency(fireTypes.find((ft) => ft.id === "coast")?.target ?? 0)}, compounding finishes the job and you could stop saving entirely.`;
+                } else if (summary.fireAge !== null && summary.fireAge < 45) {
+                  insightMessage = `On track to reach financial independence at ${Math.round(summary.fireAge)} — that's ${Math.round(US_BENCHMARKS.averageRetirementAge - summary.fireAge)} years before the average American retires. Every year you save now buys years of freedom later.`;
+                } else {
+                  const pctDone = summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0;
+                  insightMessage = pctDone > 0.1
+                    ? `You've already saved ${formatPercent(Math.min(pctDone, 1), 0)} of your FIRE number. Compounding is quietly working in the background — keep going.`
+                    : `Every journey starts with the first step. You've mapped out a plan, and that alone puts you ahead of most people. Small, consistent progress adds up.`;
+                }
+                return (
+                  <div className="rounded-2xl border border-[rgba(255,107,53,0.15)] bg-[rgba(255,107,53,0.03)] p-6">
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 text-lg" aria-hidden="true">{"\u2728"}</span>
+                      <p className="text-sm leading-relaxed text-foreground">
+                        {insightMessage}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
             </section>
           </>
         )
