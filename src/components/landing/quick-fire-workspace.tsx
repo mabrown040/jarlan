@@ -550,9 +550,6 @@ export function QuickFireWorkspace({
                           return "Traditional FIRE";
                         })()}
                       </span>
-                      <span className="rounded-full bg-[rgba(255,107,53,0.1)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-[var(--ember)]">
-                        Recommended
-                      </span>
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -683,12 +680,10 @@ export function QuickFireWorkspace({
               </h2>
               <div className="mt-4 grid gap-4 lg:grid-cols-3">
                 {fireTypes
-                  .filter((ft) => {
-                    if (ft.id === "traditional" || ft.id === "coast") return true;
-                    if (ft.id === "barista" && activeScenario.assumptions.partTimeIncome > 0) return true;
-                    return false;
-                  })
+                  .filter((ft) => ft.id === "traditional" || ft.id === "coast" || ft.id === "barista")
                   .map((ft) => {
+                    const hasPostFireIncome = activeScenario.assumptions.partTimeIncome > 0;
+                    const baristaNoIncome = ft.id === "barista" && !hasPostFireIncome;
                     const isRecommended = (() => {
                       const coastType = fireTypes.find((t) => t.id === "coast");
                       if (coastType && coastType.progress >= 1) return ft.id === "coast";
@@ -716,11 +711,6 @@ export function QuickFireWorkspace({
                             <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
                               {ft.label}
                             </p>
-                            {isRecommended ? (
-                              <span className="rounded-full bg-[rgba(255,107,53,0.1)] px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-[var(--ember)]">
-                                Recommended
-                              </span>
-                            ) : null}
                           </div>
                           <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
                             {formatCompactCurrency(ft.target)}
@@ -733,7 +723,11 @@ export function QuickFireWorkspace({
                               />
                             </div>
                           </div>
-                          <p className="mt-3 text-sm text-muted-foreground">{ft.description}</p>
+                          <p className="mt-3 text-sm text-muted-foreground">
+                            {baristaNoIncome
+                              ? "Work part-time in retirement to supplement a smaller portfolio. Add expected post-FIRE income in your plan to see the target."
+                              : ft.description}
+                          </p>
                           {ft.id === "coast" && summary.coastAge !== null ? (
                             <p className="mt-2 text-xs font-medium text-[var(--ember)]">
                               Coast at age {Math.round(summary.coastAge)}
