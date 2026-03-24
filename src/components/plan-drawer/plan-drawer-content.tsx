@@ -417,6 +417,12 @@ export function PlanDrawerContent() {
                       const limit = is50Plus ? "$8,000" : "$7,000";
                       return <p className="text-[10px] text-muted-foreground">IRA limit: {limit}/yr{catchUp} (2025)</p>;
                     }
+                    if (account.type === "hsa") {
+                      const is55Plus = age >= 55;
+                      const isMarried = activeScenario.profile.filingStatus === "married_joint";
+                      const hsaLimit = (isMarried ? 8_550 : 4_300) + (is55Plus ? 1_000 : 0);
+                      return <p className="text-[10px] text-muted-foreground">HSA limit: ${(hsaLimit / 1000).toFixed(1)}K/yr{is55Plus ? " (includes catch-up)" : ""} (2025). Triple tax advantage.</p>;
+                    }
                     return null;
                   })()}
                 </div>

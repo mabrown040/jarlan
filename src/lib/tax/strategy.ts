@@ -180,7 +180,7 @@ export function estimateFederalTax(
 export function estimateScenarioTax(scenario: Scenario) {
   const grossIncome = scenario.annualIncome + (scenario.profile.partner?.annualIncome ?? 0);
   const preTaxContributions = scenario.accounts
-    .filter((a) => a.type === "traditional_401k")
+    .filter((a) => a.type === "traditional_401k" || a.type === "hsa")
     .reduce((sum, a) => sum + a.annualContribution, 0);
   const taxableIncome = Math.max(grossIncome - preTaxContributions, 0);
   const federalTax = estimateFederalTax(taxableIncome, scenario.profile.filingStatus);
@@ -192,7 +192,7 @@ export function estimateScenarioTax(scenario: Scenario) {
   const afterTaxSavingsRate = takeHome > 0 ? actualSavings / takeHome : 0;
   const effectiveRate = grossIncome > 0 ? totalTax / grossIncome : 0;
 
-  return { grossIncome, totalTax, takeHome, actualSavings, afterTaxSavingsRate, effectiveRate };
+  return { grossIncome, federalTax, stateTax, totalTax, takeHome, actualSavings, afterTaxSavingsRate, effectiveRate };
 }
 
 export function buildFederalTaxBracketBreakdown(

@@ -25,10 +25,12 @@ export interface FireTypeQuizAnswers {
   // Account allocation (balances — must sum to currentPortfolio)
   traditionalBalance: number;
   rothBalance: number;
+  hsaBalance: number;
   taxableBalance: number;
   // Contribution allocation (must sum to annual savings)
   traditionalContribution: number;
   rothContribution: number;
+  hsaContribution: number;
   taxableContribution: number;
   partTimePreference: PartTimePreference;
   postFireIncome: number;
@@ -66,13 +68,18 @@ export function getContributionLimits(
   const personal401k = isSuperCatchUp ? 34_750 : is50Plus ? 31_000 : 23_500;
   const personalIra = is50Plus ? 8_000 : 7_000;
 
+  // HSA limits: $4,300 individual / $8,550 family (2025), +$1,000 catch-up for 55+
+  const is55Plus = age >= 55;
+  const hsaBase = isMarried ? 8_550 : 4_300;
+  const personalHsa = hsaBase + (is55Plus ? 1_000 : 0);
+
   // Household limits (double if married with both contributing)
   return {
     traditional401k: partnerHas401k ? personal401k * 2 : personal401k,
     rothIra: isMarried ? personalIra * 2 : personalIra,
+    hsa: personalHsa,
     megaBackdoorRoth: partnerHas401k ? 92_000 : 46_000,
     total401k: (is50Plus ? 77_500 : 70_000) * (partnerHas401k ? 2 : 1),
-    // Per-person reference (useful for labels)
     personal401kLimit: personal401k,
     personalIraLimit: personalIra,
     isMarried,
@@ -94,9 +101,11 @@ export const DEFAULT_FIRE_TYPE_QUIZ_ANSWERS: FireTypeQuizAnswers = {
   currentPortfolio: 185_000,
   traditionalBalance: 0,
   rothBalance: 0,
+  hsaBalance: 0,
   taxableBalance: 185_000,
   traditionalContribution: 0,
   rothContribution: 0,
+  hsaContribution: 0,
   taxableContribution: 0,
   partTimePreference: "maybe",
   postFireIncome: 0,
@@ -200,6 +209,12 @@ export function buildScenarioFromQuizAnswers(
     const acct = createDefaultAccount("roth_401k", "Roth (401k/IRA)");
     acct.currentBalance = answers.rothBalance;
     acct.annualContribution = answers.rothContribution;
+    accounts.push(acct);
+  }
+  if (answers.hsaBalance > 0 || answers.hsaContribution > 0) {
+    const acct = createDefaultAccount("hsa", "HSA");
+    acct.currentBalance = answers.hsaBalance;
+    acct.annualContribution = answers.hsaContribution;
     accounts.push(acct);
   }
   // Always create taxable — it's the catch-all

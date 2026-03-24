@@ -389,7 +389,20 @@ export function FireTypeQuiz() {
             />
           </div>
         );
-      case "accountSplit":
+      case "accountSplit": {
+        // Helper: taxable is always the remainder
+        const setBalances = (trad: number, roth: number, hsa: number) => {
+          const total = answers.currentPortfolio;
+          const t = Math.min(trad, total);
+          const r = Math.min(roth, total - t);
+          const h = Math.min(hsa, total - t - r);
+          const taxable = Math.max(total - t - r - h, 0);
+          setAnswer("traditionalBalance", t);
+          setAnswer("rothBalance", r);
+          setAnswer("hsaBalance", h);
+          setAnswer("taxableBalance", taxable);
+        };
+        const balTotal = answers.traditionalBalance + answers.rothBalance + answers.hsaBalance + answers.taxableBalance;
         return (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -404,14 +417,7 @@ export function FireTypeQuiz() {
                   max={answers.currentPortfolio}
                   step={1_000}
                   value={answers.traditionalBalance}
-                  onValueChange={(v) => {
-                    const trad = Math.min(v, answers.currentPortfolio);
-                    const roth = Math.min(answers.rothBalance, answers.currentPortfolio - trad);
-                    const taxable = Math.max(answers.currentPortfolio - trad - roth, 0);
-                    setAnswer("traditionalBalance", trad);
-                    setAnswer("rothBalance", roth);
-                    setAnswer("taxableBalance", taxable);
-                  }}
+                  onValueChange={(v) => setBalances(v, answers.rothBalance, answers.hsaBalance)}
                 />
               </div>
               <div>
@@ -422,16 +428,22 @@ export function FireTypeQuiz() {
                   max={answers.currentPortfolio - answers.traditionalBalance}
                   step={1_000}
                   value={answers.rothBalance}
-                  onValueChange={(v) => {
-                    const roth = Math.min(v, answers.currentPortfolio - answers.traditionalBalance);
-                    const taxable = Math.max(answers.currentPortfolio - answers.traditionalBalance - roth, 0);
-                    setAnswer("rothBalance", roth);
-                    setAnswer("taxableBalance", taxable);
-                  }}
+                  onValueChange={(v) => setBalances(answers.traditionalBalance, v, answers.hsaBalance)}
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="quiz-taxable-bal" label="Taxable (brokerage)" />
+                <FieldLabel htmlFor="quiz-hsa-bal" label="HSA (Health Savings Account)" />
+                <NumberInput
+                  id="quiz-hsa-bal"
+                  min={0}
+                  max={answers.currentPortfolio - answers.traditionalBalance - answers.rothBalance}
+                  step={1_000}
+                  value={answers.hsaBalance}
+                  onValueChange={(v) => setBalances(answers.traditionalBalance, answers.rothBalance, v)}
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="quiz-taxable-bal" label="Taxable (brokerage) — remainder" />
                 <NumberInput
                   id="quiz-taxable-bal"
                   min={0}
@@ -439,13 +451,7 @@ export function FireTypeQuiz() {
                   step={1_000}
                   value={answers.taxableBalance}
                   onValueChange={(v) => {
-                    const taxable = Math.min(v, answers.currentPortfolio);
-                    const remaining = answers.currentPortfolio - taxable;
-                    const trad = Math.min(answers.traditionalBalance, remaining);
-                    const roth = Math.max(remaining - trad, 0);
-                    setAnswer("taxableBalance", taxable);
-                    setAnswer("traditionalBalance", trad);
-                    setAnswer("rothBalance", roth);
+                    setAnswer("taxableBalance", Math.min(v, answers.currentPortfolio));
                   }}
                 />
               </div>
@@ -453,11 +459,9 @@ export function FireTypeQuiz() {
                 <span className="text-muted-foreground">Total</span>
                 <span className={cn(
                   "font-mono font-bold tabular-nums",
-                  Math.abs(answers.traditionalBalance + answers.rothBalance + answers.taxableBalance - answers.currentPortfolio) < 100
-                    ? "text-emerald-600"
-                    : "text-red-500",
+                  Math.abs(balTotal - answers.currentPortfolio) < 100 ? "text-emerald-600" : "text-red-500",
                 )}>
-                  {formatCompactCurrency(answers.traditionalBalance + answers.rothBalance + answers.taxableBalance)}
+                  {formatCompactCurrency(balTotal)}
                 </span>
               </div>
             </div>
@@ -466,6 +470,7 @@ export function FireTypeQuiz() {
               onClick={() => {
                 setAnswer("traditionalBalance", 0);
                 setAnswer("rothBalance", 0);
+                setAnswer("hsaBalance", 0);
                 setAnswer("taxableBalance", answers.currentPortfolio);
               }}
               className="text-xs text-[var(--ember)] hover:underline"
@@ -474,6 +479,7 @@ export function FireTypeQuiz() {
             </button>
           </div>
         );
+      }
       case "contributionSplit": {
         const limits = getContributionLimits(answers.currentAge, {
           filingStatus: answers.filingStatus,
@@ -494,14 +500,16 @@ export function FireTypeQuiz() {
 
         const defaultTrad = Math.min(limits.traditional401k, totalSavings);
         const defaultRoth = Math.min(limits.rothIra, Math.max(totalSavings - defaultTrad, 0));
-        const defaultTaxable = Math.max(totalSavings - defaultTrad - defaultRoth, 0);
+        const defaultHsa = Math.min(limits.hsa, Math.max(totalSavings - defaultTrad - defaultRoth, 0));
+        const defaultTaxable = Math.max(totalSavings - defaultTrad - defaultRoth - defaultHsa, 0);
         const catchUpNote = answers.currentAge >= 50
           ? ` (includes ${answers.currentAge >= 60 && answers.currentAge <= 63 ? "super " : ""}catch-up)`
           : "";
         // Auto-set defaults on first render if all zero
-        if (answers.traditionalContribution === 0 && answers.rothContribution === 0 && answers.taxableContribution === 0 && totalSavings > 0) {
+        if (answers.traditionalContribution === 0 && answers.rothContribution === 0 && answers.hsaContribution === 0 && answers.taxableContribution === 0 && totalSavings > 0) {
           setAnswer("traditionalContribution", defaultTrad);
           setAnswer("rothContribution", defaultRoth);
+          setAnswer("hsaContribution", defaultHsa);
           setAnswer("taxableContribution", defaultTaxable);
         }
         return (
@@ -521,9 +529,11 @@ export function FireTypeQuiz() {
                   onValueChange={(v) => {
                     const trad = Math.min(v, limits.traditional401k);
                     const roth = Math.min(answers.rothContribution, totalSavings - trad);
-                    const taxable = Math.max(totalSavings - trad - roth, 0);
+                    const hsa = Math.min(answers.hsaContribution, totalSavings - trad - roth);
+                    const taxable = Math.max(totalSavings - trad - roth - hsa, 0);
                     setAnswer("traditionalContribution", trad);
                     setAnswer("rothContribution", Math.max(roth, 0));
+                    setAnswer("hsaContribution", Math.max(hsa, 0));
                     setAnswer("taxableContribution", taxable);
                   }}
                 />
@@ -538,13 +548,34 @@ export function FireTypeQuiz() {
                   value={answers.rothContribution}
                   onValueChange={(v) => {
                     const roth = Math.min(v, totalSavings - answers.traditionalContribution);
-                    const taxable = Math.max(totalSavings - answers.traditionalContribution - roth, 0);
+                    const hsa = Math.min(answers.hsaContribution, totalSavings - answers.traditionalContribution - roth);
+                    const taxable = Math.max(totalSavings - answers.traditionalContribution - roth - hsa, 0);
                     setAnswer("rothContribution", roth);
+                    setAnswer("hsaContribution", Math.max(hsa, 0));
                     setAnswer("taxableContribution", taxable);
                   }}
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   Includes backdoor Roth. If your employer offers mega backdoor Roth, you can add up to ~${(limits.megaBackdoorRoth / 1000).toFixed(0)}K more — adjust in All Settings.
+                </p>
+              </div>
+              <div>
+                <FieldLabel htmlFor="quiz-hsa-cont" label={`HSA — limit $${(limits.hsa / 1000).toFixed(1)}K/yr${answers.currentAge >= 55 ? " (includes catch-up)" : ""}`} />
+                <NumberInput
+                  id="quiz-hsa-cont"
+                  min={0}
+                  max={limits.hsa}
+                  step={100}
+                  value={answers.hsaContribution}
+                  onValueChange={(v) => {
+                    const hsa = Math.min(v, limits.hsa);
+                    const taxable = Math.max(totalSavings - answers.traditionalContribution - answers.rothContribution - hsa, 0);
+                    setAnswer("hsaContribution", hsa);
+                    setAnswer("taxableContribution", taxable);
+                  }}
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Triple tax advantage: pre-tax in, tax-free growth, tax-free withdrawal for medical expenses.
                 </p>
               </div>
               <div>
@@ -564,11 +595,11 @@ export function FireTypeQuiz() {
                 <span className="text-muted-foreground">Total contributions</span>
                 <span className={cn(
                   "font-mono font-bold tabular-nums",
-                  Math.abs(answers.traditionalContribution + answers.rothContribution + answers.taxableContribution - totalSavings) < 100
+                  Math.abs(answers.traditionalContribution + answers.rothContribution + answers.hsaContribution + answers.taxableContribution - totalSavings) < 100
                     ? "text-emerald-600"
                     : "text-red-500",
                 )}>
-                  {formatCompactCurrency(answers.traditionalContribution + answers.rothContribution + answers.taxableContribution)}/yr
+                  {formatCompactCurrency(answers.traditionalContribution + answers.rothContribution + answers.hsaContribution + answers.taxableContribution)}/yr
                 </span>
               </div>
             </div>
@@ -577,6 +608,7 @@ export function FireTypeQuiz() {
               onClick={() => {
                 setAnswer("traditionalContribution", defaultTrad);
                 setAnswer("rothContribution", defaultRoth);
+                setAnswer("hsaContribution", defaultHsa);
                 setAnswer("taxableContribution", defaultTaxable);
               }}
               className="text-xs text-[var(--ember)] hover:underline"
