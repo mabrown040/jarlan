@@ -1,6 +1,7 @@
 import { calculateFireTypeSummaries } from "@/lib/calc";
 import { cloneScenario, createDefaultScenario } from "@/lib/domain";
 import type { FireTypeSummary, Scenario } from "@/lib/domain/types";
+import { estimateScenarioTax } from "@/lib/tax/strategy";
 import { clamp, roundTo } from "@/lib/utils";
 
 export type FireStage = "curious" | "saving" | "pre_retirement" | "retired";
@@ -137,9 +138,13 @@ export function buildScenarioFromQuizAnswers(
   scenario.annualIncome = Math.max(answers.annualIncome, 0);
   scenario.annualExpenses = Math.max(answers.annualSpending, 0);
   scenario.retirementExpenses = Math.max(answers.annualSpending, 0);
-  scenario.annualSavings = Math.max(answers.annualIncome - answers.annualSpending, 0);
+  // Compute tax-aware savings using the scenario's tax estimation
+  // (income/expenses/filing are already set above)
+  const { takeHome } = estimateScenarioTax(scenario);
+  const taxAwareSavings = Math.max(takeHome - answers.annualSpending, 0);
+  scenario.annualSavings = taxAwareSavings;
   scenario.accounts[0].currentBalance = Math.max(answers.currentPortfolio, 0);
-  scenario.accounts[0].annualContribution = Math.max(answers.annualIncome - answers.annualSpending, 0);
+  scenario.accounts[0].annualContribution = taxAwareSavings;
 
   // Post-FIRE income (from conditional follow-up or legacy fallback)
   scenario.assumptions.partTimeIncome = answers.postFireIncome > 0
