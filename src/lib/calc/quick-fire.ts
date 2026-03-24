@@ -106,7 +106,7 @@ export function buildProjection({
  */
 function getEffectiveMonthlyReturn(scenario: Scenario) {
   const effectiveAnnual =
-    scenario.assumptions.expectedRealReturn - scenario.simulationSettings.feeDrag;
+    scenario.assumptions.expectedRealReturn - (scenario.simulationSettings?.feeDrag ?? 0.001);
   return effectiveAnnual / 12;
 }
 
@@ -218,8 +218,11 @@ export function buildScenarioProjection({
       const yearAge = scenario.profile.age + yearNum;
       const yearGrowth = balance - startOfYearBalance - yearContributions - yearCashFlows;
 
-      // Compute income/expenses for this year (with growth rates + cash flows)
-      const cfBreakdown = getCashFlowBreakdownAtAge(scenario, yearAge);
+      // Compute income/expenses for this year using the START of the year age.
+      // Year N runs from age (base+N-1) to age (base+N). Cash flows active
+      // during the year should use the start-of-year age for display.
+      const yearStartAge = scenario.profile.age + yearNum - 1;
+      const cfBreakdown = getCashFlowBreakdownAtAge(scenario, yearStartAge);
       const grownIncome = scenario.annualIncome * (1 + incomeGrowthRate) ** yearNum;
       const grownExpenses = scenario.annualExpenses * (1 + expenseGrowthRate) ** yearNum;
 
