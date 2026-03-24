@@ -46,6 +46,7 @@ import {
   deserializeScenarioFromSearchParam,
 } from "@/lib/share";
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
+import { InlineControls } from "@/components/plan/inline-controls";
 import { cn } from "@/lib/utils";
 
 function syncScenarioRollups(nextScenario: Scenario) {
@@ -857,6 +858,8 @@ export function QuickFireWorkspace({
                 </button>
               </div>
             ) : null}
+
+            {variant === "module" && <InlineControls />}
 
             <ChartShell
               title="Accumulation projection"
