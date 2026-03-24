@@ -56,10 +56,13 @@ export function getEmployerMatchTotal(scenario: Scenario) {
 }
 
 export function getNetCashFlowAtAge(scenario: Scenario, age: number) {
+  // Use floor(age) so cash flows align to year boundaries, not fractional months.
+  // A CF starting at age 35 should activate at the START of the year the user turns 35.
+  const yearAge = Math.floor(age);
   return scenario.cashFlows.reduce((total, cashFlow) => {
     const isActive =
-      age >= cashFlow.startAge &&
-      (cashFlow.endAge === null || age <= cashFlow.endAge);
+      yearAge >= cashFlow.startAge &&
+      (cashFlow.endAge === null || yearAge < cashFlow.endAge);
 
     if (!isActive) {
       return total;
@@ -81,9 +84,10 @@ export function getCashFlowBreakdownAtAge(
   let income = 0;
   let expense = 0;
   let lostIncome = 0;
+  const yearAge = Math.floor(age);
   for (const cf of scenario.cashFlows) {
     const isActive =
-      age >= cf.startAge && (cf.endAge === null || age <= cf.endAge);
+      yearAge >= cf.startAge && (cf.endAge === null || yearAge < cf.endAge);
     if (!isActive) continue;
     if (cf.type === "income") {
       income += cf.amount;
