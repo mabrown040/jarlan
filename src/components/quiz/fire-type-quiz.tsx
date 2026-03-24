@@ -432,7 +432,19 @@ export function FireTypeQuiz() {
         );
       case "contributionSplit": {
         const limits = getContributionLimits(answers.currentAge);
-        const totalSavings = Math.max(answers.annualIncome - answers.annualSpending, 0);
+        // Estimate take-home using current traditional contribution for pre-tax deduction
+        const grossIncome = answers.annualIncome;
+        const tradContrib = answers.traditionalContribution;
+        const roughTaxableIncome = Math.max(grossIncome - tradContrib, 0);
+        const roughFederalRate = roughTaxableIncome > 243_725 ? 0.32
+          : roughTaxableIncome > 191_950 ? 0.24
+          : roughTaxableIncome > 100_525 ? 0.22
+          : roughTaxableIncome > 47_150 ? 0.12
+          : 0.10;
+        const roughTax = roughTaxableIncome * (roughFederalRate * 0.85 + 0.05); // federal + ~5% state
+        const estimatedTakeHome = Math.max(grossIncome - roughTax, 0);
+        const totalSavings = Math.max(estimatedTakeHome - answers.annualSpending, 0);
+
         const defaultTrad = Math.min(limits.traditional401k, totalSavings);
         const defaultRoth = Math.min(limits.rothIra, Math.max(totalSavings - defaultTrad, 0));
         const defaultTaxable = Math.max(totalSavings - defaultTrad - defaultRoth, 0);
@@ -448,7 +460,7 @@ export function FireTypeQuiz() {
         return (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Your ~{formatCompactCurrency(totalSavings)}/yr savings goes to:
+              Your ~{formatCompactCurrency(totalSavings)}/yr after-tax savings goes to:
             </p>
             <div className="space-y-3">
               <div>
