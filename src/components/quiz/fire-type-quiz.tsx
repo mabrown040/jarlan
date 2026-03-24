@@ -21,6 +21,7 @@ import {
 } from "@/lib/calc";
 import {
   CONTRIBUTION_LIMITS,
+  getContributionLimits,
   DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
   buildScenarioFromQuizAnswers,
   getFireTypeRecommendation,
@@ -430,10 +431,14 @@ export function FireTypeQuiz() {
           </div>
         );
       case "contributionSplit": {
+        const limits = getContributionLimits(answers.currentAge);
         const totalSavings = Math.max(answers.annualIncome - answers.annualSpending, 0);
-        const defaultTrad = Math.min(CONTRIBUTION_LIMITS.traditional401k, totalSavings);
-        const defaultRoth = Math.min(CONTRIBUTION_LIMITS.rothIra, Math.max(totalSavings - defaultTrad, 0));
+        const defaultTrad = Math.min(limits.traditional401k, totalSavings);
+        const defaultRoth = Math.min(limits.rothIra, Math.max(totalSavings - defaultTrad, 0));
         const defaultTaxable = Math.max(totalSavings - defaultTrad - defaultRoth, 0);
+        const catchUpNote = answers.currentAge >= 50
+          ? ` (includes ${answers.currentAge >= 60 && answers.currentAge <= 63 ? "super " : ""}catch-up)`
+          : "";
         // Auto-set defaults on first render if all zero
         if (answers.traditionalContribution === 0 && answers.rothContribution === 0 && answers.taxableContribution === 0 && totalSavings > 0) {
           setAnswer("traditionalContribution", defaultTrad);
@@ -447,15 +452,15 @@ export function FireTypeQuiz() {
             </p>
             <div className="space-y-3">
               <div>
-                <FieldLabel htmlFor="quiz-trad-cont" label={`Tax-deferred 401(k) — limit $${(CONTRIBUTION_LIMITS.traditional401k / 1000).toFixed(1)}K/yr`} />
+                <FieldLabel htmlFor="quiz-trad-cont" label={`Tax-deferred 401(k) — limit $${(limits.traditional401k / 1000).toFixed(1)}K/yr${catchUpNote}`} />
                 <NumberInput
                   id="quiz-trad-cont"
                   min={0}
-                  max={CONTRIBUTION_LIMITS.traditional401k}
+                  max={limits.traditional401k}
                   step={500}
                   value={answers.traditionalContribution}
                   onValueChange={(v) => {
-                    const trad = Math.min(v, CONTRIBUTION_LIMITS.traditional401k);
+                    const trad = Math.min(v, limits.traditional401k);
                     const roth = Math.min(answers.rothContribution, totalSavings - trad);
                     const taxable = Math.max(totalSavings - trad - roth, 0);
                     setAnswer("traditionalContribution", trad);
@@ -465,7 +470,7 @@ export function FireTypeQuiz() {
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="quiz-roth-cont" label={`Roth (IRA + backdoor) — limit $${(CONTRIBUTION_LIMITS.rothIra / 1000).toFixed(0)}K/yr direct`} />
+                <FieldLabel htmlFor="quiz-roth-cont" label={`Roth (IRA + backdoor) — limit $${(limits.rothIra / 1000).toFixed(0)}K/yr direct${answers.currentAge >= 50 ? " (includes catch-up)" : ""}`} />
                 <NumberInput
                   id="quiz-roth-cont"
                   min={0}
@@ -480,7 +485,7 @@ export function FireTypeQuiz() {
                   }}
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Includes backdoor Roth. If your employer offers mega backdoor Roth, you can add up to ~${(CONTRIBUTION_LIMITS.megaBackdoorRoth / 1000).toFixed(0)}K more — adjust in All Settings.
+                  Includes backdoor Roth. If your employer offers mega backdoor Roth, you can add up to ~${(limits.megaBackdoorRoth / 1000).toFixed(0)}K more — adjust in All Settings.
                 </p>
               </div>
               <div>

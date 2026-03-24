@@ -50,13 +50,20 @@ export interface FireTypeRecommendation {
   suggestedPartTimeIncome: number;
 }
 
-/** 2025 contribution limits */
-export const CONTRIBUTION_LIMITS = {
-  traditional401k: 23_500,
-  rothIra: 7_000,
-  megaBackdoorRoth: 46_000,
-  total401k: 69_000,
-} as const;
+/** 2025 contribution limits — age-aware */
+export function getContributionLimits(age: number) {
+  const is50Plus = age >= 50;
+  const isSuperCatchUp = age >= 60 && age <= 63;
+  return {
+    traditional401k: isSuperCatchUp ? 34_750 : is50Plus ? 31_000 : 23_500,
+    rothIra: is50Plus ? 8_000 : 7_000,
+    megaBackdoorRoth: 46_000,
+    total401k: is50Plus ? 77_500 : 70_000,
+  };
+}
+
+/** Static reference for backward compat (under-50 defaults) */
+export const CONTRIBUTION_LIMITS = getContributionLimits(34);
 
 export const DEFAULT_FIRE_TYPE_QUIZ_ANSWERS: FireTypeQuizAnswers = {
   stage: "saving",

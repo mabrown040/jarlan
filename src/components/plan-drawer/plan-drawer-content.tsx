@@ -400,15 +400,25 @@ export function PlanDrawerContent() {
                 <div className="space-y-1">
                   <FieldLabel htmlFor={`drawer-acct-contrib-${account.id}`} label="Contribution/yr" tooltip="How much you add to this account each year." />
                   <NumberInput id={`drawer-acct-contrib-${account.id}`} min={0} step={1000} inputMode="numeric" value={account.annualContribution} onValueChange={(v) => updateScenario((s) => { const a = s.accounts.find((c) => c.id === account.id); if (a) a.annualContribution = Math.max(v, 0); })} />
-                  {account.type === "traditional_401k" && (
-                    <p className="text-[10px] text-muted-foreground">Employee limit: $23,500/yr (2025)</p>
-                  )}
-                  {(account.type === "roth_401k" || account.type === "roth_ira") && (
-                    <p className="text-[10px] text-muted-foreground">Roth IRA: $7K/yr direct. Mega backdoor: up to ~$46K more if your plan allows.</p>
-                  )}
-                  {account.type === "traditional_ira" && (
-                    <p className="text-[10px] text-muted-foreground">IRA limit: $7,000/yr (2025)</p>
-                  )}
+                  {(() => {
+                    const age = activeScenario.profile.age;
+                    const is50Plus = age >= 50;
+                    const isSuperCatchUp = age >= 60 && age <= 63;
+                    const catchUp = isSuperCatchUp ? " (super catch-up)" : is50Plus ? " (includes catch-up)" : "";
+                    if (account.type === "traditional_401k") {
+                      const limit = isSuperCatchUp ? "$34.8K" : is50Plus ? "$31K" : "$23.5K";
+                      return <p className="text-[10px] text-muted-foreground">Employee limit: {limit}/yr{catchUp} (2025)</p>;
+                    }
+                    if (account.type === "roth_401k" || account.type === "roth_ira") {
+                      const limit = is50Plus ? "$8K" : "$7K";
+                      return <p className="text-[10px] text-muted-foreground">Roth IRA: {limit}/yr direct{catchUp}. Mega backdoor: up to ~$46K more if your plan allows.</p>;
+                    }
+                    if (account.type === "traditional_ira") {
+                      const limit = is50Plus ? "$8,000" : "$7,000";
+                      return <p className="text-[10px] text-muted-foreground">IRA limit: {limit}/yr{catchUp} (2025)</p>;
+                    }
+                    return null;
+                  })()}
                 </div>
                 <div className="space-y-1">
                   <FieldLabel htmlFor={`drawer-acct-match-${account.id}`} label="Match %" tooltip="Employer match as a decimal (e.g., 0.5 = 50% match on your contribution)." />
