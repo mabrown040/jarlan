@@ -435,7 +435,26 @@ export default function SaveWhatIfWorkspace() {
           eyebrow="Life decisions"
           title="How real choices change your timeline"
         >
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex items-start gap-2 rounded-lg border border-border/40 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+            <span className="mt-0.5 shrink-0">💡</span>
+            <div>
+              <span>Select any scenario to see how it shifts your FIRE date. Combine multiple to model real life.</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="ml-1.5 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/80 hover:bg-muted/80 hover:text-foreground transition-colors">
+                    How it works
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-sm text-xs leading-relaxed">
+                  <p className="font-medium text-foreground mb-1">How this works</p>
+                  <p>Each card models a specific life change — a raise, a career break, a new child — and shows how many years it adds or removes from your timeline.</p>
+                  <p className="mt-1.5">When you select multiple cards, Calcifer compounds them together into a single scenario. The chart and table below update in real time so you can see the combined effect year by year.</p>
+                  <p className="mt-1.5">Adjust the sliders on each card to match your situation. All calculations use your actual tax rate, savings, and portfolio — not generic assumptions.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {decisionResults.map((result) => {
               const { decision, deltaYears, deltaFireNumber } = result;
               const isSelected = selectedIds.has(decision.id);
@@ -541,9 +560,9 @@ export default function SaveWhatIfWorkspace() {
               );
             })}
           </div>
-          {selectedIds.size === 0 ? (
-            <p className="mt-4 text-center text-xs text-muted-foreground/60">
-              Click any card to see its impact — select multiple to combine
+          {selectedIds.size > 0 ? (
+            <p className="mt-3 text-center text-xs text-muted-foreground/60">
+              {selectedIds.size} selected · scroll down to see the impact on your timeline
             </p>
           ) : null}
         </ChartShell>
