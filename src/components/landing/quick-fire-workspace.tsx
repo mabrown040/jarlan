@@ -786,7 +786,7 @@ export function QuickFireWorkspace({
                   </p>
                   {summary.fireAge !== null && summary.fireAge < US_BENCHMARKS.averageRetirementAge ? (
                     <p className="mt-2 text-xs text-muted-foreground/70">
-                      The average American retires at {US_BENCHMARKS.averageRetirementAge}. You&apos;re on track for {summary.fireAge} — that&apos;s {US_BENCHMARKS.averageRetirementAge - summary.fireAge} extra years of freedom.
+                      The average American retires at {US_BENCHMARKS.averageRetirementAge}. You&apos;re on track for {Math.round(summary.fireAge)} — that&apos;s {Math.round(US_BENCHMARKS.averageRetirementAge - summary.fireAge)} extra years of freedom.
                     </p>
                   ) : null}
                 </button>
