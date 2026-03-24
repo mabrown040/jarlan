@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { ChevronDown, SlidersHorizontal, Settings2 } from "lucide-react";
+import { ChevronDown, Plus, Minus, SlidersHorizontal, Settings2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { NumberInput } from "@/components/ui/number-input";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
@@ -84,6 +84,7 @@ function SliderField({
 /* ── Main component ────────────────────────────────────────── */
 export function InlineControls() {
   const [expanded, setExpanded] = useState(true);
+  const [showGrowth, setShowGrowth] = useState(false);
   const [lastChanged, setLastChanged] = useState<"spending" | "savings" | null>(null);
 
   const scenario = useScenarioStore((s) => s.activeScenario);
@@ -92,6 +93,10 @@ export function InlineControls() {
   const updateExpectedRealReturn = useScenarioStore((s) => s.updateExpectedRealReturn);
   const updateExpenses = useScenarioStore((s) => s.updateExpenses);
   const updateCurrentBalance = useScenarioStore((s) => s.updateCurrentBalance);
+  const updateIncomeGrowthRate = useScenarioStore((s) => s.updateIncomeGrowthRate);
+  const updateExpenseGrowthRate = useScenarioStore((s) => s.updateExpenseGrowthRate);
+  const updateInflation = useScenarioStore((s) => s.updateInflation);
+  const updateFeeDrag = useScenarioStore((s) => s.updateFeeDrag);
 
   const drawerStore = useDrawerStore();
 
@@ -103,6 +108,10 @@ export function InlineControls() {
   const portfolioBalance = getCurrentPortfolioBalance(scenario.accounts);
   const grossIncome = scenario.annualIncome;
   const hasIncome = grossIncome > 0;
+  const incomeGrowth = scenario.assumptions.incomeGrowthRate ?? 0;
+  const expenseGrowth = scenario.assumptions.expenseGrowthRate ?? 0;
+  const inflation = scenario.assumptions.inflation ?? 0.03;
+  const feeDrag = scenario.simulationSettings?.feeDrag ?? 0.001;
 
   // Tax-aware take-home for linked spending ↔ savings
   const taxInfo = useMemo(() => estimateScenarioTax(scenario), [scenario]);
@@ -240,6 +249,71 @@ export function InlineControls() {
               onValueChange={updateCurrentBalance}
               format={formatCompactCurrency}
             />
+          </div>
+
+          {/* ── Growth assumptions toggle ── */}
+          <div className="mt-4 border-t border-border/40 pt-3">
+            <button
+              type="button"
+              onClick={() => setShowGrowth((prev) => !prev)}
+              className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showGrowth ? (
+                <Minus className="h-3 w-3" />
+              ) : (
+                <Plus className="h-3 w-3" />
+              )}
+              Growth assumptions
+            </button>
+
+            {showGrowth && (
+              <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2 xl:grid-cols-4">
+                <SliderField
+                  label="Income growth"
+                  value={incomeGrowth}
+                  min={0}
+                  max={0.1}
+                  step={0.005}
+                  onValueChange={updateIncomeGrowthRate}
+                  format={(v) => formatPercent(v)}
+                  isPercent
+                  inputWidth="w-16"
+                />
+                <SliderField
+                  label="Lifestyle creep"
+                  value={expenseGrowth}
+                  min={0}
+                  max={0.05}
+                  step={0.005}
+                  onValueChange={updateExpenseGrowthRate}
+                  format={(v) => formatPercent(v)}
+                  isPercent
+                  inputWidth="w-16"
+                />
+                <SliderField
+                  label="Inflation"
+                  value={inflation}
+                  min={0}
+                  max={0.08}
+                  step={0.005}
+                  onValueChange={updateInflation}
+                  format={(v) => formatPercent(v)}
+                  isPercent
+                  inputWidth="w-16"
+                />
+                <SliderField
+                  label="Fee drag"
+                  value={feeDrag}
+                  min={0}
+                  max={0.02}
+                  step={0.001}
+                  onValueChange={updateFeeDrag}
+                  format={(v) => formatPercent(v, 2)}
+                  isPercent
+                  inputWidth="w-16"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
