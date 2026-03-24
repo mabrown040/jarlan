@@ -1,6 +1,6 @@
 import { calculateFireTypeSummaries } from "@/lib/calc";
-import { cloneScenario, createDefaultScenario } from "@/lib/domain";
-import type { FireTypeSummary, Scenario } from "@/lib/domain/types";
+import { cloneScenario, createDefaultScenario, createDefaultAccount } from "@/lib/domain";
+import type { Account, FireTypeSummary, Scenario } from "@/lib/domain/types";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
 import { clamp, roundTo } from "@/lib/utils";
 
@@ -20,6 +20,14 @@ export interface FireTypeQuizAnswers {
   annualIncome: number;
   annualSpending: number;
   currentPortfolio: number;
+  // Account allocation (balances — must sum to currentPortfolio)
+  traditionalBalance: number;
+  rothBalance: number;
+  taxableBalance: number;
+  // Contribution allocation (must sum to annual savings)
+  traditionalContribution: number;
+  rothContribution: number;
+  taxableContribution: number;
   partTimePreference: PartTimePreference;
   postFireIncome: number;
   flexibility: FlexibilityLevel;
@@ -42,6 +50,14 @@ export interface FireTypeRecommendation {
   suggestedPartTimeIncome: number;
 }
 
+/** 2025 contribution limits */
+export const CONTRIBUTION_LIMITS = {
+  traditional401k: 23_500,
+  rothIra: 7_000,
+  megaBackdoorRoth: 46_000,
+  total401k: 69_000,
+} as const;
+
 export const DEFAULT_FIRE_TYPE_QUIZ_ANSWERS: FireTypeQuizAnswers = {
   stage: "saving",
   currentAge: 34,
@@ -49,6 +65,12 @@ export const DEFAULT_FIRE_TYPE_QUIZ_ANSWERS: FireTypeQuizAnswers = {
   annualIncome: 128_000,
   annualSpending: 54_000,
   currentPortfolio: 185_000,
+  traditionalBalance: 0,
+  rothBalance: 0,
+  taxableBalance: 185_000,
+  traditionalContribution: 0,
+  rothContribution: 0,
+  taxableContribution: 0,
   partTimePreference: "maybe",
   postFireIncome: 0,
   flexibility: "medium",
@@ -138,13 +160,32 @@ export function buildScenarioFromQuizAnswers(
   scenario.annualIncome = Math.max(answers.annualIncome, 0);
   scenario.annualExpenses = Math.max(answers.annualSpending, 0);
   scenario.retirementExpenses = Math.max(answers.annualSpending, 0);
+  // Build accounts from quiz allocation (up to 3 accounts)
+  const accounts: Account[] = [];
+  if (answers.traditionalBalance > 0 || answers.traditionalContribution > 0) {
+    const acct = createDefaultAccount("traditional_401k", "Tax-deferred (401k/IRA)");
+    acct.currentBalance = answers.traditionalBalance;
+    acct.annualContribution = answers.traditionalContribution;
+    accounts.push(acct);
+  }
+  if (answers.rothBalance > 0 || answers.rothContribution > 0) {
+    const acct = createDefaultAccount("roth_401k", "Roth (401k/IRA)");
+    acct.currentBalance = answers.rothBalance;
+    acct.annualContribution = answers.rothContribution;
+    accounts.push(acct);
+  }
+  // Always create taxable — it's the catch-all
+  const taxableAcct = createDefaultAccount("taxable", "Taxable brokerage");
+  taxableAcct.currentBalance = answers.taxableBalance;
+  taxableAcct.annualContribution = answers.taxableContribution;
+  accounts.push(taxableAcct);
+  scenario.accounts = accounts;
+
   // Compute tax-aware savings using the scenario's tax estimation
-  // (income/expenses/filing are already set above)
+  // (Traditional 401k contributions now reduce taxable income automatically)
   const { takeHome } = estimateScenarioTax(scenario);
   const taxAwareSavings = Math.max(takeHome - answers.annualSpending, 0);
-  scenario.annualSavings = taxAwareSavings;
-  scenario.accounts[0].currentBalance = Math.max(answers.currentPortfolio, 0);
-  scenario.accounts[0].annualContribution = taxAwareSavings;
+  scenario.annualSavings = accounts.reduce((sum, a) => sum + a.annualContribution, 0) || taxAwareSavings;
 
   // Post-FIRE income (from conditional follow-up or legacy fallback)
   scenario.assumptions.partTimeIncome = answers.postFireIncome > 0

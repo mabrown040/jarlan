@@ -20,6 +20,7 @@ import {
   formatYears,
 } from "@/lib/calc";
 import {
+  CONTRIBUTION_LIMITS,
   DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
   buildScenarioFromQuizAnswers,
   getFireTypeRecommendation,
@@ -30,8 +31,11 @@ import {
 import { useScenarioStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
+/** Virtual step keys that don't map 1:1 to a single answer field */
+type VirtualStepKey = "accountSplit" | "contributionSplit";
+
 interface QuizStep {
-  key: keyof FireTypeQuizAnswers;
+  key: keyof FireTypeQuizAnswers | VirtualStepKey;
   title: string;
   description: string;
 }
@@ -48,6 +52,8 @@ const allQuestionSteps: QuizStep[] = [
   { key: "annualIncome", title: "What is your annual gross income?", description: "Pre-tax income from all sources. This determines your savings rate and timeline." },
   { key: "annualSpending", title: "What annual spending level feels comfortable?", description: "Use a real-world number, not the absolute minimum you could survive on for a year." },
   { key: "currentPortfolio", title: "How much is already invested toward FIRE?", description: "A current portfolio helps calculate Coast FIRE and your overall progress." },
+  { key: "accountSplit", title: "Where is your money?", description: "Account types matter for tax-efficient withdrawals in retirement. Skip if you're not sure." },
+  { key: "contributionSplit", title: "Where do your savings go?", description: "How you allocate contributions affects your tax bill now and in retirement." },
   { key: "partTimePreference", title: "Would you be open to earning income after FIRE?", description: "This changes whether Barista FIRE is in the mix — and sets your post-FIRE income assumption." },
   { key: "flexibility", title: "How much spending flexibility would you have in a downturn?", description: "A plan is only useful if it feels behaviorally realistic during rough markets." },
   { key: "dependents", title: "Are you planning with dependents in the picture?", description: "Household responsibility can shift the tradeoff toward more margin." },
@@ -55,11 +61,11 @@ const allQuestionSteps: QuizStep[] = [
   { key: "priority", title: "What matters most in your plan right now?", description: "This helps separate speed-first FIRE plans from lifestyle-first paths." },
 ];
 
-const stageQuestionKeys: Record<FireStage, Array<keyof FireTypeQuizAnswers>> = {
+const stageQuestionKeys: Record<FireStage, Array<keyof FireTypeQuizAnswers | "accountSplit" | "contributionSplit">> = {
   curious: ["currentAge", "targetFiAge", "annualIncome", "annualSpending", "currentPortfolio", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
-  saving: ["currentAge", "targetFiAge", "annualIncome", "annualSpending", "currentPortfolio", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
-  pre_retirement: ["currentAge", "targetFiAge", "annualSpending", "currentPortfolio", "partTimePreference", "flexibility", "riskTolerance"],
-  retired: ["currentAge", "annualSpending", "currentPortfolio", "flexibility"],
+  saving: ["currentAge", "targetFiAge", "annualIncome", "annualSpending", "currentPortfolio", "accountSplit", "contributionSplit", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
+  pre_retirement: ["currentAge", "targetFiAge", "annualSpending", "currentPortfolio", "accountSplit", "partTimePreference", "flexibility", "riskTolerance"],
+  retired: ["currentAge", "annualSpending", "currentPortfolio", "accountSplit", "flexibility"],
 };
 
 function getStepsForStage(stage: FireStage): QuizStep[] {
@@ -338,6 +344,184 @@ export function FireTypeQuiz() {
             />
           </div>
         );
+      case "accountSplit":
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Your {formatCompactCurrency(answers.currentPortfolio)} is split across:
+            </p>
+            <div className="space-y-3">
+              <div>
+                <FieldLabel htmlFor="quiz-trad-bal" label="Tax-deferred (401k, Traditional IRA)" />
+                <NumberInput
+                  id="quiz-trad-bal"
+                  min={0}
+                  max={answers.currentPortfolio}
+                  step={1_000}
+                  value={answers.traditionalBalance}
+                  onValueChange={(v) => {
+                    const trad = Math.min(v, answers.currentPortfolio);
+                    const roth = Math.min(answers.rothBalance, answers.currentPortfolio - trad);
+                    const taxable = Math.max(answers.currentPortfolio - trad - roth, 0);
+                    setAnswer("traditionalBalance", trad);
+                    setAnswer("rothBalance", roth);
+                    setAnswer("taxableBalance", taxable);
+                  }}
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="quiz-roth-bal" label="Roth (Roth 401k, Roth IRA)" />
+                <NumberInput
+                  id="quiz-roth-bal"
+                  min={0}
+                  max={answers.currentPortfolio - answers.traditionalBalance}
+                  step={1_000}
+                  value={answers.rothBalance}
+                  onValueChange={(v) => {
+                    const roth = Math.min(v, answers.currentPortfolio - answers.traditionalBalance);
+                    const taxable = Math.max(answers.currentPortfolio - answers.traditionalBalance - roth, 0);
+                    setAnswer("rothBalance", roth);
+                    setAnswer("taxableBalance", taxable);
+                  }}
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="quiz-taxable-bal" label="Taxable (brokerage)" />
+                <NumberInput
+                  id="quiz-taxable-bal"
+                  min={0}
+                  max={answers.currentPortfolio}
+                  step={1_000}
+                  value={answers.taxableBalance}
+                  onValueChange={(v) => {
+                    const taxable = Math.min(v, answers.currentPortfolio);
+                    const remaining = answers.currentPortfolio - taxable;
+                    const trad = Math.min(answers.traditionalBalance, remaining);
+                    const roth = Math.max(remaining - trad, 0);
+                    setAnswer("taxableBalance", taxable);
+                    setAnswer("traditionalBalance", trad);
+                    setAnswer("rothBalance", roth);
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs">
+                <span className="text-muted-foreground">Total</span>
+                <span className={cn(
+                  "font-mono font-bold tabular-nums",
+                  Math.abs(answers.traditionalBalance + answers.rothBalance + answers.taxableBalance - answers.currentPortfolio) < 100
+                    ? "text-emerald-600"
+                    : "text-red-500",
+                )}>
+                  {formatCompactCurrency(answers.traditionalBalance + answers.rothBalance + answers.taxableBalance)}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setAnswer("traditionalBalance", 0);
+                setAnswer("rothBalance", 0);
+                setAnswer("taxableBalance", answers.currentPortfolio);
+              }}
+              className="text-xs text-[var(--ember)] hover:underline"
+            >
+              I&apos;m not sure — put it all in taxable
+            </button>
+          </div>
+        );
+      case "contributionSplit": {
+        const totalSavings = Math.max(answers.annualIncome - answers.annualSpending, 0);
+        const defaultTrad = Math.min(CONTRIBUTION_LIMITS.traditional401k, totalSavings);
+        const defaultRoth = Math.min(CONTRIBUTION_LIMITS.rothIra, Math.max(totalSavings - defaultTrad, 0));
+        const defaultTaxable = Math.max(totalSavings - defaultTrad - defaultRoth, 0);
+        // Auto-set defaults on first render if all zero
+        if (answers.traditionalContribution === 0 && answers.rothContribution === 0 && answers.taxableContribution === 0 && totalSavings > 0) {
+          setAnswer("traditionalContribution", defaultTrad);
+          setAnswer("rothContribution", defaultRoth);
+          setAnswer("taxableContribution", defaultTaxable);
+        }
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Your ~{formatCompactCurrency(totalSavings)}/yr savings goes to:
+            </p>
+            <div className="space-y-3">
+              <div>
+                <FieldLabel htmlFor="quiz-trad-cont" label={`Tax-deferred 401(k) — limit $${(CONTRIBUTION_LIMITS.traditional401k / 1000).toFixed(1)}K/yr`} />
+                <NumberInput
+                  id="quiz-trad-cont"
+                  min={0}
+                  max={CONTRIBUTION_LIMITS.traditional401k}
+                  step={500}
+                  value={answers.traditionalContribution}
+                  onValueChange={(v) => {
+                    const trad = Math.min(v, CONTRIBUTION_LIMITS.traditional401k);
+                    const roth = Math.min(answers.rothContribution, totalSavings - trad);
+                    const taxable = Math.max(totalSavings - trad - roth, 0);
+                    setAnswer("traditionalContribution", trad);
+                    setAnswer("rothContribution", Math.max(roth, 0));
+                    setAnswer("taxableContribution", taxable);
+                  }}
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="quiz-roth-cont" label={`Roth (IRA + backdoor) — limit $${(CONTRIBUTION_LIMITS.rothIra / 1000).toFixed(0)}K/yr direct`} />
+                <NumberInput
+                  id="quiz-roth-cont"
+                  min={0}
+                  max={totalSavings - answers.traditionalContribution}
+                  step={500}
+                  value={answers.rothContribution}
+                  onValueChange={(v) => {
+                    const roth = Math.min(v, totalSavings - answers.traditionalContribution);
+                    const taxable = Math.max(totalSavings - answers.traditionalContribution - roth, 0);
+                    setAnswer("rothContribution", roth);
+                    setAnswer("taxableContribution", taxable);
+                  }}
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Includes backdoor Roth. If your employer offers mega backdoor Roth, you can add up to ~${(CONTRIBUTION_LIMITS.megaBackdoorRoth / 1000).toFixed(0)}K more — adjust in All Settings.
+                </p>
+              </div>
+              <div>
+                <FieldLabel htmlFor="quiz-taxable-cont" label="Taxable brokerage (remainder)" />
+                <NumberInput
+                  id="quiz-taxable-cont"
+                  min={0}
+                  max={totalSavings}
+                  step={500}
+                  value={answers.taxableContribution}
+                  onValueChange={(v) => {
+                    setAnswer("taxableContribution", Math.min(v, totalSavings));
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs">
+                <span className="text-muted-foreground">Total contributions</span>
+                <span className={cn(
+                  "font-mono font-bold tabular-nums",
+                  Math.abs(answers.traditionalContribution + answers.rothContribution + answers.taxableContribution - totalSavings) < 100
+                    ? "text-emerald-600"
+                    : "text-red-500",
+                )}>
+                  {formatCompactCurrency(answers.traditionalContribution + answers.rothContribution + answers.taxableContribution)}/yr
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setAnswer("traditionalContribution", defaultTrad);
+                setAnswer("rothContribution", defaultRoth);
+                setAnswer("taxableContribution", defaultTaxable);
+              }}
+              className="text-xs text-[var(--ember)] hover:underline"
+            >
+              I&apos;m not sure — use smart defaults
+            </button>
+          </div>
+        );
+      }
       case "partTimePreference":
         return (
           <div className="space-y-4">
