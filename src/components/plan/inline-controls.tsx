@@ -145,12 +145,12 @@ export function InlineControls() {
   return (
     <div className="rounded-xl border border-border/60 bg-card/80 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
       {/* ── Header ── */}
-      <button
-        type="button"
-        onClick={() => setExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between px-5 py-3"
-      >
-        <div className="flex items-center gap-2">
+      <div className="flex w-full items-center justify-between px-5 py-3">
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="flex items-center gap-2"
+        >
           <SlidersHorizontal className="h-3.5 w-3.5 text-[var(--ember)]" />
           <span className="text-xs font-bold uppercase tracking-[0.12em] text-foreground/80">
             Tune your plan
@@ -160,27 +160,22 @@ export function InlineControls() {
               · {formatCompactCurrency(takeHome)} take-home
             </span>
           )}
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              drawerStore.open();
-            }}
-            className="flex items-center gap-1 text-[10px] font-medium text-[var(--ember)] hover:underline"
-          >
-            <Settings2 className="h-3 w-3" />
-            All settings
-          </button>
           <ChevronDown
             className={cn(
               "h-4 w-4 text-muted-foreground transition-transform duration-200",
               expanded && "rotate-180",
             )}
           />
-        </div>
-      </button>
+        </button>
+        <button
+          type="button"
+          onClick={() => drawerStore.open()}
+          className="flex items-center gap-1 text-[10px] font-medium text-[var(--ember)] hover:underline"
+        >
+          <Settings2 className="h-3 w-3" />
+          All settings
+        </button>
+      </div>
 
       {/* ── Collapsed summary ── */}
       {!expanded && (
