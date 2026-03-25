@@ -737,7 +737,7 @@ export function BaristaFireArticle() {
           </div>
 
           {/* Coast */}
-          <div className="flex flex-col gap-3 rounded-2xl bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+          <Link href="/education/coast-fire" className="flex flex-col gap-3 rounded-2xl bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(26,17,24,0.06)]">
             <h3 className="text-sm font-semibold text-foreground">
               Coast FIRE
             </h3>
@@ -757,7 +757,8 @@ export function BaristaFireArticle() {
                 from income. No more saving.
               </p>
             </div>
-          </div>
+            <p className="text-xs font-medium text-primary">Learn about Coast FIRE →</p>
+          </Link>
         </div>
       </section>
 

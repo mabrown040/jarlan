@@ -548,7 +548,7 @@ export function CoastFireArticle() {
           </div>
 
           {/* Barista */}
-          <div className="flex flex-col gap-3 rounded-2xl bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+          <Link href="/education/barista-fire" className="flex flex-col gap-3 rounded-2xl bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(26,17,24,0.06)]">
             <h3 className="text-sm font-semibold text-foreground">Barista FIRE</h3>
             <p className="font-display text-2xl tracking-[-0.03em] text-foreground">
               {partTimeIncome > 0
@@ -566,7 +566,8 @@ export function CoastFireArticle() {
                   : "Set a post-FIRE income in Your Plan to see a reduced target."}
               </p>
             </div>
-          </div>
+            <p className="text-xs font-medium text-primary">Learn about Barista FIRE →</p>
+          </Link>
         </div>
       </section>
 
