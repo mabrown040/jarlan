@@ -3,8 +3,10 @@ import type { FireTypeSummary, ProjectionPoint, QuickFireSummary, Scenario } fro
 export interface MilestoneMarker {
   year: number;
   label: string;
-  target: number;
-  description: string;
+  target?: number;
+  description?: string;
+  isEvent?: boolean;  // Life decision event markers (styled subtle)
+  isGoal?: boolean;   // Retirement goal marker (styled as a reference line)
 }
 
 /**
@@ -43,8 +45,10 @@ export function computeProjectionMilestones(params: {
   const baseFiByRetirement = baseFiYear >= 0 && age + baseFiYear <= retAge;
 
   // ── Coast FIRE (base) ──
-  // Coast FI only makes sense BEFORE reaching full FIRE.
-  // After FIRE, "coasting" is meaningless — you already have the full amount.
+  // Coast FI = "stop saving, compounding alone reaches FIRE number by retirement."
+  // Only shows when FIRE is achievable by retirement age — if FIRE isn't reachable
+  // by retirement even with continued saving, coasting won't get you there either.
+  // Must also come BEFORE full FIRE (after FIRE, coasting is meaningless).
   let coastPoint: (typeof summary.projection)[number] | undefined;
   if (baseFiByRetirement && baseFiYear > 0) {
     coastPoint = summary.projection.find((p, i) => {
@@ -151,6 +155,29 @@ export function computeProjectionMilestones(params: {
         label: "FI (new)",
         target: comparisonSummary.fireNumber,
         description: `FI at age ${Math.round(compFiPoint.age)} with selected changes.`,
+      });
+    }
+  }
+
+  // ── Retirement goal marker ──
+  // Shows when the target retirement age falls within the projection range.
+  // Helps users see the relationship between FIRE milestones and their goal date.
+  const retirementYear = retAge - age;
+  if (retirementYear > 0 && retirementYear < summary.projection.length) {
+    // Don't add if FIRE already happens at the same year (redundant)
+    const fireAtSameYear = markers.some((m) => m.year === retirementYear && !m.isEvent && !m.isGoal);
+    if (!fireAtSameYear) {
+      markers.push({
+        year: retirementYear,
+        label: `Retire (age ${retAge})`,
+        isGoal: true,
+        description: `Your target retirement age. ${
+          baseFiYear >= 0 && age + baseFiYear <= retAge
+            ? `FIRE is projected ${retirementYear - baseFiYear} years before this.`
+            : baseFiYear >= 0
+              ? `FIRE is projected ${baseFiYear - retirementYear} years after this — consider adjusting your plan.`
+              : "FIRE date hasn't been projected yet."
+        }`,
       });
     }
   }

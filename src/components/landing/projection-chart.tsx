@@ -45,6 +45,8 @@ export interface MilestoneMarker {
   description?: string;
   /** If true, styled as a subtle event marker instead of a FIRE milestone */
   isEvent?: boolean;
+  /** If true, styled as a goal reference line (retirement target) */
+  isGoal?: boolean;
   /** Vertical offset for staggering overlapping labels (computed internally) */
   _offsetY?: number;
 }
@@ -222,11 +224,28 @@ function MilestoneLabel({
   const x = viewBox?.x ?? 0;
   const yOffset = milestone._offsetY ?? 0;
   const isEvent = milestone.isEvent ?? false;
+  const isGoal = milestone.isGoal ?? false;
   const labelY = 10 + yOffset;
 
   return (
     <g>
-      {isEvent ? (
+      {isGoal ? (
+        /* ── Goal marker: subtle dashed style for retirement target ── */
+        <>
+          <text
+            x={x}
+            y={labelY}
+            textAnchor="middle"
+            fontSize={10}
+            fontWeight={600}
+            fill="var(--muted-foreground)"
+            opacity={0.8}
+          >
+            {milestone.label}
+          </text>
+          <circle cx={x} cy={labelY + 8} r={2.5} fill="var(--muted-foreground)" opacity={0.5} />
+        </>
+      ) : isEvent ? (
         /* ── Event marker: subtle gray label, no dot ── */
         <text
           x={x}
@@ -457,23 +476,13 @@ export function ProjectionChart({
               <ReferenceLine
                 key={m.label}
                 x={m.year}
-                stroke={m.isEvent ? "var(--muted-foreground)" : "var(--ember)"}
-                strokeDasharray={m.isEvent ? "2 4" : "3 3"}
-                strokeOpacity={m.isEvent ? 0.25 : 0.4}
+                stroke={m.isGoal ? "var(--muted-foreground)" : m.isEvent ? "var(--muted-foreground)" : "var(--ember)"}
+                strokeDasharray={m.isGoal ? "4 4" : m.isEvent ? "2 4" : "3 3"}
+                strokeOpacity={m.isGoal ? 0.35 : m.isEvent ? 0.25 : 0.4}
                 label={<MilestoneLabel milestone={m} />}
               />
             ));
           })()}
-
-          {/* Crossover: subtle dotted line */}
-          {crossover ? (
-            <ReferenceLine
-              x={crossover.year}
-              stroke="var(--ember)"
-              strokeDasharray="2 4"
-              strokeOpacity={0.25}
-            />
-          ) : null}
 
           {showBands || comparisonData ? (
             /* ── Line mode: used for bands OR comparison ── */

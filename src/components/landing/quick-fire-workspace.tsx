@@ -1149,23 +1149,7 @@ export function QuickFireWorkspace({
                 showBands={showBands}
                 bandProjections={bandProjections}
               />
-              {variant === "module" && crossover ? (() => {
-                const total = crossover.contributions + crossover.growth;
-                const pct = total > 0 ? Math.round((crossover.growth / total) * 100) : 0;
-                return (
-                  <div className="mt-4 rounded-xl border border-[var(--ember)]/15 bg-[rgba(255,107,53,0.03)] px-4 py-3 text-sm">
-                    <p className="font-medium text-foreground">
-                      <span className="mr-1.5 animate-pulse text-[var(--ember)]">{"\u2726"}</span>
-                      Year {crossover.year}: Your money is making more money than you are
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      Investment growth ({formatCompactCurrency(crossover.growth)}) now exceeds
-                      your total contributions ({formatCompactCurrency(crossover.contributions)}).
-                      Growth is <span className="font-medium text-[var(--ember)]">{pct}%</span> of your portfolio.
-                    </p>
-                  </div>
-                );
-              })() : null}
+              {/* Crossover callout removed — not actionable for users */}
               {variant === "module" ? (
                 <CollapsibleSection
                   title="Year-by-year breakdown"
