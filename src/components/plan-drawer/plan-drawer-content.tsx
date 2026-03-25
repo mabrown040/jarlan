@@ -13,6 +13,7 @@ import {
   formatCompactCurrency,
   formatPercent,
   getCurrentPortfolioBalance,
+  syncScenarioRollups,
 } from "@/lib/calc";
 import {
   cloneScenario,
@@ -29,6 +30,7 @@ import type {
 import { getCountryPreset, listCountryPresets, listStateTaxPresets } from "@/lib/data";
 import { useScenarioStore } from "@/lib/store";
 import { estimateScenarioTax } from "@/lib/tax";
+import { get401kEmployeeLimit, getRothIraLimit, getHsaLimit } from "@/lib/tax/limits";
 import { cn } from "@/lib/utils";
 
 const accountTypeOptions: Array<{ value: AccountType; label: string }> = [
@@ -68,14 +70,6 @@ const withdrawalStrategyLabels: Record<string, string> = {
   floor_ceiling: "Floor & ceiling",
   spending_smile: "Spending smile",
 };
-
-function syncScenarioRollups(nextScenario: Scenario) {
-  nextScenario.annualSavings = nextScenario.accounts.reduce(
-    (total, account) => total + account.annualContribution,
-    0,
-  );
-  return nextScenario;
-}
 
 export function PlanDrawerContent() {
   const {
@@ -415,22 +409,20 @@ export function PlanDrawerContent() {
                     const isSuperCatchUp = age >= 60 && age <= 63;
                     const catchUp = isSuperCatchUp ? " (super catch-up)" : is50Plus ? " (includes catch-up)" : "";
                     if (account.type === "traditional_401k") {
-                      const limit = isSuperCatchUp ? "$34.8K" : is50Plus ? "$31K" : "$23.5K";
-                      return <p className="text-[10px] text-muted-foreground">Employee limit: {limit}/yr{catchUp} (2025)</p>;
+                      const limit401k = get401kEmployeeLimit(age);
+                      return <p className="text-[10px] text-muted-foreground">Employee limit: ${(limit401k / 1000).toFixed(1)}K/yr{catchUp} (2025)</p>;
                     }
                     if (account.type === "roth_401k" || account.type === "roth_ira") {
-                      const limit = is50Plus ? "$8K" : "$7K";
-                      return <p className="text-[10px] text-muted-foreground">Roth IRA: {limit}/yr direct{catchUp}. Mega backdoor: up to ~$46K more if your plan allows.</p>;
+                      const iraLimit = getRothIraLimit(age);
+                      return <p className="text-[10px] text-muted-foreground">Roth IRA: ${(iraLimit / 1000).toFixed(0)}K/yr direct{catchUp}. Mega backdoor: up to ~$46K more if your plan allows.</p>;
                     }
                     if (account.type === "traditional_ira") {
-                      const limit = is50Plus ? "$8,000" : "$7,000";
-                      return <p className="text-[10px] text-muted-foreground">IRA limit: {limit}/yr{catchUp} (2025)</p>;
+                      const iraLimit = getRothIraLimit(age);
+                      return <p className="text-[10px] text-muted-foreground">IRA limit: ${iraLimit.toLocaleString()}/yr{catchUp} (2025)</p>;
                     }
                     if (account.type === "hsa") {
-                      const is55Plus = age >= 55;
-                      const isMarried = activeScenario.profile.filingStatus === "married_joint";
-                      const hsaLimit = (isMarried ? 8_550 : 4_300) + (is55Plus ? 1_000 : 0);
-                      return <p className="text-[10px] text-muted-foreground">HSA limit: ${(hsaLimit / 1000).toFixed(1)}K/yr{is55Plus ? " (includes catch-up)" : ""} (2025). Triple tax advantage.</p>;
+                      const hsaLimit = getHsaLimit(age, activeScenario.profile.filingStatus);
+                      return <p className="text-[10px] text-muted-foreground">HSA limit: ${(hsaLimit / 1000).toFixed(1)}K/yr{age >= 55 ? " (includes catch-up)" : ""} (2025). Triple tax advantage.</p>;
                     }
                     return null;
                   })()}

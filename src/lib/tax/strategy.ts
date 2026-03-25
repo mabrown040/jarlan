@@ -6,6 +6,7 @@ import { getMortalityDataset } from "@/lib/data";
 import { getStateTaxPreset } from "@/lib/data/state-taxes";
 import type { FilingStatus, Scenario } from "@/lib/domain/types";
 import { calculateFica, type FicaResult } from "@/lib/tax/fica";
+import { get401kEmployeeLimit, getHsaLimit } from "@/lib/tax/limits";
 
 const taxBracketDataset = rawTaxBrackets as unknown as {
   federalOrdinaryIncome: Record<FilingStatus, Array<[number, number | null]>>;
@@ -182,18 +183,6 @@ const STANDARD_DEDUCTIONS: Record<FilingStatus, number> = {
   head_of_household: 21_900,
 };
 
-/* ── 2025 Contribution Limits ─────────────────────────────── */
-function get401kLimit(age: number): number {
-  if (age >= 60 && age <= 63) return 34_750; // super catch-up
-  if (age >= 50) return 31_000; // standard catch-up
-  return 23_500;
-}
-
-function getHsaLimit(filingStatus: FilingStatus, age: number): number {
-  const base = filingStatus === "married_joint" ? 8_550 : 4_300;
-  return age >= 55 ? base + 1_000 : base;
-}
-
 /**
  * Estimate total tax burden for a scenario. Used by both the
  * plan drawer and the workspace stat cards so the calculation
@@ -210,8 +199,8 @@ export function estimateScenarioTax(scenario: Scenario) {
 
   /* ── Contribution-limit enforcement ────────────────────── */
   const contributionWarnings: string[] = [];
-  const max401k = get401kLimit(age);
-  const maxHsa = getHsaLimit(filingStatus, age);
+  const max401k = get401kEmployeeLimit(age);
+  const maxHsa = getHsaLimit(age, filingStatus);
 
   let trad401kContributions = 0;
   let hsaContributions = 0;

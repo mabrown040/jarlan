@@ -21,7 +21,6 @@ import {
   formatYears,
 } from "@/lib/calc";
 import {
-  CONTRIBUTION_LIMITS,
   getContributionLimits,
   DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
   buildScenarioFromQuizAnswers,

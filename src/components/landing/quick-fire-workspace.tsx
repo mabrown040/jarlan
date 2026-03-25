@@ -30,7 +30,9 @@ import {
   getNetCashFlowAtAge,
   getPlannedAnnualInvestmentContribution,
   getCurrentPortfolioBalance,
+  syncScenarioRollups,
 } from "@/lib/calc";
+import { computeProjectionMilestones } from "@/lib/calc/milestones";
 import { estimateScenarioTax } from "@/lib/tax";
 import {
   cloneScenario,
@@ -49,15 +51,6 @@ import { useDrawerStore, useScenarioStore } from "@/lib/store";
 import { MoneyFlowSankey } from "@/components/charts/money-flow-sankey";
 import { InlineControls } from "@/components/plan/inline-controls";
 import { cn } from "@/lib/utils";
-
-function syncScenarioRollups(nextScenario: Scenario) {
-  nextScenario.annualSavings = nextScenario.accounts.reduce(
-    (total, account) => total + account.annualContribution,
-    0,
-  );
-
-  return nextScenario;
-}
 
 export function QuickFireWorkspace({
   variant = "landing",
@@ -383,31 +376,12 @@ export function QuickFireWorkspace({
   // Enriched milestones with descriptions
   const enrichedMilestones = useMemo(() => {
     if (variant !== "module") return [];
-    const retAge = activeScenario.profile.retirementAge ?? activeScenario.profile.age;
-    const wr = activeScenario.assumptions.withdrawalRate;
-    const expenses = activeScenario.retirementExpenses || activeScenario.annualExpenses;
-    const partTime = activeScenario.assumptions.partTimeIncome;
-    return projectionWithMilestones
-      .filter((p) => p.milestone && p.year > 0)
-      .map((p) => {
-        const label = p.milestone!;
-        let target = 0;
-        let description = "";
-        if (label === "Coast FIRE") {
-          const coastT = summary.fireNumber / (1 + activeScenario.assumptions.expectedRealReturn) ** Math.max(retAge - activeScenario.profile.age, 1);
-          target = coastT;
-          description = `At ${formatCompactCurrency(coastT)} saved, you could stop saving entirely and compounding finishes the job by retirement at ${retAge}.`;
-        } else if (label === "FIRE") {
-          target = summary.fireNumber;
-          description = `Financial independence. ${formatCompactCurrency(summary.fireNumber)} sustains ${formatCompactCurrency(expenses)}/year at a ${(wr * 100).toFixed(0)}% withdrawal rate.`;
-        } else if (label === "Barista FIRE") {
-          const baristaT = fireTypes.find((ft) => ft.id === "barista")?.target ?? 0;
-          target = baristaT;
-          description = `Switch to part-time earning ${formatCompactCurrency(partTime)}/yr — your portfolio of ${formatCompactCurrency(baristaT)} covers the rest.`;
-        }
-        return { year: p.year, label, target, description };
-      });
-  }, [projectionWithMilestones, summary, activeScenario, fireTypes, variant]);
+    return computeProjectionMilestones({
+      scenario: activeScenario,
+      summary,
+      fireTypes,
+    });
+  }, [summary, activeScenario, fireTypes, variant]);
 
   const alreadyFi = progressToFire >= 1;
   const snapshotNarrative =

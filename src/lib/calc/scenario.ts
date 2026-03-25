@@ -123,6 +123,12 @@ export function getRetirementStartAge(scenario: Scenario) {
   return scenario.profile.retirementAge ?? scenario.profile.age;
 }
 
+export function syncScenarioRollups(scenario: Scenario): Scenario {
+  const next = { ...scenario };
+  next.annualSavings = getAnnualContributionTotal(scenario.accounts);
+  return next;
+}
+
 export function getSavingsRate(scenario: Scenario) {
   const householdAnnualIncome = getHouseholdAnnualIncome(scenario);
 

@@ -1,6 +1,7 @@
 import { calculateFireTypeSummaries } from "@/lib/calc";
 import { cloneScenario, createDefaultScenario, createDefaultAccount } from "@/lib/domain";
 import type { Account, EmploymentType, FilingStatus, FireTypeSummary, Scenario } from "@/lib/domain/types";
+import { getContributionLimits as getContributionLimitsFromTax } from "@/lib/tax/limits";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
 import { clamp, roundTo } from "@/lib/utils";
 
@@ -56,36 +57,22 @@ export interface FireTypeRecommendation {
   suggestedPartTimeIncome: number;
 }
 
-/** 2025 contribution limits — age-aware, filing-status-aware */
+/** 2025 contribution limits — age-aware, filing-status-aware.
+ *  Delegates to the canonical implementation in `@/lib/tax/limits`.
+ */
 export function getContributionLimits(
   age: number,
   opts?: { filingStatus?: FilingStatus; partnerHas401k?: boolean },
 ) {
-  const is50Plus = age >= 50;
-  const isSuperCatchUp = age >= 60 && age <= 63;
-  const isMarried = opts?.filingStatus === "married_joint" || opts?.filingStatus === "married_separate";
+  const filingStatus = opts?.filingStatus ?? "single";
+  const isMarried = filingStatus === "married_joint" || filingStatus === "married_separate";
   const partnerHas401k = isMarried && (opts?.partnerHas401k ?? false);
-
-  // Per-person limits
-  const personal401k = isSuperCatchUp ? 34_750 : is50Plus ? 31_000 : 23_500;
-  const personalIra = is50Plus ? 8_000 : 7_000;
-
-  // HSA limits: $4,300 individual / $8,550 family (2025), +$1,000 catch-up for 55+
-  const is55Plus = age >= 55;
-  const hsaBase = isMarried ? 8_550 : 4_300;
-  const personalHsa = hsaBase + (is55Plus ? 1_000 : 0);
-
-  // Household limits (double if married with both contributing)
+  const base = getContributionLimitsFromTax(age, { filingStatus, partnerHas401k });
+  const is50Plus = age >= 50;
   return {
-    traditional401k: partnerHas401k ? personal401k * 2 : personal401k,
-    rothIra: isMarried ? personalIra * 2 : personalIra,
-    hsa: personalHsa,
+    ...base,
     megaBackdoorRoth: partnerHas401k ? 92_000 : 46_000,
     total401k: (is50Plus ? 77_500 : 70_000) * (partnerHas401k ? 2 : 1),
-    personal401kLimit: personal401k,
-    personalIraLimit: personalIra,
-    isMarried,
-    partnerHas401k,
   };
 }
 

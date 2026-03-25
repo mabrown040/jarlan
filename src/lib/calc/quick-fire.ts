@@ -266,10 +266,7 @@ export function buildScenarioProjection({
 export function calculateQuickFireSummary(scenario: Scenario): QuickFireSummary {
   const currentBalance = getCurrentPortfolioBalance(scenario.accounts);
   // If expenses grow in real terms (lifestyle creep), project forward to retirement
-  const yearsToRetirement = Math.max(
-    (scenario.profile.retirementAge ?? scenario.profile.age) - scenario.profile.age,
-    0,
-  );
+  const yearsToRetirement = getYearsUntilRetirement(scenario) ?? 0;
   const expenseGrowth = 1 + (scenario.assumptions.expenseGrowthRate ?? 0);
   const projectedRetirementExpenses =
     scenario.retirementExpenses * expenseGrowth ** yearsToRetirement;
@@ -285,8 +282,7 @@ export function calculateQuickFireSummary(scenario: Scenario): QuickFireSummary 
   const projectionYears = clamp(
     Math.max(
       12,
-      (scenario.profile.retirementAge ?? scenario.profile.age + 12) -
-        scenario.profile.age,
+      getYearsUntilRetirement(scenario) ?? 12,
       Math.ceil(yearsToFi ?? 0) + 5,
     ),
     12,
@@ -304,17 +300,17 @@ export function calculateQuickFireSummary(scenario: Scenario): QuickFireSummary 
 
   // Coast age: when does your accumulating portfolio reach the coastFiTarget?
   // Once it does, you can stop saving — compounding alone finishes the job by retirement.
-  const coastAge =
+  const yearsToCoast =
     currentBalance >= coastFiTarget
-      ? scenario.profile.age // already coasting
+      ? 0
       : scenario.assumptions.expectedRealReturn > 0
-        ? calculateScenarioYearsToTarget(scenario, coastFiTarget) !== null
-          ? roundTo(
-              scenario.profile.age +
-                (calculateScenarioYearsToTarget(scenario, coastFiTarget) ?? 0),
-              1,
-            )
-          : null
+        ? calculateScenarioYearsToTarget(scenario, coastFiTarget)
+        : null;
+  const coastAge =
+    yearsToCoast === 0
+      ? scenario.profile.age
+      : yearsToCoast !== null
+        ? roundTo(scenario.profile.age + yearsToCoast, 1)
         : null;
 
   return {
