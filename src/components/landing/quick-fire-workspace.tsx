@@ -195,6 +195,16 @@ export function QuickFireWorkspace({
       };
     }
 
+    if (progressToFire >= 1) {
+      return {
+        label: "Your portfolio exceeds your target",
+        description:
+          "Based on your assumptions, you've reached financial independence. Stress-test whether your plan will last through retirement.",
+        href: "/withdrawal" as Route,
+        cta: "Stress-test your retirement",
+      };
+    }
+
     if (progressToFire >= 0.75 || (summary.yearsToFi !== null && summary.yearsToFi <= 10)) {
       return {
         label: "Stress-test retirement readiness",
@@ -288,7 +298,9 @@ export function QuickFireWorkspace({
       ? summary.fireNumber / (1 + activeScenario.assumptions.expectedRealReturn) ** Math.max((activeScenario.profile.retirementAge ?? activeScenario.profile.age) - activeScenario.profile.age, 1)
       : 0;
     const baristaTarget = fireTypes.find((ft) => ft.id === "barista")?.target ?? 0;
+    const startBalance = summary.projection[0]?.balance ?? 0;
     // Only math-derived milestones — not subjective lifestyle categories
+    // Skip milestones that are already achieved at year 0
     const milestoneTargets = [
       // Only show Barista FIRE when post-FIRE income is set
       ...(activeScenario.assumptions.partTimeIncome > 0
@@ -296,13 +308,15 @@ export function QuickFireWorkspace({
         : []),
       { label: "Coast FIRE", target: coastTarget },
       { label: "FIRE", target: traditionalTarget },
-    ].filter((m) => m.target > 0).sort((a, b) => a.target - b.target);
+    ].filter((m) => m.target > 0 && m.target > startBalance).sort((a, b) => a.target - b.target);
     const crossed = new Set<string>();
     return summary.projection.map((point, i) => {
       const milestone = milestoneTargets.find(
         (m) => !crossed.has(m.label) && point.balance >= m.target && m.target > 0,
       );
       if (milestone) crossed.add(milestone.label);
+      // Don't show milestones that trigger on the very first data point (year 0)
+      const effectiveMilestone = (milestone && i === 0) ? null : milestone;
       // Use enriched projection data when available, fall back to estimate
       const prevBalance = i > 0 ? summary.projection[i - 1].balance : point.balance;
       const estimatedGrowth = i > 0 ? point.balance - prevBalance - plannedContribution : 0;
@@ -313,7 +327,7 @@ export function QuickFireWorkspace({
         growth: Math.round(growth),
         contribution: Math.round(contribution),
         pctToFi: summary.fireNumber > 0 ? point.balance / summary.fireNumber : 0,
-        milestone: milestone?.label ?? null,
+        milestone: effectiveMilestone?.label ?? null,
       };
     });
   }, [summary, fireTypes, activeScenario, plannedContribution]);
@@ -351,7 +365,7 @@ export function QuickFireWorkspace({
     const expenses = activeScenario.retirementExpenses || activeScenario.annualExpenses;
     const partTime = activeScenario.assumptions.partTimeIncome;
     return projectionWithMilestones
-      .filter((p) => p.milestone)
+      .filter((p) => p.milestone && p.year > 0)
       .map((p) => {
         const label = p.milestone!;
         let target = 0;
@@ -372,14 +386,17 @@ export function QuickFireWorkspace({
       });
   }, [projectionWithMilestones, summary, activeScenario, fireTypes, variant]);
 
+  const alreadyFi = progressToFire >= 1;
   const snapshotNarrative =
-    summary.yearsToFi === null
-      ? `Your current settings do not yet reach ${formatCompactCurrency(
-          summary.fireNumber,
-        )}. Lower spending, higher savings, or a later target retirement age will move the plan back into range.`
-      : `At this pace, ${activeScenario.name.toLowerCase()} reaches about ${formatCompactCurrency(
-          summary.fireNumber,
-        )} in ${formatYears(summary.yearsToFi)}. That puts your current FIRE age near ${summary.fireAge}.`;
+    alreadyFi
+      ? `Your portfolio of ${formatCompactCurrency(currentBalance)} already exceeds your FIRE target of ${formatCompactCurrency(summary.fireNumber)}, based on your current assumptions. The next step is stress-testing whether your plan will last.`
+      : summary.yearsToFi === null
+        ? `Your current settings do not yet reach ${formatCompactCurrency(
+            summary.fireNumber,
+          )}. Lower spending, higher savings, or a later target retirement age will move the plan back into range.`
+        : `At this pace, ${activeScenario.name.toLowerCase()} reaches about ${formatCompactCurrency(
+            summary.fireNumber,
+          )} in ${formatYears(summary.yearsToFi)}. That puts your current FIRE age near ${summary.fireAge}.`;
   const expenseInputValue =
     expenseInputMode === "monthly"
       ? Math.round(activeScenario.annualExpenses / 12)
@@ -535,7 +552,8 @@ export function QuickFireWorkspace({
                   <div className="flex items-center gap-3">
                     <span className="text-2xl" aria-hidden="true">
                       {(() => {
-                        const traditionalType = fireTypes.find((ft) => ft.id === "traditional");
+                        if (progressToFire >= 1) return "\u2705";
+                        if (progressToFire >= 0.9) return "\uD83D\uDD25";
                         const coastType = fireTypes.find((ft) => ft.id === "coast");
                         const baristaType = fireTypes.find((ft) => ft.id === "barista");
                         if (coastType && coastType.progress >= 0.9) return "\u2615";
@@ -546,6 +564,8 @@ export function QuickFireWorkspace({
                     <div className="flex items-center gap-2">
                       <span className="font-display text-lg tracking-[-0.02em] text-foreground">
                         {(() => {
+                          if (progressToFire >= 1) return "Financially independent";
+                          if (progressToFire >= 0.9) return "Within reach";
                           const coastType = fireTypes.find((ft) => ft.id === "coast");
                           if (coastType && coastType.progress >= 1) return "Coast FIRE";
                           return "Traditional FIRE";
@@ -554,10 +574,14 @@ export function QuickFireWorkspace({
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Target:{" "}
-                    <span className="font-semibold text-foreground">
-                      {formatCompactCurrency(summary.fireNumber)}
-                    </span>
+                    {progressToFire >= 1
+                      ? "based on your current assumptions"
+                      : <>Target:{" "}
+                          <span className="font-semibold text-foreground">
+                            {formatCompactCurrency(summary.fireNumber)}
+                          </span>
+                        </>
+                    }
                   </p>
                 </div>
 
@@ -580,7 +604,14 @@ export function QuickFireWorkspace({
 
                 {/* Inline metrics */}
                 <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                  {summary.fireAge !== null ? (
+                  {progressToFire >= 1 ? (
+                    <span>
+                      Portfolio exceeds target by{" "}
+                      <span className="font-semibold text-foreground">
+                        {formatCompactCurrency(currentBalance - summary.fireNumber)}
+                      </span>
+                    </span>
+                  ) : summary.fireAge !== null ? (
                     <span>
                       FI at age{" "}
                       <span className="font-semibold text-foreground">{Math.round(summary.fireAge)}</span>
@@ -589,10 +620,17 @@ export function QuickFireWorkspace({
                     <span className="text-muted-foreground">FI age not yet reachable</span>
                   )}
                   <span className="text-border">{"\u00B7"}</span>
-                  <span>
-                    <span className="font-semibold text-foreground">{formatYears(summary.yearsToFi)}</span>
-                    {" "}away
-                  </span>
+                  {progressToFire >= 1 ? (
+                    <span>
+                      <span className="font-semibold text-foreground">{formatCompactCurrency(currentBalance)}</span>
+                      {" "}of{" "}{formatCompactCurrency(summary.fireNumber)}{" "}target
+                    </span>
+                  ) : (
+                    <span>
+                      <span className="font-semibold text-foreground">{formatYears(summary.yearsToFi)}</span>
+                      {" "}away
+                    </span>
+                  )}
                   <span className="text-border">{"\u00B7"}</span>
                   <span>
                     <span className="font-semibold text-foreground">{formatPercent(summary.savingsRate, 0)}</span>
@@ -701,6 +739,7 @@ export function QuickFireWorkspace({
                     const hasPostFireIncome = activeScenario.assumptions.partTimeIncome > 0;
                     const baristaNoIncome = ft.id === "barista" && !hasPostFireIncome;
                     const isRecommended = (() => {
+                      if (alreadyFi) return ft.id === "traditional";
                       const coastType = fireTypes.find((t) => t.id === "coast");
                       if (coastType && coastType.progress >= 1) return ft.id === "coast";
                       return ft.id === "traditional";
@@ -775,39 +814,28 @@ export function QuickFireWorkspace({
               <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
                 Explore your tools
               </h2>
-              <div className="mt-4 grid gap-4 lg:grid-cols-3">
-                {/* Save */}
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <div className="flex items-center gap-2">
-                    <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(255,107,53,0.1)]">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-                    </div>
-                    <h3 className="font-semibold text-foreground">Save</h3>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    <Link
-                      href={"/accumulation" as Route}
-                      className="group block"
-                    >
-                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                        Your Plan {"\u2192"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Projections, milestones, and year-by-year breakdown.</p>
-                    </Link>
-                    <Link
-                      href={"/save-what-if" as Route}
-                      className="group block"
-                    >
-                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                        What if? {"\u2192"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">See how changes to savings, returns, or lifestyle shift your timeline.</p>
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Spend */}
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+              {alreadyFi && (
+                <Link
+                  href={"/withdrawal" as Route}
+                  className="group mt-4 block rounded-2xl border border-[rgba(99,102,241,0.2)] bg-[rgba(99,102,241,0.04)] p-6 transition-all hover:border-[rgba(99,102,241,0.35)]"
+                >
+                  <p className="font-display text-lg tracking-[-0.02em] text-foreground">
+                    You've reached your target. See if your plan will last.
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Run historical backtests and Monte Carlo simulations to stress-test your withdrawal strategy.
+                  </p>
+                  <p className="mt-3 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                    Stress-test your retirement {"\u2192"}
+                  </p>
+                </Link>
+              )}
+              <div className={cn("mt-4 grid gap-4 lg:grid-cols-3", alreadyFi && "lg:grid-cols-3")}>
+                {/* Spend — shown first for post-FI users */}
+                <div className={cn(
+                  "rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]",
+                  alreadyFi && "order-first",
+                )}>
                   <div className="flex items-center gap-2">
                     <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(99,102,241,0.1)]">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/><path d="M12 6v6l4 2"/></svg>
@@ -832,6 +860,39 @@ export function QuickFireWorkspace({
                         Income plan {"\u2192"}
                       </p>
                       <p className="text-xs text-muted-foreground">Roth conversions, drawdown sequencing, and ACA planning.</p>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Save — de-emphasized for post-FI users */}
+                <div className={cn(
+                  "rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]",
+                  alreadyFi && "order-last opacity-60",
+                )}>
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(255,107,53,0.1)]">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                    </div>
+                    <h3 className="font-semibold text-foreground">Save</h3>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    <Link
+                      href={"/accumulation" as Route}
+                      className="group block"
+                    >
+                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                        Your Plan {"\u2192"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Projections, milestones, and year-by-year breakdown.</p>
+                    </Link>
+                    <Link
+                      href={"/save-what-if" as Route}
+                      className="group block"
+                    >
+                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                        What if? {"\u2192"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">See how changes to savings, returns, or lifestyle shift your timeline.</p>
                     </Link>
                   </div>
                 </div>
@@ -863,7 +924,9 @@ export function QuickFireWorkspace({
             <section className="mx-auto max-w-7xl px-6">
               {(() => {
                 let insightMessage: string;
-                if (taxEstimate.afterTaxSavingsRate > 0.5) {
+                if (alreadyFi) {
+                  insightMessage = `Based on your current assumptions, your portfolio of ${formatCompactCurrency(currentBalance)} exceeds your FIRE target of ${formatCompactCurrency(summary.fireNumber)}. The most valuable next step is stress-testing whether your withdrawal strategy will hold up through different market conditions.`;
+                } else if (taxEstimate.afterTaxSavingsRate > 0.5) {
                   const multiple = Math.round(taxEstimate.afterTaxSavingsRate / US_BENCHMARKS.savingsRate);
                   insightMessage = `You're saving ${formatPercent(taxEstimate.afterTaxSavingsRate, 0)} of your take-home pay — that's ${multiple}x the US average. At this rate, your money is doing serious heavy lifting.`;
                 } else if (summary.coastAge !== null && summary.coastAge <= activeScenario.profile.age + 3) {
@@ -1047,9 +1110,23 @@ export function QuickFireWorkspace({
 
             {variant === "module" && <InlineControls />}
 
+            {alreadyFi && (
+              <div className="rounded-xl border border-[rgba(99,102,241,0.15)] bg-[rgba(99,102,241,0.03)] px-4 py-3 text-sm">
+                <p className="font-medium text-foreground">
+                  FI achieved — your portfolio already exceeds your target of {formatCompactCurrency(summary.fireNumber)}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  Based on your assumptions, saving milestones no longer apply. Consider{" "}
+                  <Link href={"/withdrawal" as Route} className="font-medium text-primary hover:text-primary/80">
+                    stress-testing your withdrawal plan
+                  </Link>{" "}
+                  to see if it holds up over time.
+                </p>
+              </div>
+            )}
             <ChartShell
               title="Save projection"
-              description="How your current pace stacks up against the target."
+              description={alreadyFi ? "Your portfolio growth beyond the target, based on current assumptions." : "How your current pace stacks up against the target."}
               actions={
                 variant === "module" ? (
                   <div className="flex flex-col items-end gap-2">

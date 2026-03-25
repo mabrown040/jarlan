@@ -278,10 +278,14 @@ export default function SaveWhatIfWorkspace() {
     const expenses = activeScenario.retirementExpenses || activeScenario.annualExpenses;
 
     // Coast FIRE (base): when base balance reaches coastTarget
+    // Skip if already achieved at the start (portfolio already exceeds coast target)
     const coastTarget = baseSummary.fireNumber / Math.pow(1 + effectiveReturn, Math.max(retAge - age, 1));
-    const coastPoint = baseSummary.projection.find(
-      (p, i) => i > 0 && p.balance >= coastTarget,
-    );
+    const startBalance = baseSummary.projection[0]?.balance ?? 0;
+    const coastPoint = startBalance < coastTarget
+      ? baseSummary.projection.find(
+          (p, i) => i > 0 && p.balance >= coastTarget,
+        )
+      : undefined;
     if (coastPoint) {
       markers.push({
         year: coastPoint.year,
@@ -292,11 +296,15 @@ export default function SaveWhatIfWorkspace() {
     }
 
     // Coast FIRE (new): when combined balance reaches its own coastTarget
+    // Skip if already achieved at the start
     if (combinedSummary) {
       const compCoastTarget = combinedSummary.fireNumber / Math.pow(1 + effectiveReturn, Math.max(retAge - age, 1));
-      const compCoastPoint = combinedSummary.projection.find(
-        (p, i) => i > 0 && p.balance >= compCoastTarget,
-      );
+      const compStartBalance = combinedSummary.projection[0]?.balance ?? 0;
+      const compCoastPoint = compStartBalance < compCoastTarget
+        ? combinedSummary.projection.find(
+            (p, i) => i > 0 && p.balance >= compCoastTarget,
+          )
+        : undefined;
       if (compCoastPoint && (!coastPoint || compCoastPoint.year !== coastPoint.year)) {
         markers.push({
           year: compCoastPoint.year,
@@ -308,9 +316,12 @@ export default function SaveWhatIfWorkspace() {
     }
 
     // Base FIRE: when base scenario crosses target
-    const baseFiPoint = baseSummary.projection.find(
-      (p, i) => i > 0 && p.balance >= p.target,
-    );
+    // Skip if already achieved at the start (portfolio already exceeds FIRE number)
+    const baseFiPoint = startBalance < baseSummary.fireNumber
+      ? baseSummary.projection.find(
+          (p, i) => i > 0 && p.balance >= p.target,
+        )
+      : undefined;
     if (baseFiPoint) {
       markers.push({
         year: baseFiPoint.year,
@@ -338,10 +349,14 @@ export default function SaveWhatIfWorkspace() {
     }
 
     // Combined scenario FIRE (only when different from base)
+    // Skip if already achieved at the start
     if (combinedSummary) {
-      const compFiPoint = combinedSummary.projection.find(
-        (p, i) => i > 0 && p.balance >= p.target,
-      );
+      const compStartBal = combinedSummary.projection[0]?.balance ?? 0;
+      const compFiPoint = compStartBal < combinedSummary.fireNumber
+        ? combinedSummary.projection.find(
+            (p, i) => i > 0 && p.balance >= p.target,
+          )
+        : undefined;
       if (compFiPoint && (!baseFiPoint || compFiPoint.year !== baseFiPoint.year)) {
         markers.push({
           year: compFiPoint.year,
