@@ -8,8 +8,9 @@
  */
 import { describe, it, expect } from "vitest";
 import { golden } from "./_fixtures/golden";
-import { estimateFederalTax, estimateScenarioTax } from "@/lib/tax";
+import { estimateFederalTax, estimateScenarioTax, calculateFica } from "@/lib/tax";
 import { createTaxHeavyScenario } from "./_fixtures/scenarios";
+import { cloneScenario, createDefaultScenario } from "@/lib/domain";
 
 describe("Tax Estimation — Golden Tests", () => {
   /**
@@ -116,8 +117,162 @@ describe("Tax Estimation — Golden Tests", () => {
       methodology: "takeHome = grossIncome - totalTax (accounting identity)",
     });
 
-    // Effective rate should be between 15% and 40% for $300K married joint
+    // Effective rate should be between 15% and 45% for $300K married joint (now includes FICA)
     expect(tax.effectiveRate).toBeGreaterThan(0.15);
-    expect(tax.effectiveRate).toBeLessThan(0.40);
+    expect(tax.effectiveRate).toBeLessThan(0.45);
+  });
+
+  /**
+   * @golden Standard deduction reduces federal tax
+   * @methodology A scenario with $100K income should have lower federal tax than
+   *   estimateFederalTax($100K) because the standard deduction reduces taxable income.
+   */
+  it("standard deduction reduces federal tax", () => {
+    const s = cloneScenario(createDefaultScenario());
+    s.annualIncome = 100_000;
+    s.profile.filingStatus = "single";
+    s.profile.employmentType = "w2";
+    s.profile.state = "TX"; // 0% state tax
+    s.accounts = []; // no pre-tax contributions
+    const tax = estimateScenarioTax(s);
+
+    // Federal tax on scenario should be less than raw $100K bracket calc
+    // because standard deduction ($14,600 for single) reduces taxable income
+    const rawFederalTax = estimateFederalTax(100_000, "single");
+    expect(tax.federalTax).toBeLessThan(rawFederalTax);
+
+    // The difference should be roughly the tax on the deduction amount
+    // Standard deduction for single = $14,600
+    const taxOnFullIncome = estimateFederalTax(100_000, "single");
+    const taxAfterDeduction = estimateFederalTax(100_000 - 14_600, "single");
+    golden("tax.standard-deduction.single.100k", {
+      input: { income: 100_000, filingStatus: "single", standardDeduction: 14_600 },
+      expected: taxAfterDeduction,
+      actual: tax.federalTax,
+      tolerance: 0,
+      methodology:
+        "Federal tax on ($100K - $14,600 standard deduction) should equal scenario federal tax with no pre-tax contributions",
+    });
+  });
+
+  /**
+   * @golden FICA for W-2 at $128K
+   * @methodology SS: $128K × 6.2% = $7,936, Medicare: $128K × 1.45% = $1,856 → total ~$9,792
+   */
+  it("FICA for W-2 at $128K = ~$9,792", () => {
+    const fica = calculateFica(128_000, "w2", "single");
+    golden("tax.fica.w2.128k", {
+      input: { grossIncome: 128_000, employmentType: "w2", filingStatus: "single" },
+      expected: 9_792,
+      actual: fica.totalFica,
+      tolerance: 0,
+      methodology:
+        "SS: min($128K, $168,600) × 6.2% = $7,936. Medicare: $128K × 1.45% = $1,856. Total = $9,792.",
+    });
+    // Employer portion should be 0 for W-2
+    expect(fica.employerFica).toBe(0);
+  });
+
+  /**
+   * @golden FICA for self-employed at $100K
+   * @methodology SS: $100K × 6.2% × 2 = $12,400, Medicare: $100K × 1.45% × 2 = $2,900 → total $15,300
+   */
+  it("FICA for self-employed at $100K = ~$15,300", () => {
+    const fica = calculateFica(100_000, "self_employed", "single");
+    golden("tax.fica.se.100k", {
+      input: { grossIncome: 100_000, employmentType: "self_employed", filingStatus: "single" },
+      expected: 15_300,
+      actual: fica.totalFica,
+      tolerance: 0,
+      methodology:
+        "SS: $100K × 6.2% × 2 = $12,400. Medicare: $100K × 1.45% × 2 = $2,900. Total = $15,300.",
+    });
+    // Employer portion should be half of total
+    expect(fica.employerFica).toBe(fica.totalFica / 2);
+  });
+
+  /**
+   * @golden State tax for TX = $0
+   * @methodology Texas has no state income tax
+   */
+  it("state tax for TX = $0", () => {
+    const s = cloneScenario(createDefaultScenario());
+    s.annualIncome = 100_000;
+    s.profile.state = "TX";
+    s.accounts = [];
+    const tax = estimateScenarioTax(s);
+    golden("tax.state.tx.0", {
+      input: { income: 100_000, state: "TX" },
+      expected: 0,
+      actual: tax.stateTax,
+      tolerance: 0,
+      methodology: "Texas has no state income tax; effective rate = 0%.",
+    });
+  });
+
+  /**
+   * @golden State tax for CA ~9.3% effective
+   * @methodology California effective rate 9.3% applied to taxable income
+   */
+  it("state tax for CA ~9.3% effective", () => {
+    const s = cloneScenario(createDefaultScenario());
+    s.annualIncome = 100_000;
+    s.profile.state = "CA";
+    s.profile.filingStatus = "single";
+    s.profile.employmentType = "w2";
+    s.accounts = [];
+    const tax = estimateScenarioTax(s);
+    // State tax should be ~9.3% of (AGI - standard deduction)
+    // AGI = $100K, standard deduction = $14,600, taxable = $85,400
+    // State tax = $85,400 × 9.3% ≈ $7,942.20
+    const expectedStateTax = (100_000 - 14_600) * 0.093;
+    golden("tax.state.ca.100k", {
+      input: { income: 100_000, state: "CA", filingStatus: "single" },
+      expected: expectedStateTax,
+      actual: tax.stateTax,
+      tolerance: 0,
+      methodology: "CA 9.3% effective rate on (AGI $100K - $14,600 std deduction) = $7,942.20.",
+    });
+  });
+
+  /**
+   * @golden Contribution limit capping — 401(k) over limit
+   * @methodology 401(k) contribution of $30K exceeds $23,500 limit for age < 50
+   */
+  it("contribution limit capping warns and caps", () => {
+    const s = cloneScenario(createDefaultScenario());
+    s.annualIncome = 150_000;
+    s.profile.age = 35;
+    s.profile.state = "TX";
+    s.accounts = [
+      {
+        id: "test-401k",
+        name: "401(k)",
+        type: "traditional_401k",
+        currentBalance: 100_000,
+        annualContribution: 30_000, // over $23,500 limit
+        assetAllocation: { stocks: 0.8, bonds: 0.2, alternatives: 0 },
+        expenseRatio: 0.001,
+      },
+    ];
+    const tax = estimateScenarioTax(s);
+
+    // Should have a contribution warning
+    expect(tax.contributionWarnings.length).toBeGreaterThan(0);
+    expect(tax.contributionWarnings[0]).toContain("401(k)");
+    expect(tax.contributionWarnings[0]).toContain("23,500");
+
+    // Federal tax should be based on capped contribution ($23,500 not $30,000)
+    // AGI = $150K - $23,500 = $126,500
+    // Taxable = $126,500 - $14,600 = $111,900
+    const expectedFederalTax = estimateFederalTax(111_900, "single");
+    golden("tax.contribution-cap.401k", {
+      input: { income: 150_000, contribution: 30_000, limit: 23_500, age: 35 },
+      expected: expectedFederalTax,
+      actual: tax.federalTax,
+      tolerance: 0,
+      methodology:
+        "401(k) capped at $23,500 (age < 50). AGI = $150K - $23,500 = $126,500. Taxable = $126,500 - $14,600 std deduction = $111,900.",
+    });
   });
 });

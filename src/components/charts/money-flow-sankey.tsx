@@ -12,6 +12,7 @@ const COLORS = {
   income: "#f7c948",      // flame/gold
   federalTax: "#e74c3c",  // red
   stateTax: "#c0392b",    // darker red
+  fica: "#d35400",        // red-orange
   takeHome: "#27ae60",    // green
   spending: "#95a5a6",    // gray
   savings: "#ff6b35",     // ember
@@ -113,7 +114,8 @@ function SankeyTooltip({ active, payload }: any) {
 function buildSankeyData(scenario: Scenario) {
   const taxInfo = estimateScenarioTax(scenario);
   const employerMatch = getEmployerMatchTotal(scenario);
-  const { grossIncome, federalTax, stateTax, takeHome } = taxInfo;
+  const { grossIncome, federalTax, stateTax, fica, takeHome } = taxInfo;
+  const ficaTotal = fica.totalFica;
   const expenses = scenario.annualExpenses;
   const savings = Math.max(takeHome - expenses, 0);
 
@@ -148,11 +150,12 @@ function buildSankeyData(scenario: Scenario) {
   }
   typeMap.forEach((v) => accountGroups.push(v));
 
-  // Build nodes
+  // Build nodes — indices:  0=gross, 1=fedtax, 2=statetax, 3=fica, 4=takehome, 5=spending, 6=savings
   const nodes: Array<{ name: string; displayName: string; color: string }> = [
     { name: "gross", displayName: `Income ${formatCompactCurrency(grossIncome)}`, color: COLORS.income },
     { name: "fedtax", displayName: `Federal Tax ${formatCompactCurrency(federalTax)}`, color: COLORS.federalTax },
     { name: "statetax", displayName: `State Tax ${formatCompactCurrency(stateTax)}`, color: COLORS.stateTax },
+    { name: "fica", displayName: `FICA ${formatCompactCurrency(ficaTotal)}`, color: COLORS.fica },
     { name: "takehome", displayName: `Take-Home ${formatCompactCurrency(takeHome)}`, color: COLORS.takeHome },
     { name: "spending", displayName: `Spending ${formatCompactCurrency(expenses)}`, color: COLORS.spending },
     { name: "savings", displayName: `Savings ${formatCompactCurrency(savings)}`, color: COLORS.savings },
@@ -182,20 +185,21 @@ function buildSankeyData(scenario: Scenario) {
   const links: Array<{ source: number; target: number; value: number }> = [];
   if (federalTax > 0) links.push({ source: 0, target: 1, value: federalTax });
   if (stateTax > 0) links.push({ source: 0, target: 2, value: stateTax });
-  if (takeHome > 0) links.push({ source: 0, target: 3, value: takeHome });
-  if (expenses > 0) links.push({ source: 3, target: 4, value: expenses });
-  if (savings > 0) links.push({ source: 3, target: 5, value: savings });
+  if (ficaTotal > 0) links.push({ source: 0, target: 3, value: ficaTotal });
+  if (takeHome > 0) links.push({ source: 0, target: 4, value: takeHome });
+  if (expenses > 0) links.push({ source: 4, target: 5, value: expenses });
+  if (savings > 0) links.push({ source: 4, target: 6, value: savings });
 
   // Savings → account types
   for (let i = 0; i < accountGroups.length; i++) {
     if (accountGroups[i].amount > 0) {
-      links.push({ source: 5, target: accountNodeStart + i, value: accountGroups[i].amount });
+      links.push({ source: 6, target: accountNodeStart + i, value: accountGroups[i].amount });
     }
   }
 
   // Employer match → savings (separate flow)
   if (employerMatch > 0 && matchNodeIdx >= 0) {
-    links.push({ source: matchNodeIdx, target: 5, value: employerMatch });
+    links.push({ source: matchNodeIdx, target: 6, value: employerMatch });
   }
 
   return { nodes, links };

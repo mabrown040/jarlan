@@ -77,6 +77,7 @@ export function createDefaultScenario(): Scenario {
       age: 34,
       retirementAge: 46,
       filingStatus: "single",
+      employmentType: "w2",
       country: "US",
       state: "CA",
       householdSize: 1,

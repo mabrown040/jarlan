@@ -59,6 +59,7 @@ export type RebalanceFrequency = (typeof rebalanceFrequencies)[number];
 export type InflationModel = (typeof inflationModels)[number];
 export type CurrencyCode = "USD" | "CAD" | "GBP" | "EUR" | "AUD";
 export type HealthStatus = "below_average" | "average" | "above_average";
+export type EmploymentType = "w2" | "self_employed" | "1099";
 
 export interface SocialSecurityInput {
   monthlyBenefitAt62: number;
@@ -73,6 +74,7 @@ export interface UserProfile {
   age: number;
   retirementAge: number | null;
   filingStatus: FilingStatus;
+  employmentType: EmploymentType;
   country?: string;
   state: string;
   householdSize: number;

@@ -3,7 +3,9 @@ import rawTaxBrackets from "../../../data/tax_brackets.json";
 
 import { getRetirementStartAge } from "@/lib/calc/scenario";
 import { getMortalityDataset } from "@/lib/data";
+import { getStateTaxPreset } from "@/lib/data/state-taxes";
 import type { FilingStatus, Scenario } from "@/lib/domain/types";
+import { calculateFica, type FicaResult } from "@/lib/tax/fica";
 
 const taxBracketDataset = rawTaxBrackets as unknown as {
   federalOrdinaryIncome: Record<FilingStatus, Array<[number, number | null]>>;
@@ -172,6 +174,26 @@ export function estimateFederalTax(
   return totalTax;
 }
 
+/* ── 2025 Standard Deductions ──────────────────────────────── */
+const STANDARD_DEDUCTIONS: Record<FilingStatus, number> = {
+  single: 14_600,
+  married_joint: 29_200,
+  married_separate: 14_600,
+  head_of_household: 21_900,
+};
+
+/* ── 2025 Contribution Limits ─────────────────────────────── */
+function get401kLimit(age: number): number {
+  if (age >= 60 && age <= 63) return 34_750; // super catch-up
+  if (age >= 50) return 31_000; // standard catch-up
+  return 23_500;
+}
+
+function getHsaLimit(filingStatus: FilingStatus, age: number): number {
+  const base = filingStatus === "married_joint" ? 8_550 : 4_300;
+  return age >= 55 ? base + 1_000 : base;
+}
+
 /**
  * Estimate total tax burden for a scenario. Used by both the
  * plan drawer and the workspace stat cards so the calculation
@@ -179,20 +201,69 @@ export function estimateFederalTax(
  */
 export function estimateScenarioTax(scenario: Scenario) {
   const grossIncome = scenario.annualIncome + (scenario.profile.partner?.annualIncome ?? 0);
-  const preTaxContributions = scenario.accounts
-    .filter((a) => a.type === "traditional_401k" || a.type === "hsa")
-    .reduce((sum, a) => sum + a.annualContribution, 0);
-  const taxableIncome = Math.max(grossIncome - preTaxContributions, 0);
-  const federalTax = estimateFederalTax(taxableIncome, scenario.profile.filingStatus);
-  const stateTaxRate = 0.05; // rough effective state rate
+  const filingStatus = scenario.profile.filingStatus;
+  const employmentType = scenario.profile.employmentType ?? "w2";
+  const age = scenario.profile.age;
+
+  /* ── FICA ──────────────────────────────────────────────── */
+  const fica = calculateFica(grossIncome, employmentType, filingStatus);
+
+  /* ── Contribution-limit enforcement ────────────────────── */
+  const contributionWarnings: string[] = [];
+  const max401k = get401kLimit(age);
+  const maxHsa = getHsaLimit(filingStatus, age);
+
+  let trad401kContributions = 0;
+  let hsaContributions = 0;
+  for (const a of scenario.accounts) {
+    if (a.type === "traditional_401k") trad401kContributions += a.annualContribution;
+    if (a.type === "hsa") hsaContributions += a.annualContribution;
+  }
+
+  const actual401k = Math.min(trad401kContributions, max401k);
+  const actualHsa = Math.min(hsaContributions, maxHsa);
+  if (trad401kContributions > max401k) {
+    contributionWarnings.push(
+      `401(k) contribution $${trad401kContributions.toLocaleString()} exceeds $${max401k.toLocaleString()} limit`,
+    );
+  }
+  if (hsaContributions > maxHsa) {
+    contributionWarnings.push(
+      `HSA contribution $${hsaContributions.toLocaleString()} exceeds $${maxHsa.toLocaleString()} limit`,
+    );
+  }
+  const preTaxContributions = actual401k + actualHsa;
+
+  /* ── AGI → Taxable Income ──────────────────────────────── */
+  const agi = Math.max(grossIncome - preTaxContributions - fica.employerFica, 0);
+  const standardDeduction = STANDARD_DEDUCTIONS[filingStatus];
+  const taxableIncome = Math.max(agi - standardDeduction, 0);
+
+  /* ── Federal + State ───────────────────────────────────── */
+  const federalTax = estimateFederalTax(taxableIncome, filingStatus);
+  const statePreset = getStateTaxPreset(scenario.profile.state);
+  const stateTaxRate = statePreset?.effectiveOrdinaryRate ?? 0.05;
   const stateTax = taxableIncome * stateTaxRate;
-  const totalTax = federalTax + stateTax;
+
+  /* ── Totals ────────────────────────────────────────────── */
+  const totalTax = federalTax + stateTax + fica.totalFica;
   const takeHome = grossIncome - totalTax;
   const actualSavings = Math.max(takeHome - scenario.annualExpenses, 0);
   const afterTaxSavingsRate = takeHome > 0 ? actualSavings / takeHome : 0;
   const effectiveRate = grossIncome > 0 ? totalTax / grossIncome : 0;
 
-  return { grossIncome, federalTax, stateTax, totalTax, takeHome, actualSavings, afterTaxSavingsRate, effectiveRate };
+  return {
+    grossIncome,
+    federalTax,
+    stateTax,
+    fica,
+    totalTax,
+    takeHome,
+    actualSavings,
+    afterTaxSavingsRate,
+    effectiveRate,
+    contributionWarnings,
+  };
 }
 
 export function buildFederalTaxBracketBreakdown(

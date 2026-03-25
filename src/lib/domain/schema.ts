@@ -57,6 +57,7 @@ const userProfileSchema = z.object({
   age: z.number().int().min(18).max(100),
   retirementAge: z.number().int().min(18).max(100).nullable(),
   filingStatus: z.enum(filingStatuses),
+  employmentType: z.enum(["w2", "self_employed", "1099"]).default("w2"),
   country: z.string().min(2).optional(),
   state: z.string().min(1),
   householdSize: z.number().int().min(1).max(10),
