@@ -1032,6 +1032,14 @@ export function FireTypeQuiz() {
                       <p className="text-sm leading-snug text-muted-foreground">
                         {fireType.description}
                       </p>
+                      {fireType.id === "coast" ? (
+                        <Link
+                          href="/education/coast-fire"
+                          className="mt-1 text-xs font-medium text-[var(--ember)] hover:underline"
+                        >
+                          Learn about Coast FIRE &rarr;
+                        </Link>
+                      ) : null}
                     </div>
                   );
                 })}

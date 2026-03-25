@@ -64,7 +64,7 @@ export function computeProjectionMilestones(params: {
       year: coastPoint.year,
       label: comparisonSummary ? "Coast FI (base)" : "Coast FI",
       target: dynTarget,
-      description: `At ${fmtCurrency(dynTarget)} saved, compounding finishes the job by retirement at ${retAge}.`,
+      description: `At ${fmtCurrency(dynTarget)} saved, compounding finishes the job by retirement at ${retAge}. Learn about Coast FIRE \u2192 /education/coast-fire`,
     });
   }
 

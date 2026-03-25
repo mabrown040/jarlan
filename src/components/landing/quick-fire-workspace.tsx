@@ -751,7 +751,7 @@ export function QuickFireWorkspace({
                       ft.id === "traditional"
                         ? "/accumulation"
                         : ft.id === "coast"
-                          ? "/accumulation"
+                          ? "/education/coast-fire"
                           : "/accumulation";
                     return (
                       <div

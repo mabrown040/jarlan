@@ -61,7 +61,7 @@ const TOPICS: TopicCard[] = [
   {
     title: "Coast FIRE",
     description: "Stop saving and let compounding finish the job",
-    href: null,
+    href: "/education/coast-fire",
     emoji: "⛵",
     getPersonalized: (ctx) =>
       ctx.coastAge !== null && ctx.coastAge > 0
