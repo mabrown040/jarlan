@@ -37,6 +37,7 @@ export interface FireTypeQuizAnswers {
   taxableContribution: number;
   partTimePreference: PartTimePreference;
   postFireIncome: number;
+  postFireIncomeDuration: number | null;
   flexibility: FlexibilityLevel;
   dependents: DependentsStatus;
   riskTolerance: number;
@@ -100,6 +101,7 @@ export const DEFAULT_FIRE_TYPE_QUIZ_ANSWERS: FireTypeQuizAnswers = {
   taxableContribution: 0,
   partTimePreference: "maybe",
   postFireIncome: 0,
+  postFireIncomeDuration: null,
   flexibility: "medium",
   dependents: "no",
   riskTolerance: 3,
@@ -236,6 +238,9 @@ export function buildScenarioFromQuizAnswers(
   scenario.assumptions.partTimeIncome = answers.postFireIncome > 0
     ? answers.postFireIncome
     : getSuggestedPartTimeIncome(answers.partTimePreference);
+
+  // Post-FIRE income duration (bridge strategy)
+  scenario.assumptions.partTimeIncomeDuration = answers.postFireIncomeDuration;
 
   // Risk tolerance → withdrawal rate
   const wr = withdrawalRateByRisk[answers.riskTolerance] ?? 0.04;

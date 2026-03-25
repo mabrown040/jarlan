@@ -163,6 +163,7 @@ export interface ScenarioAssumptions {
   withdrawalRate: number;
   saferWithdrawalRate: number;
   partTimeIncome: number;
+  partTimeIncomeDuration: number | null;
   incomeGrowthRate: number;
   expenseGrowthRate: number;
 }

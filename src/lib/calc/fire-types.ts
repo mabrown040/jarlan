@@ -52,8 +52,24 @@ export function calculateFireTypeSummaries(scenario: Scenario): FireTypeSummary[
 
   // Barista: part-time income covers part of spending
   const partTimeIncome = scenario.assumptions.partTimeIncome;
-  const baristaSpending = Math.max(spending - partTimeIncome, 0);
-  const baristaTarget = calculateFireNumber(baristaSpending, wr);
+  const duration = scenario.assumptions.partTimeIncomeDuration;
+  const realReturn = scenario.assumptions.expectedRealReturn;
+  let baristaTarget: number;
+  if (duration === null || duration === undefined) {
+    // Indefinite: simple formula — income offsets spending forever
+    const baristaSpending = Math.max(spending - partTimeIncome, 0);
+    baristaTarget = calculateFireNumber(baristaSpending, wr);
+  } else {
+    // Bridge: need enough for reduced withdrawal during bridge + full withdrawal after
+    // traditionalTarget minus present value of the income subsidy over the bridge period
+    const annualSubsidy = Math.min(partTimeIncome, spending);
+    const r = Math.max(realReturn, 0.001); // avoid division by zero
+    const pvSubsidy = annualSubsidy * ((1 - (1 + r) ** -duration) / r);
+    baristaTarget = Math.max(traditionalTarget - pvSubsidy, 0);
+  }
+  const baristaSpending = duration === null || duration === undefined
+    ? Math.max(spending - partTimeIncome, 0)
+    : spending;
 
   return [
     createSummary(
@@ -102,9 +118,13 @@ export function calculateFireTypeSummaries(scenario: Scenario): FireTypeSummary[
       "Barista FIRE",
       baristaTarget,
       currentPortfolio,
-      `Portfolio covers most spending while ${formatCompactCurrency(partTimeIncome)}/yr of post-FIRE income handles the rest.`,
+      duration !== null && duration !== undefined && partTimeIncome > 0
+        ? `Work part-time earning ${formatCompactCurrency(partTimeIncome)}/yr for ${duration} years, then live fully off portfolio.`
+        : `Portfolio covers most spending while ${formatCompactCurrency(partTimeIncome)}/yr of post-FIRE income handles the rest.`,
       partTimeIncome > 0
-        ? `Only need ${formatCompactCurrency(baristaSpending)}/yr from your portfolio.`
+        ? duration !== null && duration !== undefined
+          ? `Need ${formatCompactCurrency(baristaTarget)} — subsidized by ${formatCompactCurrency(partTimeIncome)}/yr for ${duration} years.`
+          : `Only need ${formatCompactCurrency(baristaSpending)}/yr from your portfolio.`
         : "Set a post-FIRE income in Your Plan to see a reduced target.",
     ),
   ];

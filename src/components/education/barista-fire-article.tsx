@@ -31,10 +31,25 @@ import { cn } from "@/lib/utils";
 
 /* ── Helpers ──────────────────────────────────────────────── */
 
-/** Compute Barista FIRE number given expenses, part-time income, and withdrawal rate. */
-function baristaNumber(expenses: number, partTimeIncome: number, wr: number) {
-  const gap = Math.max(expenses - partTimeIncome, 0);
-  return calculateFireNumber(gap, wr);
+/** Compute Barista FIRE number given expenses, part-time income, withdrawal rate, and optional duration. */
+function baristaNumber(
+  expenses: number,
+  partTimeIncome: number,
+  wr: number,
+  duration: number | null = null,
+  realReturn = 0.05,
+) {
+  if (duration === null) {
+    // Indefinite: simple formula
+    const gap = Math.max(expenses - partTimeIncome, 0);
+    return calculateFireNumber(gap, wr);
+  }
+  // Bridge: traditional target minus present value of income subsidy over bridge period
+  const traditionalTarget = calculateFireNumber(expenses, wr);
+  const subsidy = Math.min(partTimeIncome, expenses);
+  const r = Math.max(realReturn, 0.001);
+  const pvSubsidy = subsidy * ((1 - (1 + r) ** -duration) / r);
+  return Math.max(traditionalTarget - pvSubsidy, 0);
 }
 
 /** Build sequence-risk comparison: full withdrawal vs barista withdrawal after a crash. */
@@ -129,13 +144,19 @@ export function BaristaFireArticle() {
   const userBaristaTarget =
     fireTypes.find((ft) => ft.id === "barista")?.target ?? 0;
 
-  /* ---- Part-time income slider state ---- */
+  /* ---- Part-time income & duration slider state ---- */
   const [incomeOverride, setIncomeOverride] = useState<number | null>(null);
+  const [durationOverride, setDurationOverride] = useState<number | null | "untouched">("untouched");
   const sliderIncome = incomeOverride ?? (hasData ? partTimeIncome : 25_000);
+  const sliderDuration = durationOverride === "untouched"
+    ? (hasData ? activeScenario.assumptions.partTimeIncomeDuration : null)
+    : durationOverride;
   const sliderBaristaTarget = baristaNumber(
     hasData ? retirementSpending : 60_000,
     sliderIncome,
     wr || 0.04,
+    sliderDuration,
+    effectiveReturn || 0.05,
   );
   const portfolioReduction = traditionalTarget - sliderBaristaTarget;
   const reductionPercent =
@@ -187,6 +208,10 @@ export function BaristaFireArticle() {
 
   const handleIncomeChange = useCallback((val: number[]) => {
     setIncomeOverride(val[0]);
+  }, []);
+  const handleDurationChange = useCallback((val: number[]) => {
+    // Slider max (31) represents "indefinite"
+    setDurationOverride(val[0] >= 31 ? null : val[0]);
   }, []);
 
   return (
@@ -321,26 +346,50 @@ export function BaristaFireArticle() {
             Explore: How much could you earn part-time?
           </h3>
 
-          <div className="mt-5 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-foreground" htmlFor="barista-income">
-                Part-time income
-              </label>
-              <span className="font-mono text-sm font-medium text-foreground tabular-nums">
-                {formatCompactCurrency(sliderIncome)}/yr
-              </span>
+          <div className="mt-5 grid gap-6 sm:grid-cols-2">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm text-foreground" htmlFor="barista-income">
+                  Part-time income
+                </label>
+                <span className="font-mono text-sm font-medium text-foreground tabular-nums">
+                  {formatCompactCurrency(sliderIncome)}/yr
+                </span>
+              </div>
+              <Slider
+                id="barista-income"
+                min={0}
+                max={60_000}
+                step={1_000}
+                value={[sliderIncome]}
+                onValueChange={handleIncomeChange}
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>$0</span>
+                <span>$60K</span>
+              </div>
             </div>
-            <Slider
-              id="barista-income"
-              min={0}
-              max={60_000}
-              step={1_000}
-              value={[sliderIncome]}
-              onValueChange={handleIncomeChange}
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>$0</span>
-              <span>$60K</span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm text-foreground" htmlFor="barista-duration">
+                  Years of part-time work
+                </label>
+                <span className="font-mono text-sm font-medium text-foreground tabular-nums">
+                  {sliderDuration === null ? "∞" : `${sliderDuration} yrs`}
+                </span>
+              </div>
+              <Slider
+                id="barista-duration"
+                min={1}
+                max={31}
+                step={1}
+                value={[sliderDuration === null ? 31 : sliderDuration]}
+                onValueChange={handleDurationChange}
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>1 yr</span>
+                <span>∞</span>
+              </div>
             </div>
           </div>
 

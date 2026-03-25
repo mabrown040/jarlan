@@ -132,6 +132,7 @@ const scenarioAssumptionsSchema = z.object({
   withdrawalRate: z.number().min(0.01).max(0.2),
   saferWithdrawalRate: z.number().min(0.01).max(0.2),
   partTimeIncome: z.number().nonnegative(),
+  partTimeIncomeDuration: z.number().int().min(1).max(50).nullable().default(null),
   incomeGrowthRate: z.number().min(0).max(0.1).default(0.01),
   expenseGrowthRate: z.number().min(0).max(0.1).default(0),
 });

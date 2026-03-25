@@ -110,6 +110,7 @@ export function createDefaultScenario(): Scenario {
       withdrawalRate: 0.04,
       saferWithdrawalRate: 0.035,
       partTimeIncome: 15_000,
+      partTimeIncomeDuration: null,
       incomeGrowthRate: 0.01,
       expenseGrowthRate: 0,
     },

@@ -725,6 +725,40 @@ export function FireTypeQuiz() {
                 <p className="mt-2 text-sm text-muted-foreground">
                   Part-time work, consulting, rental income, etc. This reduces the portfolio you need.
                 </p>
+                {answers.postFireIncome > 0 ? (
+                  <div className="mt-4 space-y-3 border-t border-border/30 pt-4">
+                    <p className="text-sm font-medium text-foreground">
+                      How long do you plan to work part-time?
+                    </p>
+                    <div className="grid gap-2">
+                      {([
+                        { label: "Until I don't need to anymore", value: null },
+                        { label: "About 5 years", value: 5 },
+                        { label: "About 10 years", value: 10 },
+                        ...(answers.currentAge < 62
+                          ? [{ label: `Until Social Security (~age 62, ${62 - answers.currentAge} years)`, value: 62 - answers.currentAge }]
+                          : []),
+                      ] as const).map((option) => {
+                        const selected = answers.postFireIncomeDuration === option.value;
+                        return (
+                          <button
+                            key={option.label}
+                            type="button"
+                            onClick={() => setAnswer("postFireIncomeDuration", option.value as number | null)}
+                            className={cn(
+                              "rounded-lg border px-3 py-2 text-left text-sm transition-all",
+                              selected
+                                ? "border-[rgba(255,107,53,0.26)] bg-[rgba(255,107,53,0.12)]"
+                                : "border-border/60 bg-card/40 hover:border-border",
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>

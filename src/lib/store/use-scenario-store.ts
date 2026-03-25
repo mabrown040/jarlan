@@ -54,6 +54,7 @@ interface ScenarioStore {
   updateSaferWithdrawalRate: (value: number) => void;
   updateExpectedRealReturn: (value: number) => void;
   updatePartTimeIncome: (value: number) => void;
+  updatePartTimeIncomeDuration: (value: number | null) => void;
   updateIncomeGrowthRate: (value: number) => void;
   updateExpenseGrowthRate: (value: number) => void;
   updateInflation: (value: number) => void;
@@ -500,6 +501,17 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
         assumptions: {
           ...state.activeScenario.assumptions,
           partTimeIncome: Math.max(value, 0),
+        },
+      }),
+      saveStatus: "idle",
+    })),
+  updatePartTimeIncomeDuration: (value) =>
+    set((state) => ({
+      activeScenario: touchScenario({
+        ...state.activeScenario,
+        assumptions: {
+          ...state.activeScenario.assumptions,
+          partTimeIncomeDuration: value === null ? null : Math.max(Math.round(value), 1),
         },
       }),
       saveStatus: "idle",

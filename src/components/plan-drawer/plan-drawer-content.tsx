@@ -84,6 +84,7 @@ export function PlanDrawerContent() {
     updateExpectedRealReturn,
     updateWithdrawalRate,
     updatePartTimeIncome,
+    updatePartTimeIncomeDuration,
     updateIncomeGrowthRate,
     updateExpenseGrowthRate,
     updateInflation,
@@ -273,6 +274,44 @@ export function PlanDrawerContent() {
             <FieldLabel htmlFor="drawer-postfire" label="Post-FIRE income" tooltip="Expected annual income after retirement (part-time, consulting, rental, etc.). Reduces the portfolio you need." />
             <NumberInput id="drawer-postfire" min={0} step={1000} inputMode="numeric" value={activeScenario.assumptions.partTimeIncome} onValueChange={updatePartTimeIncome} />
           </div>
+          {activeScenario.assumptions.partTimeIncome > 0 ? (
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="drawer-postfire-duration" label="Duration (years)" tooltip="How many years you plan to earn post-FIRE income. Leave blank for indefinite (most optimistic — lower FIRE target)." />
+              <Input
+                id="drawer-postfire-duration"
+                type="text"
+                inputMode="numeric"
+                placeholder="∞ indefinite"
+                className="font-mono tabular-nums"
+                value={activeScenario.assumptions.partTimeIncomeDuration ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  if (raw === "") {
+                    updatePartTimeIncomeDuration(null);
+                  } else {
+                    const n = parseInt(raw, 10);
+                    if (Number.isFinite(n) && n >= 1 && n <= 50) {
+                      updatePartTimeIncomeDuration(n);
+                    }
+                  }
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                {activeScenario.assumptions.partTimeIncomeDuration
+                  ? `${activeScenario.assumptions.partTimeIncomeDuration} years of part-time work, then fully off portfolio`
+                  : "Leave blank for indefinite — the most optimistic assumption"}
+              </p>
+              {activeScenario.assumptions.partTimeIncomeDuration !== null && (
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:text-primary/80"
+                  onClick={() => updatePartTimeIncomeDuration(null)}
+                >
+                  Set to indefinite
+                </button>
+              )}
+            </div>
+          ) : null}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <FieldLabel htmlFor="drawer-wr" label="Withdrawal rate" tooltip="The classic 4% rule. Lower is safer for longer retirements." />
