@@ -12,6 +12,7 @@ import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scen
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NumberInput } from "@/components/ui/number-input";
+import { Select } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import {
   calculateFireTypeSummaries,
@@ -29,8 +30,15 @@ import {
   type FireTypeQuizAnswers,
   type PlanningPriority,
 } from "@/lib/quiz/fire-type-quiz";
+import { listStateTaxPresets } from "@/lib/data";
+import type { EmploymentType } from "@/lib/domain/types";
 import { useScenarioStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+
+const stateTaxPresets = listStateTaxPresets();
+const noIncomeTaxCodes = new Set(["AK", "FL", "NV", "NH", "SD", "TN", "TX", "WA", "WY"]);
+const noTaxStates = stateTaxPresets.filter((s) => noIncomeTaxCodes.has(s.code));
+const taxStates = stateTaxPresets.filter((s) => !noIncomeTaxCodes.has(s.code)).sort((a, b) => a.label.localeCompare(b.label));
 
 /** Virtual step keys that don't map 1:1 to a single answer field */
 type VirtualStepKey = "accountSplit" | "contributionSplit";
@@ -51,7 +59,9 @@ const allQuestionSteps: QuizStep[] = [
   { key: "currentAge", title: "How old are you today?", description: "This sets the starting point for the rest of the timeline and Coast FIRE math." },
   { key: "targetFiAge", title: "When would full financial independence feel ideal?", description: "Think about the age where optional work becomes more valuable than mandatory work." },
   { key: "annualIncome", title: "What is your annual gross income?", description: "Pre-tax household income from all sources. This determines your savings rate and timeline." },
+  { key: "employmentType", title: "What best describes your work situation?", description: "This determines how FICA taxes are calculated — self-employed workers pay both halves." },
   { key: "filingStatus", title: "How do you file taxes?", description: "This affects your tax brackets, contribution limits, and take-home pay estimate." },
+  { key: "state", title: "Which state do you live in?", description: "State income taxes can significantly affect your take-home pay and FIRE timeline." },
   { key: "annualSpending", title: "What annual spending level feels comfortable?", description: "Use a real-world number, not the absolute minimum you could survive on for a year." },
   { key: "currentPortfolio", title: "How much is already invested toward FIRE?", description: "A current portfolio helps calculate Coast FIRE and your overall progress." },
   { key: "accountSplit", title: "Where is your money?", description: "Account types matter for tax-efficient withdrawals in retirement. Skip if you're not sure." },
@@ -64,9 +74,9 @@ const allQuestionSteps: QuizStep[] = [
 ];
 
 const stageQuestionKeys: Record<FireStage, Array<keyof FireTypeQuizAnswers | "accountSplit" | "contributionSplit">> = {
-  curious: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "annualSpending", "currentPortfolio", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
-  saving: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "annualSpending", "currentPortfolio", "accountSplit", "contributionSplit", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
-  pre_retirement: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "annualSpending", "currentPortfolio", "accountSplit", "partTimePreference", "flexibility", "riskTolerance"],
+  curious: ["currentAge", "targetFiAge", "annualIncome", "employmentType", "filingStatus", "state", "annualSpending", "currentPortfolio", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
+  saving: ["currentAge", "targetFiAge", "annualIncome", "employmentType", "filingStatus", "state", "annualSpending", "currentPortfolio", "accountSplit", "contributionSplit", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
+  pre_retirement: ["currentAge", "targetFiAge", "annualIncome", "employmentType", "filingStatus", "state", "annualSpending", "currentPortfolio", "accountSplit", "partTimePreference", "flexibility", "riskTolerance"],
   retired: ["currentAge", "annualSpending", "currentPortfolio", "accountSplit", "flexibility"],
 };
 
@@ -318,6 +328,30 @@ export function FireTypeQuiz() {
             />
           </div>
         );
+      case "employmentType":
+        return (
+          <ChoiceGrid<EmploymentType>
+            value={answers.employmentType}
+            onChange={(value) => setAnswer("employmentType", value)}
+            options={[
+              {
+                value: "w2",
+                label: "I\u2019m a W-2 employee",
+                description: "Your employer handles payroll taxes.",
+              },
+              {
+                value: "self_employed",
+                label: "I\u2019m self-employed",
+                description: "You run a business or freelance full-time.",
+              },
+              {
+                value: "1099",
+                label: "I work as a 1099 contractor",
+                description: "Companies pay you without withholding taxes.",
+              },
+            ]}
+          />
+        );
       case "filingStatus":
         return (
           <div className="space-y-4">
@@ -353,6 +387,28 @@ export function FireTypeQuiz() {
                 </p>
               </div>
             )}
+          </div>
+        );
+      case "state":
+        return (
+          <div className="space-y-3">
+            <FieldLabel htmlFor="quiz-state" label="State of residence" />
+            <Select
+              id="quiz-state"
+              value={answers.state}
+              onChange={(e) => setAnswer("state", e.target.value)}
+            >
+              <optgroup label="No state income tax">
+                {noTaxStates.map((s) => (
+                  <option key={s.code} value={s.code}>{s.label}</option>
+                ))}
+              </optgroup>
+              <optgroup label="All states (alphabetical)">
+                {taxStates.map((s) => (
+                  <option key={s.code} value={s.code}>{s.label}</option>
+                ))}
+              </optgroup>
+            </Select>
           </div>
         );
       case "annualSpending":

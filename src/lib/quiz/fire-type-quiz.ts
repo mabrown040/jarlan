@@ -1,6 +1,6 @@
 import { calculateFireTypeSummaries } from "@/lib/calc";
 import { cloneScenario, createDefaultScenario, createDefaultAccount } from "@/lib/domain";
-import type { Account, FilingStatus, FireTypeSummary, Scenario } from "@/lib/domain/types";
+import type { Account, EmploymentType, FilingStatus, FireTypeSummary, Scenario } from "@/lib/domain/types";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
 import { clamp, roundTo } from "@/lib/utils";
 
@@ -19,6 +19,8 @@ export interface FireTypeQuizAnswers {
   targetFiAge: number;
   annualIncome: number;
   filingStatus: FilingStatus;
+  employmentType: EmploymentType;
+  state: string;
   partnerHas401k: boolean;
   annualSpending: number;
   currentPortfolio: number;
@@ -96,6 +98,8 @@ export const DEFAULT_FIRE_TYPE_QUIZ_ANSWERS: FireTypeQuizAnswers = {
   targetFiAge: 46,
   annualIncome: 128_000,
   filingStatus: "single",
+  employmentType: "w2",
+  state: "CA",
   partnerHas401k: false,
   annualSpending: 54_000,
   currentPortfolio: 185_000,
@@ -195,6 +199,8 @@ export function buildScenarioFromQuizAnswers(
   );
   scenario.annualIncome = Math.max(answers.annualIncome, 0);
   scenario.profile.filingStatus = answers.filingStatus;
+  scenario.profile.employmentType = answers.employmentType;
+  scenario.profile.state = answers.state;
   scenario.annualExpenses = Math.max(answers.annualSpending, 0);
   scenario.retirementExpenses = Math.max(answers.annualSpending, 0);
   // Build accounts from quiz allocation (up to 3 accounts)

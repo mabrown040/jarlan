@@ -189,6 +189,15 @@ export function PlanDrawerContent() {
                 <option value="head_of_household">Head of household</option>
               </Select>
             </div>
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="drawer-employment" label="Employment type" tooltip="Affects FICA taxes. Self-employed and 1099 workers pay both halves (~15.3%)." />
+              <Select id="drawer-employment" value={activeScenario.profile.employmentType} onChange={(e) => updateScenario((s) => { s.profile.employmentType = e.target.value as Scenario["profile"]["employmentType"]; })}>
+                <option value="w2">W-2 Employee</option>
+                <option value="self_employed">Self-employed</option>
+                <option value="1099">1099 Contractor</option>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">Self-employed and 1099 workers pay both halves of FICA (~15.3% vs ~7.65% for W-2)</p>
+            </div>
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
