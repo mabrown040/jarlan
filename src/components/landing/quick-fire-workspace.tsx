@@ -845,7 +845,7 @@ export function QuickFireWorkspace({
                       className="group block"
                     >
                       <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                        Can I retire? {"\u2192"}
+                        Your Plan {"\u2192"}
                       </p>
                       <p className="text-xs text-muted-foreground">Historical backtests and Monte Carlo stress tests.</p>
                     </Link>
@@ -1001,6 +1001,23 @@ export function QuickFireWorkspace({
                     </div>
                     <p className="text-sm text-muted-foreground">{formatPercent(summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0, 0)} there · {formatCompactCurrency(currentBalance)} saved</p>
                   </div>
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    {(() => {
+                      const wr = activeScenario.assumptions.withdrawalRate;
+                      return wr === 0.04
+                        ? "Based on the standard 4% rule"
+                        : wr < 0.04
+                          ? `Based on a conservative ${(wr * 100).toFixed(1)}% withdrawal rate`
+                          : `Based on an aggressive ${(wr * 100).toFixed(1)}% withdrawal rate`;
+                    })()}
+                  </p>
+                  <Link
+                    href={"/withdrawal" as Route}
+                    className="mt-1 inline-block text-[10px] font-medium text-primary hover:text-primary/80"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Stress-test this &rarr;
+                  </Link>
                   {currentBalance > 0 ? (() => {
                     const pct = estimateNetWorthPercentile(currentBalance, activeScenario.profile.age);
                     return pct > 55 ? (
@@ -1035,6 +1052,13 @@ export function QuickFireWorkspace({
                       The average American retires at {US_BENCHMARKS.averageRetirementAge}. You&apos;re on track for {Math.round(summary.fireAge)} — that&apos;s {Math.round(US_BENCHMARKS.averageRetirementAge - summary.fireAge)} extra years of freedom.
                     </p>
                   ) : null}
+                  <Link
+                    href={"/withdrawal" as Route}
+                    className="mt-1 inline-block text-[10px] font-medium text-primary hover:text-primary/80"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Will it last? &rarr;
+                  </Link>
                 </button>
                 <button
                   type="button"

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Route } from "next";
+import Link from "next/link";
 import { Copy, DatabaseZap, LoaderCircle } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -568,8 +569,8 @@ export function CanIRetireWorkspace() {
 
       {/* 1. Compact page header with 4 key metrics */}
       <CompactPageHeader
-        title="Withdrawal Lab"
-        description="Compare withdrawal strategies against every historical start date since 1871."
+        title="Your Plan"
+        description="Stress-test your withdrawal strategy against historical data and Monte Carlo simulations."
         metrics={[
           { label: "Testing with", value: formatCompactCurrency(effectivePortfolio), accent: portfolioMode === "fire-target" },
           { label: "Strategy", value: selectedStrategyMeta.label, accent: true },
@@ -577,6 +578,13 @@ export function CanIRetireWorkspace() {
           { label: "Readiness", value: readiness.assessment ? `${Math.round(readiness.assessment.score)}/100` : "...", accent: readiness.assessment ? readiness.assessment.score >= 80 : false },
         ]}
       />
+
+      <p className="mx-auto max-w-7xl px-4 text-xs text-muted-foreground sm:px-6">
+        Your FIRE target of {formatCompactCurrency(fireTarget)} is based on your savings plan.{" "}
+        <Link href={"/accumulation" as Route} className="font-medium text-primary hover:text-primary/80">
+          Adjust in Save &rarr; Your Plan
+        </Link>
+      </p>
 
       {/* 2. Portfolio mode toggle (FIRE target vs current) */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6">

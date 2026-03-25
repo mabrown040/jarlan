@@ -37,7 +37,7 @@ const navGroups: NavGroup[] = [
     label: "Spend",
     href: "/withdrawal",
     items: [
-      { href: "/withdrawal", label: "Can I retire?", tier: "free" },
+      { href: "/withdrawal", label: "Your Plan", tier: "free" },
       { href: "/tax-strategy", label: "Income plan", tier: "pro" },
       { href: "/scenario-lab", label: "What if?", tier: "pro" },
     ],
