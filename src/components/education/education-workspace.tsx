@@ -12,7 +12,7 @@ import {
   educationReferences,
 } from "@/lib/education/content";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
-import { calculateQuickFireSummary, getCurrentPortfolioBalance, getSavingsRate } from "@/lib/calc";
+import { calculateFireTypeSummaries, calculateQuickFireSummary, getCurrentPortfolioBalance, getSavingsRate } from "@/lib/calc";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
 import { formatCompactCurrency, formatPercent } from "@/lib/calc/format";
 
@@ -35,6 +35,8 @@ interface PersonalContext {
   coastAge: number | null;
   withdrawalRate: number;
   taxSavings401k: number;
+  partTimeIncome: number;
+  baristaTarget: number;
 }
 
 const TOPICS: TopicCard[] = [
@@ -66,6 +68,16 @@ const TOPICS: TopicCard[] = [
     getPersonalized: (ctx) =>
       ctx.coastAge !== null && ctx.coastAge > 0
         ? `You could stop saving at age ${ctx.coastAge} and still reach FI`
+        : null,
+  },
+  {
+    title: "Barista FIRE",
+    description: "Part-time income + a smaller portfolio = earlier freedom",
+    href: "/education/barista-fire",
+    emoji: "☕",
+    getPersonalized: (ctx) =>
+      ctx.partTimeIncome > 0
+        ? `${formatCompactCurrency(ctx.partTimeIncome)}/yr part-time drops your target to ${formatCompactCurrency(ctx.baristaTarget)}`
         : null,
   },
   {
@@ -111,6 +123,11 @@ export function EducationWorkspace() {
       coastAge: summary.coastAge ? Math.round(summary.coastAge) : null,
       withdrawalRate: activeScenario.assumptions.withdrawalRate,
       taxSavings401k,
+      partTimeIncome: activeScenario.assumptions.partTimeIncome,
+      baristaTarget: (() => {
+        const fireTypeSummaries = calculateFireTypeSummaries(activeScenario);
+        return fireTypeSummaries.find((ft) => ft.id === "barista")?.target ?? 0;
+      })(),
     };
   }, [activeScenario, hasData]);
 

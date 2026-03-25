@@ -1039,6 +1039,13 @@ export function FireTypeQuiz() {
                         >
                           Learn about Coast FIRE &rarr;
                         </Link>
+                      ) : fireType.id === "barista" ? (
+                        <Link
+                          href="/education/barista-fire"
+                          className="mt-1 text-xs font-medium text-[var(--ember)] hover:underline"
+                        >
+                          Learn about Barista FIRE &rarr;
+                        </Link>
                       ) : null}
                     </div>
                   );

@@ -114,7 +114,7 @@ export function computeProjectionMilestones(params: {
         year: baristaPoint.year,
         label: comparisonSummary ? "Barista FI (base)" : "Barista FIRE",
         target: baristaTarget,
-        description: `Switch to part-time earning ${fmtCurrency(partTime)}/yr — your portfolio of ${fmtCurrency(baristaTarget)} covers the rest.`,
+        description: `Switch to part-time earning ${fmtCurrency(partTime)}/yr — your portfolio of ${fmtCurrency(baristaTarget)} covers the rest. Learn about Barista FIRE \u2192 /education/barista-fire`,
       });
     }
   }
