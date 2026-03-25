@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { PlanDrawer, PlanDrawerTrigger } from "@/components/plan-drawer";
+import { QADevModal } from "@/components/dev/qa-personas";
 
 type NavGroup = {
   id: string;
@@ -350,6 +351,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </footer>
+      <QADevModal />
     </div>
   );
 }
