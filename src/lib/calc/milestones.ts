@@ -43,10 +43,12 @@ export function computeProjectionMilestones(params: {
   const baseFiByRetirement = baseFiYear >= 0 && age + baseFiYear <= retAge;
 
   // ── Coast FIRE (base) ──
+  // Coast FI only makes sense BEFORE reaching full FIRE.
+  // After FIRE, "coasting" is meaningless — you already have the full amount.
   let coastPoint: (typeof summary.projection)[number] | undefined;
-  if (baseFiByRetirement) {
+  if (baseFiByRetirement && baseFiYear > 0) {
     coastPoint = summary.projection.find((p, i) => {
-      if (i === 0) return false;
+      if (i === 0 || i >= baseFiYear) return false; // Must be before FIRE
       const yearsRemaining = Math.max(retAge - p.age, 0);
       if (yearsRemaining <= 0) return false;
       const dynamicTarget =
@@ -75,9 +77,9 @@ export function computeProjectionMilestones(params: {
     const compFiByRetirement = compFiYear >= 0 && age + compFiYear <= retAge;
 
     let compCoastPoint: (typeof comparisonSummary.projection)[number] | undefined;
-    if (compFiByRetirement) {
+    if (compFiByRetirement && compFiYear > 0) {
       compCoastPoint = comparisonSummary.projection.find((p, i) => {
-        if (i === 0) return false;
+        if (i === 0 || i >= compFiYear) return false; // Must be before FIRE
         const yearsRemaining = Math.max(retAge - p.age, 0);
         if (yearsRemaining <= 0) return false;
         const dynamicTarget =
