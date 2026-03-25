@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { cloneScenario, createDefaultScenario } from "@/lib/domain";
+import { clearScenarioDraft } from "@/lib/db/database";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
 import type { Scenario } from "@/lib/domain/types";
 
@@ -492,14 +493,17 @@ export function QADevModal() {
 
       <div className="mt-3 border-t border-border/40 pt-2">
         <button
-          onClick={() => {
+          onClick={async () => {
+            // Full "new user" reset: clear persisted draft + reset store
+            await clearScenarioDraft();
             replaceScenario(createDefaultScenario());
             setLastLoaded("reset");
-            setTimeout(() => setLastLoaded(null), 2000);
+            // Navigate to home page for fresh start experience
+            window.location.href = "/";
           }}
           className="text-xs text-muted-foreground hover:text-red-500"
         >
-          ↺ Reset to defaults
+          ↺ Reset to new user
           {lastLoaded === "reset" && <span className="ml-1 text-emerald-600">✓</span>}
         </button>
       </div>

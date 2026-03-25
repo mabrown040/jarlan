@@ -98,6 +98,14 @@ export async function loadScenarioDraft() {
   return record?.scenario ?? null;
 }
 
+export async function clearScenarioDraft() {
+  const draftId = await db.meta.get(DRAFT_SCENARIO_KEY);
+  if (draftId) {
+    await db.scenarios.delete(draftId.value);
+  }
+  await db.meta.delete(DRAFT_SCENARIO_KEY);
+}
+
 export async function listStoredScenarios() {
   return db.scenarios.orderBy("updatedAt").reverse().toArray();
 }
