@@ -325,6 +325,42 @@ function createNegativeSavingsPersona(): Scenario {
   return s;
 }
 
+/* ── Barista FIRE Persona ─────────────────────────────────── */
+
+function createBaristaFirePersona(): Scenario {
+  const s = cloneScenario(createDefaultScenario());
+  s.name = "QA: Barista FIRE";
+  s.profile.age = 38;
+  s.profile.retirementAge = 42;
+  s.profile.filingStatus = "single";
+  s.profile.state = "CO";
+  s.profile.employmentType = "w2";
+  s.profile.householdSize = 1;
+  s.annualIncome = 95_000;
+  s.annualExpenses = 48_000;
+  s.retirementExpenses = 45_000;
+  s.accounts = [
+    { id: "qa-bf-401k", name: "401(k)", type: "traditional_401k", currentBalance: 280_000, annualContribution: 20_000, assetAllocation: { stocks: 0.8, bonds: 0.2, alternatives: 0 }, expenseRatio: 0.0005, costBasis: 0, employerMatch: { percentage: 0.5, upTo: 0.04 } },
+    { id: "qa-bf-roth", name: "Roth IRA", type: "roth_401k", currentBalance: 120_000, annualContribution: 7_000, assetAllocation: { stocks: 0.85, bonds: 0.15, alternatives: 0 }, expenseRatio: 0.0003, costBasis: 90_000 },
+    { id: "qa-bf-taxable", name: "Brokerage", type: "taxable", currentBalance: 350_000, annualContribution: 0, assetAllocation: { stocks: 0.75, bonds: 0.25, alternatives: 0 }, expenseRatio: 0.0003, costBasis: 250_000 },
+  ];
+  // $750K total portfolio. FIRE number at 4% WR = $45K/0.04 = $1.125M
+  // Barista: earn $22K/yr part-time (coffee shop ~20hrs/wk) for 10 years
+  // Barista target (indefinite) = ($45K - $22K) / 0.04 = $575K — already past it!
+  // Barista target (10yr bridge) = $1.125M - PV($22K, 10yr, 6%) = ~$963K — close!
+  s.assumptions = {
+    ...s.assumptions,
+    expectedRealReturn: 0.06,
+    withdrawalRate: 0.04,
+    incomeGrowthRate: 0.02,
+    expenseGrowthRate: 0.005,
+    partTimeIncome: 22_000,
+    partTimeIncomeDuration: 10,
+  };
+  s.cashFlows = [];
+  return s;
+}
+
 const PERSONAS = [
   // Core personas
   {
@@ -347,6 +383,13 @@ const PERSONAS = [
     emoji: "🎨",
     summary: "35yo, $120K, self-employed, NY, SEP-IRA",
     create: createFreelancerPersona,
+  },
+  {
+    id: "barista-fire",
+    label: "Barista FIRE",
+    emoji: "☕",
+    summary: "38yo, $95K, $750K saved, $22K part-time for 10yr",
+    create: createBaristaFirePersona,
   },
   // Edge case personas
   {
