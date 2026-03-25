@@ -294,27 +294,50 @@ export function QuickFireWorkspace({
   const projectionWithMilestones = useMemo(() => {
     if (!fireTypes.length) return [];
     const traditionalTarget = fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
-    const coastTarget = summary.fireNumber > 0
-      ? summary.fireNumber / (1 + activeScenario.assumptions.expectedRealReturn) ** Math.max((activeScenario.profile.retirementAge ?? activeScenario.profile.age) - activeScenario.profile.age, 1)
-      : 0;
     const baristaTarget = fireTypes.find((ft) => ft.id === "barista")?.target ?? 0;
+    const retirementAge = activeScenario.profile.retirementAge ?? activeScenario.profile.age + 15;
+    const realReturn = activeScenario.assumptions.expectedRealReturn;
     const startBalance = summary.projection[0]?.balance ?? 0;
-    // Only math-derived milestones — not subjective lifestyle categories
-    // Skip milestones that are already achieved at year 0
-    const milestoneTargets = [
-      // Only show Barista FIRE when post-FIRE income is set
+
+    // Coast FIRE target is DYNAMIC — it changes each year as remaining years shrink.
+    // At any given year, coastTarget = fireNumber / (1 + return) ^ yearsRemaining.
+    // Only valid if FIRE is achievable by retirement age.
+    const fireYear = summary.projection.findIndex((p, idx) => idx > 0 && p.balance >= traditionalTarget);
+    const fireAchievableByRetirement = fireYear >= 0 && (activeScenario.profile.age + fireYear) <= retirementAge;
+
+    // Static milestone targets (non-Coast)
+    const staticMilestones = [
       ...(activeScenario.assumptions.partTimeIncome > 0
         ? [{ label: "Barista FIRE", target: baristaTarget }]
         : []),
-      { label: "Coast FIRE", target: coastTarget },
       { label: "FIRE", target: traditionalTarget },
     ].filter((m) => m.target > 0 && m.target > startBalance).sort((a, b) => a.target - b.target);
+
     const crossed = new Set<string>();
+    let coastCrossed = false;
     return summary.projection.map((point, i) => {
-      const milestone = milestoneTargets.find(
+      // Check Coast FIRE dynamically: only if FIRE is achievable by retirement
+      let coastMilestone: { label: string } | null = null;
+      if (fireAchievableByRetirement && !coastCrossed && i > 0) {
+        const yearsRemaining = Math.max(retirementAge - point.age, 0);
+        if (yearsRemaining > 0) {
+          const dynamicCoastTarget = summary.fireNumber / (1 + realReturn) ** yearsRemaining;
+          if (point.balance >= dynamicCoastTarget && dynamicCoastTarget > 0) {
+            coastMilestone = { label: "Coast FIRE" };
+            coastCrossed = true;
+          }
+        }
+      }
+
+      // Check static milestones (Barista, FIRE)
+      const staticMilestone = staticMilestones.find(
         (m) => !crossed.has(m.label) && point.balance >= m.target && m.target > 0,
       );
-      if (milestone) crossed.add(milestone.label);
+      if (staticMilestone) crossed.add(staticMilestone.label);
+
+      // Coast takes priority if both trigger same year (unlikely but possible)
+      const milestone = coastMilestone ?? staticMilestone ?? null;
+      if (milestone && coastMilestone) crossed.add("Coast FIRE");
       // Don't show milestones that trigger on the very first data point (year 0)
       const effectiveMilestone = (milestone && i === 0) ? null : milestone;
       // Use enriched projection data when available, fall back to estimate

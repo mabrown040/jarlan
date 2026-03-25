@@ -277,40 +277,57 @@ export default function SaveWhatIfWorkspace() {
     const wr = activeScenario.assumptions.withdrawalRate;
     const expenses = activeScenario.retirementExpenses || activeScenario.annualExpenses;
 
-    // Coast FIRE (base): when base balance reaches coastTarget
-    // Skip if already achieved at the start (portfolio already exceeds coast target)
-    const coastTarget = baseSummary.fireNumber / Math.pow(1 + effectiveReturn, Math.max(retAge - age, 1));
+    // Coast FIRE (base): dynamic target — coast target changes each year as remaining years shrink.
+    // Only show if FIRE is achievable by retirement age.
     const startBalance = baseSummary.projection[0]?.balance ?? 0;
-    const coastPoint = startBalance < coastTarget
-      ? baseSummary.projection.find(
-          (p, i) => i > 0 && p.balance >= coastTarget,
-        )
-      : undefined;
+    const baseFiYear = baseSummary.projection.findIndex((p, idx) => idx > 0 && p.balance >= baseSummary.fireNumber);
+    const baseFiByRetirement = baseFiYear >= 0 && (age + baseFiYear) <= retAge;
+
+    let coastPoint: (typeof baseSummary.projection)[number] | undefined;
+    if (baseFiByRetirement) {
+      coastPoint = baseSummary.projection.find((p, i) => {
+        if (i === 0) return false;
+        const yearsRemaining = Math.max(retAge - p.age, 0);
+        if (yearsRemaining <= 0) return false;
+        const dynamicTarget = baseSummary.fireNumber / Math.pow(1 + effectiveReturn, yearsRemaining);
+        return p.balance >= dynamicTarget && dynamicTarget > startBalance;
+      });
+    }
     if (coastPoint) {
+      const yearsRem = Math.max(retAge - coastPoint.age, 0);
+      const dynTarget = baseSummary.fireNumber / Math.pow(1 + effectiveReturn, yearsRem);
       markers.push({
         year: coastPoint.year,
         label: combinedSummary ? "Coast FI (base)" : "Coast FI",
-        target: coastTarget,
-        description: `At ${formatCompactCurrency(coastTarget)} saved, compounding finishes the job by retirement.`,
+        target: dynTarget,
+        description: `At ${formatCompactCurrency(dynTarget)} saved, compounding finishes the job by retirement.`,
       });
     }
 
-    // Coast FIRE (new): when combined balance reaches its own coastTarget
-    // Skip if already achieved at the start
+    // Coast FIRE (new): dynamic target for combined scenario
     if (combinedSummary) {
-      const compCoastTarget = combinedSummary.fireNumber / Math.pow(1 + effectiveReturn, Math.max(retAge - age, 1));
       const compStartBalance = combinedSummary.projection[0]?.balance ?? 0;
-      const compCoastPoint = compStartBalance < compCoastTarget
-        ? combinedSummary.projection.find(
-            (p, i) => i > 0 && p.balance >= compCoastTarget,
-          )
-        : undefined;
+      const compFiYear = combinedSummary.projection.findIndex((p, idx) => idx > 0 && p.balance >= combinedSummary.fireNumber);
+      const compFiByRetirement = compFiYear >= 0 && (age + compFiYear) <= retAge;
+
+      let compCoastPoint: (typeof combinedSummary.projection)[number] | undefined;
+      if (compFiByRetirement) {
+        compCoastPoint = combinedSummary.projection.find((p, i) => {
+          if (i === 0) return false;
+          const yearsRemaining = Math.max(retAge - p.age, 0);
+          if (yearsRemaining <= 0) return false;
+          const dynamicTarget = combinedSummary.fireNumber / Math.pow(1 + effectiveReturn, yearsRemaining);
+          return p.balance >= dynamicTarget && dynamicTarget > compStartBalance;
+        });
+      }
       if (compCoastPoint && (!coastPoint || compCoastPoint.year !== coastPoint.year)) {
+        const yearsRem = Math.max(retAge - compCoastPoint.age, 0);
+        const dynTarget = combinedSummary.fireNumber / Math.pow(1 + effectiveReturn, yearsRem);
         markers.push({
           year: compCoastPoint.year,
           label: "Coast FI (new)",
-          target: compCoastTarget,
-          description: `With changes, coast target is ${formatCompactCurrency(compCoastTarget)}. Compounding finishes by retirement.`,
+          target: dynTarget,
+          description: `With changes, coast target is ${formatCompactCurrency(dynTarget)}. Compounding finishes by retirement.`,
         });
       }
     }
