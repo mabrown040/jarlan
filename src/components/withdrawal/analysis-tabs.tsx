@@ -77,7 +77,7 @@ function InlineViewNav({
           role="tab"
           aria-selected={activeItem === item.id}
           className={cn(
-            "rounded-full px-4 py-2 text-sm transition-colors",
+            "rounded-full px-4 py-2 text-sm font-medium transition-colors",
             activeItem === item.id
               ? "bg-primary font-semibold text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -87,6 +87,18 @@ function InlineViewNav({
           {item.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+function SubViewSwitcher({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl border border-border/60 bg-card/40 px-5 py-3">
+      {children}
     </div>
   );
 }
@@ -211,7 +223,7 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
         <div className={cn("space-y-6", props.controls ? "mt-4" : "mt-6")}>
           {activeTab === "core" && (
             <>
-              <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl border border-border/60 bg-card/40 px-5 py-3">
+              <SubViewSwitcher>
                 <InlineViewNav
                   items={CORE_VIEWS}
                   activeItem={coreView}
@@ -219,7 +231,7 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
                     setCoreView(value as (typeof CORE_VIEWS)[number]["id"])
                   }
                 />
-              </div>
+              </SubViewSwitcher>
 
               {coreView === "historical" ? (
                 <ChartShell
@@ -557,7 +569,7 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
 
           {activeTab === "stress" && (
             <>
-              <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl border border-border/60 bg-card/40 px-5 py-3">
+              <SubViewSwitcher>
                 <InlineViewNav
                   items={STRESS_VIEWS}
                   activeItem={stressView}
@@ -565,7 +577,7 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
                     setStressView(value as (typeof STRESS_VIEWS)[number]["id"])
                   }
                 />
-              </div>
+              </SubViewSwitcher>
               {stressView === "heatmap" ? (
                 <HeatmapTab
                   heatmapData={props.heatmapData}

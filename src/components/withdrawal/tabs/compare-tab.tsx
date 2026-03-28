@@ -98,11 +98,11 @@ export function CompareTab({
             eyebrow="Action panel"
             title="Tune this strategy and see immediate impact"
             titleAs="h3"
-            titleClassName="text-[1.6rem]"
+            titleClassName="text-[1.45rem]"
             description="Use Spend as the decision surface. For deeper methodology and research context, open the strategy guide."
           />
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="space-y-4">
           <div className="rounded-xl border border-border/60 bg-card/35 p-4">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
               Selected strategy
@@ -187,7 +187,7 @@ export function CompareTab({
                 eyebrow="Decision table"
                 title="Tradeoffs at a glance"
                 titleAs="h3"
-                titleClassName="text-[1.9rem]"
+                titleClassName="text-[1.55rem]"
                 description="This table matches the comparison chart and surfaces the metrics that matter when picking a withdrawal style, not just the raw survival rate."
               />
             </CardHeader>
