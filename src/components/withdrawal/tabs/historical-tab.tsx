@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
 import { LoaderCircle } from "lucide-react";
 
@@ -168,8 +169,22 @@ export function HistoricalTab({
                   caption="Initial annual income from your portfolio."
                   learnMore={{
                     title: "How is this calculated?",
-                    content:
-                      "The first-year withdrawal is determined by your chosen strategy. Fixed real uses portfolio x withdrawal rate. CAPE-based adjusts for market valuation. Guyton-Klinger starts at a higher rate with guardrails that adjust spending based on portfolio performance.",
+                    content: (
+                      <>
+                        <p>
+                          The starting withdrawal comes from your selected rule.
+                          Some rules keep real spending level, some react to
+                          valuation or portfolio size, and others deliberately
+                          step spending down over time.
+                        </p>
+                        <Link
+                          href="/education/withdrawal-strategies"
+                          className="mt-3 inline-flex items-center gap-1 font-medium text-primary transition-colors hover:text-primary/80"
+                        >
+                          Learn how each withdrawal strategy works →
+                        </Link>
+                      </>
+                    ),
                   }}
                 />
                 <EnhancedStatCard
@@ -225,8 +240,22 @@ export function HistoricalTab({
                   caption="Range of annual spending across the median path."
                   learnMore={{
                     title: "Why does spending vary?",
-                    content:
-                      "Dynamic strategies adjust spending based on portfolio performance or valuation. A wider band means more income volatility, which can improve durability but asks more flexibility from the household budget.",
+                    content: (
+                      <>
+                        <p>
+                          Dynamic rules trade steadier income for adaptability.
+                          A wider band means the plan is asking your household
+                          to absorb more spending changes when markets or
+                          valuations move.
+                        </p>
+                        <Link
+                          href="/education/withdrawal-strategies"
+                          className="mt-3 inline-flex items-center gap-1 font-medium text-primary transition-colors hover:text-primary/80"
+                        >
+                          See the strategy tradeoffs →
+                        </Link>
+                      </>
+                    ),
                   }}
                 />
               </div>

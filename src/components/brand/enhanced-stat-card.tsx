@@ -50,7 +50,7 @@ export function EnhancedStatCard({
   subtitle?: string;
   insight?: ReactNode;
   caption: string;
-  learnMore?: { title: string; content: string };
+  learnMore?: { title: string; content: ReactNode };
   tone?: keyof typeof toneStyles;
   className?: string;
 }) {
@@ -123,9 +123,9 @@ export function EnhancedStatCard({
             >
               {learnMore.title}
             </p>
-            <p className="mt-4 text-sm leading-relaxed text-foreground">
+            <div className="mt-4 text-sm leading-relaxed text-foreground">
               {learnMore.content}
-            </p>
+            </div>
             <button
               type="button"
               onClick={() => setFlipped(false)}

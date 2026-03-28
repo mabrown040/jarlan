@@ -5,6 +5,7 @@ import { LoaderCircle } from "lucide-react";
 
 import { ChartShell, StatCard } from "@/components/brand";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { SpendControlFocusArea } from "@/components/withdrawal/spend-quick-controls";
 import type {
@@ -67,7 +68,7 @@ function InlineViewNav({
   return (
     <div
       role="tablist"
-      className="inline-flex flex-wrap items-center gap-1 rounded-full border border-border/60 bg-background/80 p-1"
+      className="inline-flex flex-wrap items-center gap-1 rounded-full border border-border/60 bg-card/70 p-1.5 shadow-sm"
     >
       {items.map((item) => (
         <button
@@ -76,10 +77,10 @@ function InlineViewNav({
           role="tab"
           aria-selected={activeItem === item.id}
           className={cn(
-            "rounded-full px-3 py-1.5 text-sm transition-colors",
+            "rounded-full px-4 py-2 text-sm transition-colors",
             activeItem === item.id
-              ? "bg-primary font-medium text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground",
+              ? "bg-primary font-semibold text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
           )}
           onClick={() => onChange(item.id)}
         >
@@ -104,6 +105,7 @@ interface AnalysisTabsProps {
   monteCarloStatus: "idle" | "loading" | "ready" | "error";
   monteCarloError: string | null;
   monteCarloSimulationType: string;
+  onMonteCarloSimulationTypeChange: (value: string) => void;
   monteCarloTrials: number;
   mortalityRisk: MortalityRiskResult | null;
   healthStatus: string;
@@ -115,6 +117,8 @@ interface AnalysisTabsProps {
     description: string;
     result: HistoricalBacktestResult | undefined;
   }>;
+  selectedStrategyDescription: string;
+  strategyTuningControls?: ReactNode;
   heatmapData: Array<{
     withdrawalRate: number;
     capeBucket: string;
@@ -207,18 +211,7 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
         <div className={cn("space-y-6", props.controls ? "mt-4" : "mt-6")}>
           {activeTab === "core" && (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/40 px-5 py-4">
-                <p className="max-w-2xl text-sm text-muted-foreground">
-                  Historical backtesting answers{" "}
-                  <span className="font-medium text-foreground">
-                    would this have survived every real retirement start?
-                  </span>{" "}
-                  Monte Carlo answers{" "}
-                  <span className="font-medium text-foreground">
-                    how often could this work under the selected future-return model?
-                  </span>
-                  .
-                </p>
+              <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl border border-border/60 bg-card/40 px-5 py-3">
                 <InlineViewNav
                   items={CORE_VIEWS}
                   activeItem={coreView}
@@ -320,6 +313,27 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
                   title="Forward-looking probability view"
                   description={`The active strategy is also simulated with ${props.monteCarloTrials.toLocaleString()} trials in ${props.monteCarloSimulationType.replaceAll("_", " ")} mode.`}
                 >
+                  <div className="mb-4 rounded-xl border border-border/60 bg-card/35 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-foreground">
+                        Monte Carlo mode
+                      </p>
+                      <div className="w-full sm:w-[16rem]">
+                        <Select
+                          id="analysis-mc-mode"
+                          value={props.monteCarloSimulationType}
+                          onChange={(event) =>
+                            props.onMonteCarloSimulationTypeChange(event.target.value)
+                          }
+                        >
+                          <option value="monte_carlo_parametric">Parametric</option>
+                          <option value="monte_carlo_bootstrap">Bootstrap</option>
+                          <option value="monte_carlo_block">Block bootstrap</option>
+                          <option value="monte_carlo_regime">Regime switching</option>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
                   {props.monteCarloStatus === "loading" && !props.monteCarloResult ? (
                     <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/50 p-5 text-sm text-muted-foreground">
                       <LoaderCircle className="size-4 animate-spin" />
@@ -524,11 +538,6 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
 
           {activeTab === "compare" && (
             <>
-              <div className="rounded-xl border border-border/60 bg-card/40 px-5 py-4 text-sm text-muted-foreground">
-                This view is for choosing the spending style that matches your
-                household. Compare not just survival, but also how much spending
-                moves up or down over time.
-              </div>
               {props.backtestStatus === "loading" ? (
                 <div className="rounded-xl border border-border/60 bg-card/40 px-5 py-4 text-sm text-muted-foreground">
                   Refreshing the strategy comparison for the latest plan inputs.
@@ -539,18 +548,16 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
                 strategyComparisonSeries={props.strategyComparisonSeries}
                 comparisonSummaries={props.comparisonSummaries}
                 selectedStrategy={props.selectedStrategy}
+                selectedStrategyLabel={props.selectedStrategyMeta.label}
+                selectedStrategyDescription={props.selectedStrategyDescription}
+                strategyTuningControls={props.strategyTuningControls}
               />
             </>
           )}
 
           {activeTab === "stress" && (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/40 px-5 py-4">
-                <p className="max-w-2xl text-sm text-muted-foreground">
-                  Stress testing focuses on the conditions that break otherwise
-                  promising plans: expensive starting valuations, unlucky failure
-                  timing, and living long enough to outlast the portfolio.
-                </p>
+              <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl border border-border/60 bg-card/40 px-5 py-3">
                 <InlineViewNav
                   items={STRESS_VIEWS}
                   activeItem={stressView}

@@ -53,13 +53,13 @@ const TOPICS: TopicCard[] = [
         : null,
   },
   {
-    title: "Safe Withdrawal Rate",
-    description: "The percentage you can safely spend each year in retirement",
-    href: null,
-    emoji: "🛡️",
+    title: "Withdrawal Strategies",
+    description: "How different retirement spending rules trade off stability and flexibility",
+    href: "/education/withdrawal-strategies",
+    emoji: "🧭",
     getPersonalized: (ctx) =>
       ctx.fireNumber > 0
-        ? `Your ${formatPercent(ctx.withdrawalRate, 0)} rate means ${formatCompactCurrency(ctx.expenses)}/yr from ${formatCompactCurrency(ctx.fireNumber)}`
+        ? `Your ${formatPercent(ctx.withdrawalRate, 0)} starting rate means ${formatCompactCurrency(ctx.expenses)}/yr from ${formatCompactCurrency(ctx.fireNumber)}`
         : null,
   },
   {
@@ -284,13 +284,18 @@ export function EducationWorkspace() {
             >
               {educationReferences.map((reference) => (
                 <a
-                  key={reference.url}
+                  key={reference.id}
                   href={reference.url}
                   target="_blank"
                   rel="noreferrer"
                   className="block rounded-xl border border-border/60 bg-card/40 p-4 text-muted-foreground transition-colors hover:border-border hover:text-foreground"
                 >
-                  {reference.label}
+                  <p className="font-medium text-foreground">{reference.label}</p>
+                  {reference.note ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {reference.note}
+                    </p>
+                  ) : null}
                 </a>
               ))}
             </CardContent>

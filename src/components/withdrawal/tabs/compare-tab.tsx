@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import {
   WithdrawalStrategyComparisonChart,
   type WithdrawalStrategyComparisonPoint,
@@ -20,10 +22,35 @@ interface CompareTabProps {
     result: HistoricalBacktestResult | undefined;
   }>;
   selectedStrategy: string;
+  selectedStrategyLabel: string;
+  selectedStrategyDescription: string;
+  strategyTuningControls?: ReactNode;
 }
 
 function formatYearLabel(year: number) {
   return year === 0 ? "Start" : `Year ${year}`;
+}
+
+function formatDelta(
+  value: number | null,
+  baseline: number | null,
+  formatter: (n: number) => string,
+) {
+  if (value === null) {
+    return "—";
+  }
+
+  if (baseline === null) {
+    return formatter(value);
+  }
+
+  const delta = value - baseline;
+  if (Math.abs(delta) < 1e-6) {
+    return `${formatter(value)} (flat)`;
+  }
+
+  const sign = delta > 0 ? "+" : "";
+  return `${formatter(value)} (${sign}${formatter(delta)})`;
 }
 
 export function CompareTab({
@@ -31,20 +58,114 @@ export function CompareTab({
   strategyComparisonSeries,
   comparisonSummaries,
   selectedStrategy,
+  selectedStrategyLabel,
+  selectedStrategyDescription,
+  strategyTuningControls,
 }: CompareTabProps) {
+  const selectedSummary =
+    comparisonSummaries.find((summary) => summary.type === selectedStrategy) ?? null;
+  const fixedSummary =
+    comparisonSummaries.find((summary) => summary.type === "fixed") ?? null;
+  const selectedResult = selectedSummary?.result ?? undefined;
+  const fixedResult = fixedSummary?.result ?? undefined;
+
+  const successDisplay = formatDelta(
+    selectedResult?.successRate ?? null,
+    fixedResult?.successRate ?? null,
+    (value) => formatPercent(value, 1),
+  );
+  const firstYearDisplay = formatDelta(
+    selectedResult?.withdrawalSummary.firstYearMedian ?? null,
+    fixedResult?.withdrawalSummary.firstYearMedian ?? null,
+    (value) => formatCompactCurrency(value),
+  );
+  const volatilityDisplay = formatDelta(
+    selectedResult?.withdrawalSummary.medianStdDev ?? null,
+    fixedResult?.withdrawalSummary.medianStdDev ?? null,
+    (value) => formatCompactCurrency(value),
+  );
+  const endingDisplay = formatDelta(
+    selectedResult?.terminalValueStats.median ?? null,
+    fixedResult?.terminalValueStats.median ?? null,
+    (value) => formatCompactCurrency(value),
+  );
+
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-border/60 bg-card/40 px-5 py-4 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">Which strategy fits you?</p>
-        <p className="mt-1.5">
-          <span className="font-medium text-foreground">Prefer steadier income?</span>{" "}
-          Fixed real and Floor/Ceiling tend to smooth spending.{" "}
-          <span className="font-medium text-foreground">Comfortable adjusting?</span>{" "}
-          CAPE dynamic and Guyton-Klinger can improve resilience by flexing with markets.{" "}
-          <span className="font-medium text-foreground">Want more up front?</span> VPW,
-          Constant %, RMD, and Spending smile usually spend more early but fade more over time.
-        </p>
-      </div>
+      <Card>
+        <CardHeader>
+          <SectionHeading
+            eyebrow="Action panel"
+            title="Tune this strategy and see immediate impact"
+            titleAs="h3"
+            titleClassName="text-[1.6rem]"
+            description="Use Spend as the decision surface. For deeper methodology and research context, open the strategy guide."
+          />
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="rounded-xl border border-border/60 bg-card/35 p-4">
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              Selected strategy
+            </p>
+            <p className="mt-2 text-lg font-medium text-foreground">
+              {selectedStrategyLabel}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {selectedStrategyDescription}
+            </p>
+          </div>
+
+          {strategyTuningControls ? (
+            <div className="rounded-xl border border-border/60 bg-card/35 p-4">
+              {strategyTuningControls}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border/60 bg-card/35 p-4 text-sm text-muted-foreground">
+              This strategy has no extra tuning controls. Use withdrawal rate,
+              horizon, and portfolio mode to shape outcomes.
+            </div>
+          )}
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-border/60 bg-card/35 p-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                Success
+              </p>
+              <p className="mt-2 text-sm font-medium text-foreground">
+                {successDisplay}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-card/35 p-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                Year-one median
+              </p>
+              <p className="mt-2 text-sm font-medium text-foreground">
+                {firstYearDisplay}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-card/35 p-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                Volatility
+              </p>
+              <p className="mt-2 text-sm font-medium text-foreground">
+                {volatilityDisplay}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-card/35 p-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                Median ending value
+              </p>
+              <p className="mt-2 text-sm font-medium text-foreground">
+                {endingDisplay}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Deltas in parentheses compare the selected strategy to Fixed real
+            using your current plan inputs.
+          </p>
+        </CardContent>
+      </Card>
 
       {strategyComparisonRows.length > 0 ? (
         <>

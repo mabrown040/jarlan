@@ -9,74 +9,12 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { NumberInput } from "@/components/ui/number-input";
 import { Select } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { formatCompactCurrency, formatPercent } from "@/lib/calc";
+import { formatPercent } from "@/lib/calc";
 import type { Scenario } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 
 export type SpendControlFocusArea = "core" | "compare" | "stress";
-
-type PortfolioMode = "fire-target" | "current";
-type ControlKey = "withdrawal" | "strategy" | "horizon" | "monte-carlo";
-
-const FOCUS_CONFIG = {
-  core: {
-    label: "Core outlook",
-    title: "Change the levers that matter most",
-    description:
-      "These are the knobs most likely to move the fan chart, Monte Carlo view, and worst-case story.",
-    recommended:
-      "Start with withdrawal rate, strategy, and horizon. They change the answer fastest.",
-    controls: ["withdrawal", "strategy", "horizon", "monte-carlo"] as ControlKey[],
-  },
-  compare: {
-    label: "Strategy comparison",
-    title: "Change the levers that matter most",
-    description:
-      "Use a few high-leverage inputs to make the tradeoff table feel exploratory instead of buried in settings.",
-    recommended:
-      "Start with strategy, withdrawal rate, and horizon to see the comparison table reshuffle.",
-    controls: ["strategy", "withdrawal", "horizon", "monte-carlo"] as ControlKey[],
-  },
-  stress: {
-    label: "Stress test",
-    title: "Change the levers that matter most",
-    description:
-      "Keep the assumptions that most affect valuation sensitivity and failure pressure close at hand.",
-    recommended:
-      "Start with withdrawal rate, strategy, and Monte Carlo mode when you want a harsher read.",
-    controls: ["withdrawal", "strategy", "monte-carlo", "horizon"] as ControlKey[],
-  },
-} as const;
-
-function simulationTypeLabel(
-  simulationType: Scenario["simulationSettings"]["simulationType"],
-) {
-  switch (simulationType) {
-    case "monte_carlo_bootstrap":
-      return "Bootstrap";
-    case "monte_carlo_block":
-      return "Block bootstrap";
-    case "monte_carlo_regime":
-      return "Regime switching";
-    case "historical":
-      return "Historical";
-    case "monte_carlo_parametric":
-    default:
-      return "Parametric";
-  }
-}
-
-function terminalTargetLabel(finalValueTarget: number) {
-  if (finalValueTarget >= 1) {
-    return "Preserve 100%";
-  }
-
-  if (finalValueTarget >= 0.25) {
-    return "Preserve 25%";
-  }
-
-  return "Survival only";
-}
+type ControlKey = "strategy" | "withdrawal" | "horizon";
 
 function SummaryPill({ children }: { children: ReactNode }) {
   return (
@@ -87,11 +25,7 @@ function SummaryPill({ children }: { children: ReactNode }) {
 }
 
 export function SpendQuickControls({
-  focusArea,
   saveStatus,
-  portfolioMode,
-  currentBalance,
-  fireTarget,
   strategy,
   strategyLabel,
   strategyDescription,
@@ -100,23 +34,18 @@ export function SpendQuickControls({
   stockAllocation,
   retirementDuration,
   finalValueTarget,
-  monteCarloTrials,
-  monteCarloSimulationType,
   rebalanceFrequency,
-  onPortfolioModeChange,
   onStrategyChange,
   onWithdrawalRateChange,
   onRetirementDurationChange,
-  onSimulationTypeChange,
+  onStockAllocationChange,
+  onFinalValueTargetChange,
+  onRebalanceFrequencyChange,
   onOpenAdvancedSettings,
   children,
   className,
 }: {
-  focusArea: SpendControlFocusArea;
   saveStatus: "idle" | "saving" | "saved" | "error";
-  portfolioMode: PortfolioMode;
-  currentBalance: number;
-  fireTarget: number;
   strategy: string;
   strategyLabel: string;
   strategyDescription: string;
@@ -125,22 +54,20 @@ export function SpendQuickControls({
   stockAllocation: number;
   retirementDuration: number;
   finalValueTarget: number;
-  monteCarloTrials: number;
-  monteCarloSimulationType: Scenario["simulationSettings"]["simulationType"];
   rebalanceFrequency: Scenario["simulationSettings"]["rebalanceFrequency"];
-  onPortfolioModeChange: (mode: PortfolioMode) => void;
   onStrategyChange: (value: string) => void;
   onWithdrawalRateChange: (value: number) => void;
   onRetirementDurationChange: (value: number) => void;
-  onSimulationTypeChange: (
-    value: Scenario["simulationSettings"]["simulationType"],
+  onStockAllocationChange: (value: number) => void;
+  onFinalValueTargetChange: (value: number) => void;
+  onRebalanceFrequencyChange: (
+    value: Scenario["simulationSettings"]["rebalanceFrequency"],
   ) => void;
   onOpenAdvancedSettings: () => void;
   children?: ReactNode;
   className?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const focusConfig = FOCUS_CONFIG[focusArea];
   const saveStatusLabel =
     saveStatus === "saving"
       ? "Saving..."
@@ -156,7 +83,7 @@ export function SpendQuickControls({
         return (
           <div
             key={control}
-            className="rounded-2xl border border-border/60 bg-card/35 p-4"
+            className="h-full rounded-2xl border border-border/60 bg-card/35 p-3.5"
           >
             <div className="flex items-center justify-between gap-3">
               <FieldLabel
@@ -168,7 +95,7 @@ export function SpendQuickControls({
                 {formatPercent(withdrawalRate, 1)}
               </span>
             </div>
-            <div className="mt-3">
+            <div className="mt-2">
               <Slider
                 id="spend-withdrawal-rate"
                 min={2.5}
@@ -180,7 +107,7 @@ export function SpendQuickControls({
                 }
               />
             </div>
-            <div className="mt-3 max-w-[7rem]">
+            <div className="mt-2 max-w-[7rem]">
               <NumberInput
                 value={withdrawalRate * 100}
                 min={2.5}
@@ -192,24 +119,20 @@ export function SpendQuickControls({
                 }
               />
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Lower rates usually improve durability fastest and make the biggest
-              visible difference across the charts.
-            </p>
           </div>
         );
       case "strategy":
         return (
           <div
             key={control}
-            className="rounded-2xl border border-border/60 bg-card/35 p-4"
+            className="h-full rounded-2xl border border-border/60 bg-card/35 p-3.5"
           >
             <FieldLabel
               htmlFor="spend-strategy"
               label="Strategy"
               tooltip="The spending rule that determines how income changes over time."
             />
-            <div className="mt-3">
+            <div className="mt-2">
               <Select
                 id="spend-strategy"
                 value={strategy}
@@ -222,74 +145,93 @@ export function SpendQuickControls({
                 ))}
               </Select>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{strategyLabel}.</span>{" "}
-              {focusArea === "compare"
-                ? "Comparison still runs every strategy; this keeps the rest of the page anchored to the one you care about most."
-                : strategyDescription}
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">{strategyDescription}</p>
           </div>
         );
       case "horizon":
         return (
           <div
             key={control}
-            className="rounded-2xl border border-border/60 bg-card/35 p-4"
+            className="rounded-2xl border border-border/60 bg-card/35 p-3.5"
           >
-            <FieldLabel
-              htmlFor="spend-retirement-duration"
-              label="Plan horizon"
-              tooltip="How many retirement years to model in the backtest and Monte Carlo."
-            />
-            <div className="mt-3">
-              <NumberInput
-                id="spend-retirement-duration"
-                value={retirementDuration}
-                min={10}
-                max={60}
-                step={1}
-                inputMode="numeric"
-                onValueChange={onRetirementDurationChange}
-              />
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="space-y-1.5">
+                <FieldLabel
+                  htmlFor="spend-retirement-duration"
+                  label="Plan horizon"
+                  tooltip="How many retirement years to model."
+                />
+                <NumberInput
+                  id="spend-retirement-duration"
+                  value={retirementDuration}
+                  min={10}
+                  max={60}
+                  step={1}
+                  inputMode="numeric"
+                  onValueChange={onRetirementDurationChange}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel
+                  htmlFor="spend-terminal-target"
+                  label="Terminal target"
+                  tooltip="0% means survival only. 100% means preserve full starting portfolio."
+                />
+                <Select
+                  id="spend-terminal-target"
+                  value={String(finalValueTarget)}
+                  onChange={(event) =>
+                    onFinalValueTargetChange(Number(event.target.value))
+                  }
+                >
+                  <option value="0">Survival only</option>
+                  <option value="0.25">Preserve 25%</option>
+                  <option value="1">Preserve 100%</option>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel
+                  htmlFor="spend-rebalance"
+                  label="Rebalancing"
+                  tooltip="How often to reset stock/bond mix to the target."
+                />
+                <Select
+                  id="spend-rebalance"
+                  value={rebalanceFrequency}
+                  onChange={(event) =>
+                    onRebalanceFrequencyChange(
+                      event.target.value as Scenario["simulationSettings"]["rebalanceFrequency"],
+                    )
+                  }
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="annually">Annually</option>
+                </Select>
+              </div>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Longer horizons are harder to sustain, but they are the safer way
-              to model early retirement.
-            </p>
-          </div>
-        );
-      case "monte-carlo":
-        return (
-          <div
-            key={control}
-            className="rounded-2xl border border-border/60 bg-card/35 p-4"
-          >
-            <FieldLabel
-              htmlFor="spend-mc-mode"
-              label="Monte Carlo mode"
-              tooltip="How forward-looking simulations draw future returns."
-            />
-            <div className="mt-3">
-              <Select
-                id="spend-mc-mode"
-                value={monteCarloSimulationType}
-                onChange={(event) =>
-                  onSimulationTypeChange(
-                    event.target.value as Scenario["simulationSettings"]["simulationType"],
-                  )
-                }
-              >
-                <option value="monte_carlo_parametric">Parametric</option>
-                <option value="monte_carlo_bootstrap">Bootstrap</option>
-                <option value="monte_carlo_block">Block bootstrap</option>
-                <option value="monte_carlo_regime">Regime switching</option>
-              </Select>
+            <div className="mt-3 border-t border-border/50 pt-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <FieldLabel
+                    htmlFor="spend-stock-allocation"
+                    label="Stock allocation"
+                    tooltip="The rest goes to bonds."
+                  />
+                  <span className="text-sm font-medium text-foreground">
+                    {formatPercent(stockAllocation, 0)} stocks
+                  </span>
+                </div>
+                <Slider
+                  id="spend-stock-allocation"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={[stockAllocation]}
+                  onValueChange={([nextValue]) => onStockAllocationChange(nextValue)}
+                />
+              </div>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Samples future returns from the configured averages and
-              volatility assumptions using {monteCarloTrials.toLocaleString()}{" "}
-              trials.
-            </p>
           </div>
         );
     }
@@ -299,22 +241,11 @@ export function SpendQuickControls({
     <Card className={cn("overflow-hidden", className)}>
       <CardHeader className="border-b border-border/50 bg-[linear-gradient(180deg,var(--surface-highlight),transparent)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <SlidersHorizontal className="size-4 text-[var(--ember)]" />
-              <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-muted-foreground">
-                Tune your spend plan
-              </p>
-              <SummaryPill>{focusConfig.label}</SummaryPill>
-            </div>
-            <div>
-              <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                {focusConfig.title}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {focusConfig.description}
-              </p>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <SlidersHorizontal className="size-4 text-[var(--ember)]" />
+            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-muted-foreground">
+              Tune spend plan
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <SummaryPill>{saveStatusLabel}</SummaryPill>
@@ -343,89 +274,23 @@ export function SpendQuickControls({
             </Button>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <SummaryPill>
-            {portfolioMode === "fire-target" ? "FIRE target lens" : "Current portfolio lens"}
-          </SummaryPill>
-          <SummaryPill>{strategyLabel}</SummaryPill>
-          <SummaryPill>{formatPercent(withdrawalRate, 1)} withdrawal</SummaryPill>
-          <SummaryPill>{retirementDuration} yr horizon</SummaryPill>
-          {focusArea !== "compare" ? (
-            <SummaryPill>{simulationTypeLabel(monteCarloSimulationType)}</SummaryPill>
-          ) : null}
-        </div>
       </CardHeader>
 
       {expanded ? (
         <CardContent className="space-y-5 pt-6">
-          <div className="rounded-2xl border border-border/60 bg-card/40 p-4">
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Recommended here
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {focusConfig.recommended}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-border/60 bg-card/40 p-4">
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Test portfolio
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Switch between your target retirement portfolio and the balance you
-              have actually saved today.
-            </p>
-            <div className="mt-4 inline-flex w-full flex-wrap items-center gap-2 rounded-full border border-border/60 bg-background/70 p-1">
-              {([
-                {
-                  id: "fire-target",
-                  label: `FIRE target (${formatCompactCurrency(fireTarget)})`,
-                },
-                {
-                  id: "current",
-                  label: `Current portfolio (${formatCompactCurrency(currentBalance)})`,
-                },
-              ] as const).map((mode) => (
-                <button
-                  key={mode.id}
-                  type="button"
-                  className={cn(
-                    "flex-1 rounded-full px-3 py-2 text-left text-sm transition-colors",
-                    portfolioMode === mode.id
-                      ? "bg-primary font-medium text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={() => onPortfolioModeChange(mode.id)}
-                >
-                  {mode.label}
-                </button>
-              ))}
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div>{renderControl("strategy")}</div>
+            <div>
+              {children ? (
+                <div className="rounded-2xl border border-border/60 bg-card/35 p-3.5">
+                  {children}
+                </div>
+              ) : (
+                renderControl("withdrawal")
+              )}
             </div>
           </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            {focusConfig.controls.map((control) => renderControl(control))}
-          </div>
-
-          {children ? (
-            <div className="rounded-2xl border border-border/60 bg-card/35 p-4">
-              {children}
-            </div>
-          ) : null}
-
-          <div className="rounded-2xl border border-border/60 bg-card/40 p-4">
-            <p className="text-sm text-muted-foreground">
-              Advanced settings still control stock mix, rebalancing, terminal
-              value target, supplemental income, fees, and the rest of the
-              scenario.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-              <SummaryPill>{formatPercent(stockAllocation, 0)} stocks</SummaryPill>
-              <SummaryPill>{terminalTargetLabel(finalValueTarget)}</SummaryPill>
-              <SummaryPill>{rebalanceFrequency} rebalance</SummaryPill>
-              <SummaryPill>{simulationTypeLabel(monteCarloSimulationType)}</SummaryPill>
-            </div>
-          </div>
+          <div>{renderControl("horizon")}</div>
         </CardContent>
       ) : null}
     </Card>
