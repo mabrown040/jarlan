@@ -43,8 +43,17 @@ describe("historical data and backtesting", () => {
     expect(result.failureCount).toBe(44);
     expect(result.initialWithdrawalRate).toBe(0.04);
     expect(result.bestCase.startDate).toBe("1932-07");
+    expect(result.bestCase.startingCape).not.toBeNull();
     expect(result.worstCase.startDate).toBe("1929-10");
     expect(result.worstCase.failureYear).toBe(23.2);
+    expect(result.worstCase.startingCape).not.toBeNull();
+    expect(result.worstCasePath).toHaveLength(31);
+    expect(result.worstCasePath[0]?.age).toBe(45);
+    expect(result.cohortSummaries).toHaveLength(result.periodsTested);
+    expect(result.withdrawalSummary.medianStdDev).toBeGreaterThan(0);
+    expect(result.withdrawalSummary.maxMedianYear).toBeGreaterThanOrEqual(
+      result.withdrawalSummary.minMedianYear,
+    );
     expect(result.terminalValueStats.median).toBe(3033566.15);
     expect(result.percentileBand[0]?.p50).toBe(1500000);
     expect(result.percentileBand.at(-1)?.p10).toBe(753128.46);

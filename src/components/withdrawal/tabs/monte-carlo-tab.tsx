@@ -53,10 +53,12 @@ export function MonteCarloTab({
         title="Forward-looking Monte Carlo"
         description={`The active strategy is also simulated with ${trials.toLocaleString()} trials in ${monteCarloSimulationType.replaceAll("_", " ")} mode.`}
       >
-        {status === "loading" && !monteCarloResult ? (
+        {status === "loading" ? (
           <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/50 p-5 text-sm text-muted-foreground">
             <LoaderCircle className="size-4 animate-spin" />
-            Running Monte Carlo simulation...
+            {monteCarloResult
+              ? "Refreshing Monte Carlo simulation..."
+              : "Running Monte Carlo simulation..."}
           </div>
         ) : null}
         {status === "error" ? (

@@ -19,6 +19,7 @@ export type SimulationRequest = HistoricalBacktestRequest | MonteCarloRequest;
 
 export interface SimulationSeriesPoint {
   year: number;
+  age: number;
   portfolioValue: number;
   withdrawal: number;
 }
@@ -41,6 +42,15 @@ export interface PercentileBandPoint {
 
 export interface HistoricalBacktestCase {
   startDate: string;
+  startingCape: number | null;
+  terminalValue: number;
+  success: boolean;
+  failureYear: number | null;
+}
+
+export interface HistoricalBacktestCohortSummary {
+  startDate: string;
+  startingCape: number | null;
   terminalValue: number;
   success: boolean;
   failureYear: number | null;
@@ -67,8 +77,11 @@ export interface WithdrawalSummary {
   firstYearMedian: number;
   firstYearP90: number;
   minMedian: number;
+  minMedianYear: number;
   averageMedian: number;
+  medianStdDev: number;
   maxMedian: number;
+  maxMedianYear: number;
 }
 
 export interface HistoricalBacktestResult {
@@ -88,10 +101,12 @@ export interface HistoricalBacktestResult {
   terminalValueTarget: number;
   bestCase: HistoricalBacktestCase;
   worstCase: HistoricalBacktestCase;
+  worstCasePath: SimulationSeriesPoint[];
   terminalValueStats: TerminalValueStats;
   terminalValueHistogram: HistogramBin[];
   failureYearHistogram: HistogramBin[];
   withdrawalSummary: WithdrawalSummary;
+  cohortSummaries: HistoricalBacktestCohortSummary[];
   notes: string[];
   percentileBand: PercentileBandPoint[];
 }

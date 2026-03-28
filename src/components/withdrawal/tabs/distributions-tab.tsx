@@ -12,7 +12,7 @@ export function DistributionsTab({ result }: DistributionsTabProps) {
         These histograms show how often the active strategy finishes with different ending balances, and when failing paths tend to break.
       </p>
       {result ? (
-        <div className="grid gap-6 xl:grid-cols-[1fr,1fr]">
+        <div className="grid gap-6 xl:grid-cols-2">
           <div className="space-y-3">
             <p className="text-sm font-medium text-foreground">
               Historical terminal value histogram

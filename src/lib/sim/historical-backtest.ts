@@ -6,9 +6,11 @@ import { getShillerDataset, type ShillerMonthlyRecord } from "@/lib/data";
 import type { AssetAllocation, CashFlowEvent, Scenario } from "@/lib/domain/types";
 import type {
   HistoricalBacktestRequest,
+  HistoricalBacktestCohortSummary,
   HistoricalBacktestResult,
   HistogramBin,
   PercentileBandPoint,
+  SimulationSeriesPoint,
   SuccessRateConfidenceInterval,
   TerminalValueStats,
   WithdrawalSummary,
@@ -28,6 +30,7 @@ interface NormalizedAllocation {
 
 interface HistoricalPathOutcome {
   startDate: string;
+  startingCape: number | null;
   annualBalances: number[];
   annualWithdrawals: number[];
   terminalValue: number;
@@ -69,6 +72,18 @@ function average(values: number[]) {
   }
 
   return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function standardDeviation(values: number[]) {
+  if (values.length <= 1) {
+    return 0;
+  }
+
+  const mean = average(values);
+
+  return Math.sqrt(
+    values.reduce((total, value) => total + (value - mean) ** 2, 0) / values.length,
+  );
 }
 
 function wilsonInterval(
@@ -176,6 +191,14 @@ function getMonthlyCashFlow(
 
     return total + (cashFlow.type === "income" ? monthlyAmount : -monthlyAmount);
   }, 0);
+}
+
+function getStartingCape(record: ShillerMonthlyRecord | undefined) {
+  return record?.cape ?? record?.trCape ?? null;
+}
+
+function toFailureYear(failureMonth: number | null) {
+  return failureMonth === null ? null : roundTo(failureMonth / 12, 1);
 }
 
 function simulateHistoricalPath({
@@ -325,6 +348,7 @@ function simulateHistoricalPath({
 
   return {
     startDate: records[startIndex].date,
+    startingCape: getStartingCape(records[startIndex]),
     annualBalances,
     annualWithdrawals,
     terminalValue,
@@ -352,6 +376,30 @@ function buildPercentileBand(
       p90: roundTo(percentile(balancesAtYear, 0.9)),
     };
   });
+}
+
+function buildSeriesPath(
+  path: HistoricalPathOutcome,
+  retirementStartAge: number,
+): SimulationSeriesPoint[] {
+  return path.annualBalances.map((portfolioValue, year) => ({
+    year,
+    age: roundTo(retirementStartAge + year, 1),
+    portfolioValue: roundTo(portfolioValue),
+    withdrawal: roundTo(path.annualWithdrawals[year] ?? 0),
+  }));
+}
+
+function buildCohortSummaries(
+  paths: HistoricalPathOutcome[],
+): HistoricalBacktestCohortSummary[] {
+  return paths.map((path) => ({
+    startDate: path.startDate,
+    startingCape: path.startingCape,
+    terminalValue: roundTo(path.terminalValue),
+    success: path.success,
+    failureYear: toFailureYear(path.failureMonth),
+  }));
 }
 
 function buildTerminalValueStats(paths: HistoricalPathOutcome[]): TerminalValueStats {
@@ -415,14 +463,25 @@ function buildWithdrawalSummary(paths: HistoricalPathOutcome[]): WithdrawalSumma
       0.5,
     ),
   );
+  const minMedian = Math.min(...medianWithdrawalsByYear);
+  const maxMedian = Math.max(...medianWithdrawalsByYear);
+  const minMedianYear = medianWithdrawalsByYear.findIndex(
+    (value) => roundTo(value, 4) === roundTo(minMedian, 4),
+  );
+  const maxMedianYear = medianWithdrawalsByYear.findIndex(
+    (value) => roundTo(value, 4) === roundTo(maxMedian, 4),
+  );
 
   return {
     firstYearP10: roundTo(percentile(firstYearWithdrawals, 0.1)),
     firstYearMedian: roundTo(percentile(firstYearWithdrawals, 0.5)),
     firstYearP90: roundTo(percentile(firstYearWithdrawals, 0.9)),
-    minMedian: roundTo(Math.min(...medianWithdrawalsByYear)),
+    minMedian: roundTo(minMedian),
+    minMedianYear,
     averageMedian: roundTo(average(medianWithdrawalsByYear)),
-    maxMedian: roundTo(Math.max(...medianWithdrawalsByYear)),
+    medianStdDev: roundTo(standardDeviation(medianWithdrawalsByYear)),
+    maxMedian: roundTo(maxMedian),
+    maxMedianYear,
   };
 }
 
@@ -503,6 +562,7 @@ export function runHistoricalBacktest(
 
     return left.startDate.localeCompare(right.startDate);
   })[0];
+  const cohortSummaries = buildCohortSummaries(paths);
   const notes = [
     "Returns are modeled in real dollars, so reported balances and withdrawals stay in constant purchasing-power terms.",
     "Stock returns come directly from the Shiller real total return series.",
@@ -545,26 +605,24 @@ export function runHistoricalBacktest(
     ),
     bestCase: {
       startDate: bestCase.startDate,
+      startingCape: bestCase.startingCape,
       terminalValue: bestCase.terminalValue,
       success: bestCase.success,
-      failureYear:
-        bestCase.failureMonth === null
-          ? null
-          : roundTo(bestCase.failureMonth / 12, 1),
+      failureYear: toFailureYear(bestCase.failureMonth),
     },
     worstCase: {
       startDate: worstCase.startDate,
+      startingCape: worstCase.startingCape,
       terminalValue: worstCase.terminalValue,
       success: worstCase.success,
-      failureYear:
-        worstCase.failureMonth === null
-          ? null
-          : roundTo(worstCase.failureMonth / 12, 1),
+      failureYear: toFailureYear(worstCase.failureMonth),
     },
+    worstCasePath: buildSeriesPath(worstCase, retirementStartAge),
     terminalValueStats,
     terminalValueHistogram,
     failureYearHistogram,
     withdrawalSummary,
+    cohortSummaries,
     notes,
     percentileBand: buildPercentileBand(paths, retirementStartAge),
   };

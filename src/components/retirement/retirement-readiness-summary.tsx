@@ -121,7 +121,7 @@ export function RetirementReadinessSummary({
           </ErrorAlert>
         ) : null}
 
-        <div className="grid gap-6 xl:grid-cols-[16rem,1fr]">
+        <div className="grid gap-6 xl:grid-cols-[16rem_1fr]">
           <div
             className={cn(
               "rounded-2xl border p-5 shadow-[var(--shadow-soft)]",
@@ -242,7 +242,7 @@ export function RetirementReadinessSummary({
           />
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[1fr,1fr]">
+        <div className="grid gap-4 xl:grid-cols-2">
           <div className="rounded-2xl border border-border/60 bg-card/35 p-5">
             <p className="font-medium text-foreground">What could break first</p>
             <div className="mt-3 space-y-3 text-sm text-muted-foreground">
