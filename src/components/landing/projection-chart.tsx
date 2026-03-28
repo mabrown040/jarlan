@@ -18,7 +18,7 @@ import { formatCompactCurrency } from "@/lib/calc/format";
 import type { ProjectionPoint } from "@/lib/domain/types";
 
 /* ── Brand colors ── */
-const CONTRIBUTIONS_COLOR = "#9B8B73";
+const CONTRIBUTIONS_COLOR = "var(--chart-contributions)";
 const GROWTH_COLOR = "var(--ember)";
 const OPTIMISTIC_COLOR = "#22c55e";
 const PESSIMISTIC_COLOR = "#ef4444";
@@ -447,6 +447,7 @@ export function ProjectionChart({
               stroke="var(--ember)"
               strokeDasharray="6 4"
               strokeOpacity={0.3}
+              isFront={false}
               label={{
                 value: `${formatCompactCurrency(target)} target`,
                 position: "right",
@@ -457,10 +458,9 @@ export function ProjectionChart({
 
           {/* Milestone reference lines — stagger overlapping labels */}
           {(() => {
-            // Sort milestones by year and assign vertical offsets to avoid overlap
             const sorted = [...milestones].sort((a, b) => a.year - b.year);
-            const OVERLAP_THRESHOLD = 2; // years apart considered "close"
-            const STAGGER_PX = 16; // vertical offset per stagger level
+            const OVERLAP_THRESHOLD = 2;
+            const STAGGER_PX = 16;
             let prevYear = -999;
             let staggerLevel = 0;
             for (const m of sorted) {
@@ -478,7 +478,7 @@ export function ProjectionChart({
                 x={m.year}
                 stroke={m.isGoal ? "var(--muted-foreground)" : m.isEvent ? "var(--muted-foreground)" : "var(--ember)"}
                 strokeDasharray={m.isGoal ? "4 4" : m.isEvent ? "2 4" : "3 3"}
-                strokeOpacity={m.isGoal ? 0.35 : m.isEvent ? 0.25 : 0.4}
+                strokeOpacity={m.isGoal ? 0.15 : m.isEvent ? 0.1 : 0.15}
                 label={<MilestoneLabel milestone={m} />}
               />
             ));
@@ -578,6 +578,7 @@ export function ProjectionChart({
               name="comparison"
             />
           ) : null}
+
         </ComposedChart>
       </ResponsiveContainer>
     </ChartFrame>

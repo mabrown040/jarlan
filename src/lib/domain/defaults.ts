@@ -166,6 +166,7 @@ export function createDefaultScenario(): Scenario {
       monthlyBenefitAt70: 3_350,
       claimingAge: 67,
     },
+    isPersonalized: false,
   };
 }
 

@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
+import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
 import { buildSavingsRateTableRows } from "@/lib/calc/savings-rate-table";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
@@ -13,7 +15,11 @@ import { cn } from "@/lib/utils";
 
 export function SavingsRateArticle() {
   const activeScenario = useScenarioStore((s) => s.activeScenario);
-  const hasData = activeScenario.annualIncome > 0;
+
+  useInitializeStore();
+  useAutoSaveScenario();
+
+  const hasData = activeScenario.isPersonalized !== false;
 
   const taxInfo = useMemo(
     () => estimateScenarioTax(activeScenario),

@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { cloneScenario, createDefaultScenario } from "@/lib/domain";
-import { clearScenarioDraft } from "@/lib/db/database";
-import { useScenarioStore } from "@/lib/store/use-scenario-store";
+import { clearScenarioDraft, saveScenarioDraft } from "@/lib/db/database";
 import type { Scenario } from "@/lib/domain/types";
 
 /* ── Persona Definitions ─────────────────────────────────── */
@@ -448,7 +447,6 @@ const PERSONAS = [
 export function QADevModal() {
   const [open, setOpen] = useState(false);
   const [lastLoaded, setLastLoaded] = useState<string | null>(null);
-  const replaceScenario = useScenarioStore((s) => s.replaceScenario);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Ctrl+Shift+Q (or Cmd+Shift+Q on Mac)
@@ -497,22 +495,23 @@ export function QADevModal() {
         {PERSONAS.map((persona) => (
           <button
             key={persona.id}
-            onClick={() => {
+            onClick={async () => {
               const scenario = persona.create();
+              scenario.isPersonalized = true;
               // Compute taxable brokerage contribution as remainder
               const totalContribs = scenario.accounts
                 .filter((a) => a.type !== "taxable")
                 .reduce((sum, a) => sum + a.annualContribution, 0);
               const taxableAcct = scenario.accounts.find((a) => a.type === "taxable");
               if (taxableAcct) {
-                // Rough remainder — will be refined by the tax engine
                 const roughSavings = Math.max(scenario.annualIncome * 0.6 - scenario.annualExpenses, 0);
                 taxableAcct.annualContribution = Math.max(roughSavings - totalContribs, 0);
               }
               scenario.annualSavings = scenario.accounts.reduce((sum, a) => sum + a.annualContribution, 0);
-              replaceScenario(scenario);
+              // Persist immediately then reload so the page picks up the new data cleanly
+              await saveScenarioDraft(scenario);
               setLastLoaded(persona.id);
-              setTimeout(() => setLastLoaded(null), 2000);
+              window.location.reload();
             }}
             className={`flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-all ${
               lastLoaded === persona.id
@@ -537,11 +536,8 @@ export function QADevModal() {
       <div className="mt-3 border-t border-border/40 pt-2">
         <button
           onClick={async () => {
-            // Full "new user" reset: clear persisted draft + reset store
+            // Full "new user" reset: clear persisted draft then hard navigate
             await clearScenarioDraft();
-            replaceScenario(createDefaultScenario());
-            setLastLoaded("reset");
-            // Navigate to home page for fresh start experience
             window.location.href = "/";
           }}
           className="text-xs text-muted-foreground hover:text-red-500"

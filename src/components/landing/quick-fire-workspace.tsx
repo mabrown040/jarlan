@@ -4,13 +4,14 @@ import type { Route } from "next";
 import Link from "next/link";
 import { Copy, RotateCcw } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   ChartShell,
   PageHero,
 } from "@/components/brand";
 import { useHasExistingDraft } from "@/lib/hooks/use-has-existing-draft";
+import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { ProjectionChart, ChartLegend, findCrossoverYear } from "@/components/landing/projection-chart";
 import { US_BENCHMARKS, estimateNetWorthPercentile, getMedianNetWorthForAge } from "@/lib/data/benchmarks";
 import { buildScenarioProjection } from "@/lib/calc/quick-fire";
@@ -18,7 +19,6 @@ import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scen
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Select } from "@/components/ui/select";
 import {
   calculateFireTypeSummaries,
   calculateQuickFireSummary,
@@ -37,15 +37,11 @@ import { estimateScenarioTax } from "@/lib/tax";
 import {
   cloneScenario,
 } from "@/lib/domain";
-import type {
-  FilingStatus,
-  Scenario,
-} from "@/lib/domain/types";
+import type { Scenario } from "@/lib/domain/types";
 import { getCountryPreset } from "@/lib/data";
 import { SCENARIO_QUERY_KEY } from "@/lib/share";
 import {
   buildScenarioShareUrl,
-  deserializeScenarioFromSearchParam,
 } from "@/lib/share";
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
 import { MoneyFlowSankey } from "@/components/charts/money-flow-sankey";
@@ -61,10 +57,8 @@ export function QuickFireWorkspace({
     activeScenario,
     status,
     saveStatus,
-    initialize,
     replaceScenario,
     resetScenario,
-    saveDraft,
     updateAnnualSavings,
     updateCountry,
     updateCurrentBalance,
@@ -89,7 +83,6 @@ export function QuickFireWorkspace({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const sharedScenarioParam = searchParams.get(SCENARIO_QUERY_KEY);
-  const hasInitialized = useRef(false);
   const [copied, setCopied] = useState(false);
   const [showAdvancedLandingInputs, setShowAdvancedLandingInputs] = useState(false);
   const [expenseInputMode, setExpenseInputMode] = useState<"annual" | "monthly">(
@@ -99,23 +92,14 @@ export function QuickFireWorkspace({
   const showWizard =
     variant === "landing" && !sharedScenarioParam && hasDraft === false;
 
+  useInitializeStore(sharedScenarioParam);
   useGlobalScenarioFormatting(activeScenario);
 
+  // Auto-save (inline — kept separate from useAutoSaveScenario to avoid
+  // double useSearchParams() which can cause Suspense issues on static pages)
+  const saveDraft = useScenarioStore((s) => s.saveDraft);
   useEffect(() => {
-    if (hasInitialized.current) {
-      return;
-    }
-
-    hasInitialized.current = true;
-    void initialize(
-      sharedScenarioParam
-        ? deserializeScenarioFromSearchParam(sharedScenarioParam)
-        : undefined,
-    );
-  }, [initialize, sharedScenarioParam]);
-
-  useEffect(() => {
-    if (status !== "ready") {
+    if (status !== "ready" || activeScenario.isPersonalized === false) {
       return;
     }
 
@@ -1104,27 +1088,18 @@ export function QuickFireWorkspace({
                   <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
                     {formatCompactCurrency(taxEstimate.totalTax)}
                   </p>
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <p className="text-sm text-muted-foreground">
-                      {formatPercent(taxEstimate.effectiveRate, 0)} effective
-                    </p>
-                    <Select
-                      value={activeScenario.profile.filingStatus}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        const next = cloneScenario(activeScenario);
-                        next.profile.filingStatus = e.target.value as FilingStatus;
-                        replaceScenario(next);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-auto min-w-0 rounded-lg border border-border/60 bg-background px-2 py-1 text-xs"
-                    >
-                      <option value="single">Single</option>
-                      <option value="married_joint">Married joint</option>
-                      <option value="married_separate">Married separate</option>
-                      <option value="head_of_household">Head of household</option>
-                    </Select>
-                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    {formatPercent(taxEstimate.effectiveRate, 0)} effective
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground/70">
+                    {activeScenario.profile.filingStatus === "single"
+                      ? "Single filer"
+                      : activeScenario.profile.filingStatus === "married_joint"
+                        ? "Married filing jointly"
+                        : activeScenario.profile.filingStatus === "married_separate"
+                          ? "Married filing separately"
+                          : "Head of household"}
+                  </p>
                 </button>
               </div>
             ) : null}

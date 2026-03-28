@@ -17,6 +17,8 @@ import {
 import { PersonalizedInsight } from "./personalized-insight";
 import { ChartFrame } from "@/components/charts/chart-frame";
 import { Slider } from "@/components/ui/slider";
+import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
+import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
 import {
   calculateFireNumber,
@@ -106,7 +108,11 @@ function fmtCurrency(value: number): string {
 
 export function BaristaFireArticle() {
   const activeScenario = useScenarioStore((s) => s.activeScenario);
-  const hasData = activeScenario.annualIncome > 0;
+
+  useInitializeStore();
+  useAutoSaveScenario();
+
+  const hasData = activeScenario.isPersonalized !== false;
 
   /* ---- Core calculations ---- */
   const summary = useMemo(

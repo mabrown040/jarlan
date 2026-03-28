@@ -100,7 +100,7 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
   },
   replaceScenario: (scenario) =>
     set({
-      activeScenario: touchScenario(cloneScenario(scenario)),
+      activeScenario: touchScenario({ ...cloneScenario(scenario), isPersonalized: true }),
       saveStatus: "idle",
     }),
   updateCurrency: (value) =>
@@ -127,6 +127,7 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
       activeScenario: touchScenario({
         ...state.activeScenario,
         annualIncome: Math.max(value, 0),
+        isPersonalized: true,
       }),
       saveStatus: "idle",
     })),
@@ -136,6 +137,7 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
         ...state.activeScenario,
         annualExpenses: Math.max(value, 0),
         retirementExpenses: Math.max(value, 0),
+        isPersonalized: true,
       }),
       saveStatus: "idle",
     })),
@@ -144,6 +146,7 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
       activeScenario: touchScenario({
         ...state.activeScenario,
         retirementExpenses: Math.max(value, 0),
+        isPersonalized: true,
       }),
       saveStatus: "idle",
     })),
@@ -151,6 +154,7 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
     set((state) => ({
       activeScenario: updatePrimaryAccount(state.activeScenario, (scenario) => ({
         ...scenario,
+        isPersonalized: true,
         annualSavings: Math.max(value, 0),
         accounts: scenario.accounts.map((account, index) => {
           if (index !== 0) {
@@ -177,6 +181,7 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
     set((state) => ({
       activeScenario: updatePrimaryAccount(state.activeScenario, (scenario) => ({
         ...scenario,
+        isPersonalized: true,
         accounts: scenario.accounts.map((account, index) => {
           if (index !== 0) {
             return account;
@@ -201,6 +206,7 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
     set((state) => ({
       activeScenario: touchScenario({
         ...state.activeScenario,
+        isPersonalized: true,
         profile: {
           ...state.activeScenario.profile,
           age: Math.round(clamp(value, 18, 80)),
@@ -348,6 +354,7 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
     set((state) => ({
       activeScenario: touchScenario({
         ...state.activeScenario,
+        isPersonalized: true,
         profile: {
           ...state.activeScenario.profile,
           retirementAge: Math.round(

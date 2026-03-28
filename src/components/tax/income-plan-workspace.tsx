@@ -1,9 +1,8 @@
 "use client";
 
-import type { Route } from "next";
 import { Copy } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 
 import {
   ChartShell,
@@ -11,6 +10,8 @@ import {
   StatCard,
 } from "@/components/brand";
 import { ProUpgradePrompt } from "@/components/product/pro-upgrade-prompt";
+import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
+import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { RothLadderTimeline } from "@/components/tax/roth-ladder-timeline";
 import { TaxWaterfallChart } from "@/components/tax/tax-waterfall-chart";
@@ -26,8 +27,6 @@ import {
 import {
   SCENARIO_QUERY_KEY,
   buildScenarioShareUrl,
-  deserializeScenarioFromSearchParam,
-  serializeScenarioToSearchParam,
 } from "@/lib/share";
 import { useScenarioStore } from "@/lib/store";
 import {
@@ -43,66 +42,15 @@ export default function IncomePlanWorkspace() {
     activeScenario,
     status,
     saveStatus,
-    initialize,
-    saveDraft,
   } = useScenarioStore();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const sharedScenarioParam = searchParams.get(SCENARIO_QUERY_KEY);
-  const hasInitialized = useRef(false);
   const [copied, setCopied] = useState(false);
 
+  useInitializeStore(sharedScenarioParam);
+  useAutoSaveScenario({ syncUrl: true });
   useGlobalScenarioFormatting(activeScenario);
-
-  /* ── Initialization ── */
-  useEffect(() => {
-    if (hasInitialized.current) {
-      return;
-    }
-
-    hasInitialized.current = true;
-    void initialize(
-      sharedScenarioParam
-        ? deserializeScenarioFromSearchParam(sharedScenarioParam)
-        : undefined,
-    );
-  }, [initialize, sharedScenarioParam]);
-
-  /* ── Auto-save + URL sync ── */
-  useEffect(() => {
-    if (status !== "ready") {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      void saveDraft();
-
-      const encodedScenario = serializeScenarioToSearchParam(activeScenario);
-
-      if (encodedScenario === sharedScenarioParam) {
-        return;
-      }
-
-      const nextParams = new URLSearchParams(searchParams.toString());
-      nextParams.set(SCENARIO_QUERY_KEY, encodedScenario);
-      router.replace(`${pathname}?${nextParams.toString()}` as Route, {
-        scroll: false,
-      });
-    }, 250);
-
-    return () => {
-      window.clearTimeout(timeout);
-    };
-  }, [
-    activeScenario,
-    pathname,
-    router,
-    saveDraft,
-    searchParams,
-    sharedScenarioParam,
-    status,
-  ]);
 
   /* ── Derived benchmark premium from scenario ── */
   const benchmarkPremium = useMemo(

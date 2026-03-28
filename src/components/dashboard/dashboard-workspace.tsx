@@ -1,8 +1,7 @@
 "use client";
 
-import type { Route } from "next";
 import { Copy, Download, Upload } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 
 import {
@@ -33,9 +32,9 @@ import { buildRetirementCheckup } from "@/lib/retirement";
 import {
   SCENARIO_QUERY_KEY,
   buildScenarioShareUrl,
-  deserializeScenarioFromSearchParam,
-  serializeScenarioToSearchParam,
 } from "@/lib/share";
+import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
+import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
 
 function getNextMilestone(progress: number, fireNumber: number) {
@@ -60,68 +59,19 @@ export function DashboardWorkspace() {
     activeScenario,
     status,
     saveStatus,
-    initialize,
     replaceScenario,
-    saveDraft,
   } = useScenarioStore();
   const drawerStore = useDrawerStore();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const sharedScenarioParam = searchParams.get(SCENARIO_QUERY_KEY);
-  const hasInitialized = useRef(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
   const [snapshots, setSnapshots] = useState<ScenarioSnapshotRecord[]>([]);
 
+  useInitializeStore(sharedScenarioParam);
+  useAutoSaveScenario({ syncUrl: true });
   useGlobalScenarioFormatting(activeScenario);
-
-  useEffect(() => {
-    if (hasInitialized.current) {
-      return;
-    }
-
-    hasInitialized.current = true;
-    void initialize(
-      sharedScenarioParam
-        ? deserializeScenarioFromSearchParam(sharedScenarioParam)
-        : undefined,
-    );
-  }, [initialize, sharedScenarioParam]);
-
-  useEffect(() => {
-    if (status !== "ready") {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      void saveDraft();
-
-      const encodedScenario = serializeScenarioToSearchParam(activeScenario);
-
-      if (encodedScenario === sharedScenarioParam) {
-        return;
-      }
-
-      const nextParams = new URLSearchParams(searchParams.toString());
-      nextParams.set(SCENARIO_QUERY_KEY, encodedScenario);
-      router.replace(`${pathname}?${nextParams.toString()}` as Route, {
-        scroll: false,
-      });
-    }, 250);
-
-    return () => {
-      window.clearTimeout(timeout);
-    };
-  }, [
-    activeScenario,
-    pathname,
-    router,
-    saveDraft,
-    searchParams,
-    sharedScenarioParam,
-    status,
-  ]);
 
   useEffect(() => {
     if (status !== "ready") {

@@ -1,9 +1,8 @@
 "use client";
 
-import type { Route } from "next";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
 
 import { ChartShell, CompactPageHeader, StatCard } from "@/components/brand";
 import {
@@ -12,6 +11,8 @@ import {
   type MilestoneMarker,
 } from "@/components/landing/projection-chart";
 import { computeProjectionMilestones } from "@/lib/calc/milestones";
+import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
+import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Slider } from "@/components/ui/slider";
@@ -36,8 +37,6 @@ import {
 // buildSensitivityAnalysis removed — replaced by year-by-year comparison table
 import {
   SCENARIO_QUERY_KEY,
-  deserializeScenarioFromSearchParam,
-  serializeScenarioToSearchParam,
 } from "@/lib/share";
 import { useScenarioStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -97,13 +96,12 @@ function formatParamValue(param: DecisionParam, value: number): string {
 /* -------------------------------------------------------------------------- */
 
 export default function SaveWhatIfWorkspace() {
-  const { activeScenario, status, saveDraft, initialize } = useScenarioStore();
-  const router = useRouter();
-  const pathname = usePathname();
+  const { activeScenario, status } = useScenarioStore();
   const searchParams = useSearchParams();
   const sharedScenarioParam = searchParams.get(SCENARIO_QUERY_KEY);
-  const hasInitialized = useRef(false);
 
+  useInitializeStore(sharedScenarioParam);
+  useAutoSaveScenario({ syncUrl: true });
   useGlobalScenarioFormatting(activeScenario);
 
   /* ---- Selection + custom param state ---- */
@@ -111,44 +109,6 @@ export default function SaveWhatIfWorkspace() {
   const [customValues, setCustomValues] = useState<
     Record<string, Record<string, number>>
   >({});
-
-  /* ---- Initialize from URL or storage ---- */
-  useEffect(() => {
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
-    void initialize(
-      sharedScenarioParam
-        ? deserializeScenarioFromSearchParam(sharedScenarioParam)
-        : undefined,
-    );
-  }, [initialize, sharedScenarioParam]);
-
-  /* ---- URL sync ---- */
-  useEffect(() => {
-    if (status !== "ready") return;
-
-    const timeout = window.setTimeout(() => {
-      void saveDraft();
-      const encodedScenario = serializeScenarioToSearchParam(activeScenario);
-      if (encodedScenario === sharedScenarioParam) return;
-
-      const nextParams = new URLSearchParams(searchParams.toString());
-      nextParams.set(SCENARIO_QUERY_KEY, encodedScenario);
-      router.replace(`${pathname}?${nextParams.toString()}` as Route, {
-        scroll: false,
-      });
-    }, 250);
-
-    return () => window.clearTimeout(timeout);
-  }, [
-    activeScenario,
-    pathname,
-    router,
-    saveDraft,
-    searchParams,
-    sharedScenarioParam,
-    status,
-  ]);
 
   /* ---- Build templates + resolved decisions ---- */
   const templates = useMemo(

@@ -187,6 +187,7 @@ export interface Scenario {
   assetAllocationGlidepath: GlidepathPoint[];
   simulationSettings: SimulationSettings;
   socialSecurity: SocialSecurityInput;
+  isPersonalized?: boolean;
 }
 
 export interface ProjectionPoint {

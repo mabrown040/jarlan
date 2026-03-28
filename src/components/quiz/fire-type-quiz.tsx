@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { PageHero } from "@/components/brand";
+import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { FieldLabel } from "@/components/form/field-label";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { Badge } from "@/components/ui/badge";
@@ -148,7 +149,6 @@ export function FireTypeQuiz() {
   const {
     activeScenario,
     status,
-    initialize,
     updateCurrentBalance,
     updateIncome,
     updateExpenses,
@@ -167,12 +167,7 @@ export function FireTypeQuiz() {
   const [quizComplete, setQuizComplete] = useState(false);
   const hasSyncedFromStore = useRef(false);
 
-  // Initialize the store if it hasn't been initialized yet (e.g. direct navigation to /quiz)
-  useEffect(() => {
-    if (status === "idle") {
-      void initialize();
-    }
-  }, [status, initialize]);
+  useInitializeStore();
 
   // Sync from scenario store once it's ready
   useEffect(() => {
