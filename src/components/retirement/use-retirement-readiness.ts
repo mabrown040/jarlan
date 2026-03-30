@@ -42,19 +42,25 @@ export function useRetirementReadiness({
   historicalResult,
   monteCarloResult,
   mortalityRisk,
+  autoSimulate = true,
 }: {
   scenario: Scenario;
   benchmarkPremium?: number;
   historicalResult?: HistoricalBacktestResult | null;
   monteCarloResult?: MonteCarloResult | null;
   mortalityRisk?: MortalityRiskResult | null;
+  autoSimulate?: boolean;
 }) {
   const [generatedHistoricalResult, setGeneratedHistoricalResult] =
     useState<HistoricalBacktestResult | null>(historicalResult ?? null);
   const [generatedMonteCarloResult, setGeneratedMonteCarloResult] =
     useState<MonteCarloResult | null>(monteCarloResult ?? null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
-    historicalResult || monteCarloResult ? "ready" : "idle",
+    historicalResult || monteCarloResult
+      ? "ready"
+      : autoSimulate
+        ? "idle"
+        : "loading",
   );
   const [error, setError] = useState<string | null>(null);
   const historicalRequestTokenRef = useRef(0);
@@ -69,7 +75,7 @@ export function useRetirementReadiness({
   }, [monteCarloResult]);
 
   useEffect(() => {
-    if (historicalResult) {
+    if (historicalResult || !autoSimulate) {
       return;
     }
 
@@ -104,10 +110,10 @@ export function useRetirementReadiness({
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [historicalResult, scenario]);
+  }, [autoSimulate, historicalResult, scenario]);
 
   useEffect(() => {
-    if (monteCarloResult) {
+    if (monteCarloResult || !autoSimulate) {
       return;
     }
 
@@ -143,7 +149,7 @@ export function useRetirementReadiness({
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [monteCarloResult, scenario]);
+  }, [autoSimulate, monteCarloResult, scenario]);
 
   const resolvedHistoricalResult = historicalResult ?? generatedHistoricalResult;
   const resolvedMonteCarloResult = monteCarloResult ?? generatedMonteCarloResult;
@@ -203,6 +209,11 @@ export function useRetirementReadiness({
       return;
     }
 
+    if (!autoSimulate) {
+      setStatus("loading");
+      return;
+    }
+
     if (!historicalResult || !monteCarloResult) {
       setStatus("loading");
       return;
@@ -213,6 +224,7 @@ export function useRetirementReadiness({
     error,
     historicalResult,
     monteCarloResult,
+    autoSimulate,
     resolvedHistoricalResult,
     resolvedMonteCarloResult,
   ]);

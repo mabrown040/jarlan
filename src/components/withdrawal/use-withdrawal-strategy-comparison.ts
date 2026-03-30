@@ -6,8 +6,8 @@ import {
   type WithdrawalStrategyComparisonPoint,
   type WithdrawalStrategySeries,
 } from "@/components/withdrawal/withdrawal-strategy-comparison-chart";
-import { cloneScenario } from "@/lib/domain";
 import type { Scenario } from "@/lib/domain/types";
+import { buildScenarioForStartingPortfolio } from "@/lib/scenario-lab/spend-analysis";
 import {
   runSimulation,
   simulationCapabilities,
@@ -71,11 +71,17 @@ export function buildScenarioForStrategy(
   type: SupportedStrategyType,
   overrideBalance?: number,
 ): Scenario {
-  const nextScenario = cloneScenario(scenario);
+  const nextScenario =
+    overrideBalance === undefined
+      ? buildScenarioForStartingPortfolio(
+          scenario,
+          scenario.accounts.reduce(
+            (total, account) => total + account.currentBalance,
+            0,
+          ),
+        )
+      : buildScenarioForStartingPortfolio(scenario, overrideBalance);
   nextScenario.withdrawalStrategy.type = type;
-  if (overrideBalance !== undefined && nextScenario.accounts.length > 0) {
-    nextScenario.accounts[0].currentBalance = overrideBalance;
-  }
   return nextScenario;
 }
 
