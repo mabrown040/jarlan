@@ -19,16 +19,12 @@ import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
 import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
 import {
-  calculateFireNumber,
   calculateQuickFireSummary,
-  calculateYearsToTarget,
   getCurrentPortfolioBalance,
-  getYearsUntilRetirement,
 } from "@/lib/calc";
 import { calculateFireTypeSummaries } from "@/lib/calc/fire-types";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
 import { formatCompactCurrency, formatPercent } from "@/lib/calc/format";
-import { cn } from "@/lib/utils";
 
 /* ── Helpers ──────────────────────────────────────────────── */
 
@@ -106,7 +102,6 @@ export function CoastFireArticle() {
   );
 
   const currentBalance = getCurrentPortfolioBalance(activeScenario.accounts);
-  const yearsToRetirement = getYearsUntilRetirement(activeScenario) ?? 0;
   const currentAge = activeScenario.profile.age;
   const retirementAge = activeScenario.profile.retirementAge ?? currentAge;
   const effectiveReturn =

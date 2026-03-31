@@ -13,7 +13,6 @@ import {
   formatCompactCurrency,
   formatPercent,
   formatYears,
-  getCurrentPortfolioBalance,
 } from "@/lib/calc";
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
 
@@ -30,11 +29,6 @@ export function StepResult({ onBack }: { onBack: () => void }) {
     [activeScenario],
   );
   const coastStatus = fireTypes.find((ft) => ft.id === "coast");
-  const currentBalance = useMemo(
-    () => getCurrentPortfolioBalance(activeScenario.accounts),
-    [activeScenario.accounts],
-  );
-
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div className="text-center">

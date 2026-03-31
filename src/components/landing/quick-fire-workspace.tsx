@@ -12,7 +12,7 @@ import {
 } from "@/components/brand";
 import { useHasExistingDraft } from "@/lib/hooks/use-has-existing-draft";
 import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
-import { ProjectionChart, ChartLegend, findCrossoverYear } from "@/components/landing/projection-chart";
+import { ProjectionChart, ChartLegend } from "@/components/landing/projection-chart";
 import { US_BENCHMARKS, estimateNetWorthPercentile, getMedianNetWorthForAge } from "@/lib/data/benchmarks";
 import { buildScenarioProjection } from "@/lib/calc/quick-fire";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
@@ -25,20 +25,11 @@ import {
   formatCompactCurrency,
   formatPercent,
   formatYears,
-  getEmployerMatchTotal,
-  getHouseholdAnnualIncome,
-  getNetCashFlowAtAge,
   getPlannedAnnualInvestmentContribution,
   getCurrentPortfolioBalance,
-  syncScenarioRollups,
 } from "@/lib/calc";
 import { computeProjectionMilestones } from "@/lib/calc/milestones";
 import { estimateScenarioTax } from "@/lib/tax";
-import {
-  cloneScenario,
-} from "@/lib/domain";
-import type { Scenario } from "@/lib/domain/types";
-import { getCountryPreset } from "@/lib/data";
 import { SCENARIO_QUERY_KEY } from "@/lib/share";
 import {
   buildScenarioShareUrl,
@@ -56,27 +47,7 @@ export function QuickFireWorkspace({
   const {
     activeScenario,
     status,
-    saveStatus,
-    replaceScenario,
     resetScenario,
-    updateAnnualSavings,
-    updateCountry,
-    updateCurrentBalance,
-    updateCurrency,
-    updateExpenses,
-    updateExpectedRealReturn,
-    updateIncome,
-    updatePartTimeIncome,
-    setPartnerPlanningEnabled,
-    updatePartnerAge,
-    updatePartnerHealthStatus,
-    updatePartnerIncome,
-    updatePartnerName,
-    updatePartnerRetirementAge,
-    updateProfileAge,
-    updateRetirementAge,
-    updateSaferWithdrawalRate,
-    updateWithdrawalRate,
   } = useScenarioStore();
   const drawerStore = useDrawerStore();
   const router = useRouter();
@@ -84,10 +55,6 @@ export function QuickFireWorkspace({
   const searchParams = useSearchParams();
   const sharedScenarioParam = searchParams.get(SCENARIO_QUERY_KEY);
   const [copied, setCopied] = useState(false);
-  const [showAdvancedLandingInputs, setShowAdvancedLandingInputs] = useState(false);
-  const [expenseInputMode, setExpenseInputMode] = useState<"annual" | "monthly">(
-    "annual",
-  );
   const { hasDraft } = useHasExistingDraft();
   const showWizard =
     variant === "landing" && !sharedScenarioParam && hasDraft === false;
@@ -134,134 +101,14 @@ export function QuickFireWorkspace({
     () => calculateFireTypeSummaries(activeScenario),
     [activeScenario],
   );
-  const countryPreset = useMemo(
-    () => getCountryPreset(activeScenario.profile.country),
-    [activeScenario.profile.country],
-  );
   const currentBalance = useMemo(
     () => getCurrentPortfolioBalance(activeScenario.accounts),
     [activeScenario.accounts],
   );
-  const chartTableRows = useMemo(
-    () =>
-      summary.projection.filter(
-        (point, index) =>
-          index === 0 ||
-          index === summary.projection.length - 1 ||
-          point.year % 5 === 0,
-      ),
-    [summary.projection],
-  );
-
-  function handleCountryChange(value: string) {
-    const nextCountryPreset = getCountryPreset(value);
-    updateCountry(nextCountryPreset.code);
-    updateCurrency(nextCountryPreset.currency);
-  }
-
   const progressToFire =
     summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0;
-  const landingNextStep = useMemo(() => {
-    if (sharedScenarioParam) {
-      return {
-        label: "Keep editing this shared scenario",
-        description:
-          "Review the assumptions, make it your own, and copy a fresh link when you are ready to send it back.",
-        href: "/accumulation" as Route,
-        cta: "Open the full planner",
-      };
-    }
-
-    if (progressToFire >= 1) {
-      return {
-        label: "Your portfolio exceeds your target",
-        description:
-          "Based on your assumptions, you've reached financial independence. Stress-test whether your plan will last through retirement.",
-        href: "/withdrawal" as Route,
-        cta: "Stress-test your retirement",
-      };
-    }
-
-    if (progressToFire >= 0.75 || (summary.yearsToFi !== null && summary.yearsToFi <= 10)) {
-      return {
-        label: "Stress-test retirement readiness",
-        description:
-          "You are close enough that historical backtests, Monte Carlo, and withdrawal strategy comparisons now matter.",
-        href: "/withdrawal" as Route,
-        cta: "Test retirement durability",
-      };
-    }
-
-    if (activeScenario.accounts.length > 1 || activeScenario.cashFlows.length > 0) {
-      return {
-        label: "Open the full planner",
-        description:
-          "Move into the richer planning workspace to model multiple accounts, cash flows, and deeper assumptions.",
-        href: "/accumulation" as Route,
-        cta: "Open the full planner",
-      };
-    }
-
-    return {
-      label: "Take the FIRE type quiz",
-      description:
-        "The quiz turns this first answer into a path that better matches your lifestyle, flexibility, and retirement style.",
-      href: "/quiz" as Route,
-      cta: "Take the FIRE type quiz",
-    };
-  }, [
-    activeScenario.accounts.length,
-    activeScenario.cashFlows.length,
-    progressToFire,
-    sharedScenarioParam,
-    summary.yearsToFi,
-  ]);
-  const landingAlternateCta =
-    landingNextStep.href === "/quiz"
-      ? ({
-          href: "/accumulation",
-          label: "Open the full planner",
-        } as const)
-      : ({
-          href: "/quiz",
-          label: "Take the FIRE type quiz",
-        } as const);
-  const headerTitle =
-    variant === "landing"
-      ? "See your FIRE number, timeline, and next best step"
-      : "Build the full FIRE plan";
-  const headerDescription =
-    variant === "landing"
-      ? "Start with a few numbers, get a first answer fast, and then move into the right tool for your stage instead of sorting through every feature at once."
-      : "Use the richer planning workspace when you need multiple accounts, cash-flow events, partner planning, and more control over the model.";
-  const heroEyebrow =
-    variant === "landing"
-      ? sharedScenarioParam
-        ? "Shared scenario"
-        : "Start here"
-      : "Full planner";
-  const heroBadges =
-    variant === "landing"
-      ? [
-          { label: "No account required" },
-          { label: "Research-backed", variant: "secondary" as const },
-          { label: "Local-first", variant: "outline" as const },
-        ]
-      : [
-          { label: "Accounts and cash flows" },
-          { label: "Partner-ready", variant: "secondary" as const },
-          { label: "Scenario-based", variant: "outline" as const },
-        ];
   const plannedContribution = useMemo(
     () => getPlannedAnnualInvestmentContribution(activeScenario),
-    [activeScenario],
-  );
-  const employerMatchTotal = useMemo(
-    () => getEmployerMatchTotal(activeScenario),
-    [activeScenario],
-  );
-  const netCashFlowNow = useMemo(
-    () => getNetCashFlowAtAge(activeScenario, activeScenario.profile.age),
     [activeScenario],
   );
   const taxEstimate = useMemo(
@@ -332,12 +179,6 @@ export function QuickFireWorkspace({
     });
   }, [summary, fireTypes, activeScenario, plannedContribution]);
 
-  // Crossover: the year growth exceeds contributions
-  const crossover = useMemo(
-    () => findCrossoverYear(summary.projection, plannedContribution),
-    [summary.projection, plannedContribution],
-  );
-
   // Uncertainty bands: ±2% return projections
   const [showBands, setShowBands] = useState(false);
   const bandProjections = useMemo(() => {
@@ -368,36 +209,6 @@ export function QuickFireWorkspace({
   }, [summary, activeScenario, fireTypes, variant]);
 
   const alreadyFi = progressToFire >= 1;
-  const snapshotNarrative =
-    alreadyFi
-      ? `Your portfolio of ${formatCompactCurrency(currentBalance)} already exceeds your FIRE target of ${formatCompactCurrency(summary.fireNumber)}, based on your current assumptions. The next step is stress-testing whether your plan will last.`
-      : summary.yearsToFi === null
-        ? `Your current settings do not yet reach ${formatCompactCurrency(
-            summary.fireNumber,
-          )}. Lower spending, higher savings, or a later target retirement age will move the plan back into range.`
-        : `At this pace, ${activeScenario.name.toLowerCase()} reaches about ${formatCompactCurrency(
-            summary.fireNumber,
-          )} in ${formatYears(summary.yearsToFi)}. That puts your current FIRE age near ${summary.fireAge}.`;
-  const expenseInputValue =
-    expenseInputMode === "monthly"
-      ? Math.round(activeScenario.annualExpenses / 12)
-      : activeScenario.annualExpenses;
-  const coastFireSummary = fireTypes.find((entry) => entry.id === "coast") ?? null;
-  const coupleSummary = activeScenario.profile.partner
-    ? `${activeScenario.profile.name || "Primary"} targets retirement at ${
-        activeScenario.profile.retirementAge ?? activeScenario.profile.age
-      }, while ${activeScenario.profile.partner.name} targets ${
-        activeScenario.profile.partner.retirementAge ??
-        activeScenario.profile.partner.age
-      }. Household income currently models ${formatCompactCurrency(
-        getHouseholdAnnualIncome(activeScenario),
-      )} per year.`
-    : null;
-  function updateScenario(mutator: (scenario: Scenario) => void) {
-    const nextScenario = cloneScenario(activeScenario);
-    mutator(nextScenario);
-    replaceScenario(syncScenarioRollups(nextScenario));
-  }
 
   async function handleCopyShareLink() {
     if (typeof window === "undefined") {
@@ -409,14 +220,6 @@ export function QuickFireWorkspace({
     );
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1_500);
-  }
-
-  function handlePrintSnapshot() {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.print();
   }
 
   return (
@@ -719,12 +522,6 @@ export function QuickFireWorkspace({
                   .map((ft) => {
                     const hasPostFireIncome = activeScenario.assumptions.partTimeIncome > 0;
                     const baristaNoIncome = ft.id === "barista" && !hasPostFireIncome;
-                    const isRecommended = (() => {
-                      if (alreadyFi) return ft.id === "traditional";
-                      const coastType = fireTypes.find((t) => t.id === "coast");
-                      if (coastType && coastType.progress >= 1) return ft.id === "coast";
-                      return ft.id === "traditional";
-                    })();
                     const cta =
                       ft.id === "traditional"
                         ? "Open Your Plan"
@@ -801,7 +598,7 @@ export function QuickFireWorkspace({
                   className="group mt-4 block rounded-2xl border border-[rgba(99,102,241,0.2)] bg-[rgba(99,102,241,0.04)] p-6 transition-all hover:border-[rgba(99,102,241,0.35)]"
                 >
                   <p className="font-display text-lg tracking-[-0.02em] text-foreground">
-                    You've reached your target. See if your plan will last.
+                    You&apos;ve reached your target. See if your plan will last.
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Run historical backtests and Monte Carlo simulations to stress-test your withdrawal strategy.

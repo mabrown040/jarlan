@@ -154,15 +154,18 @@ export function useWithdrawalStrategyComparison({
     };
   }, [debounceMs, enabled, scenario, startingPortfolio]);
 
-  const comparisonTemplateBand =
-    supportedStrategyTypes
-      .map((type) => comparisonResults[type]?.percentileBand)
-      .find(
-        (
-          band,
-        ): band is HistoricalBacktestResult["percentileBand"] =>
-          Boolean(band?.length),
-      ) ?? [];
+  const comparisonTemplateBand = useMemo(
+    () =>
+      supportedStrategyTypes
+        .map((type) => comparisonResults[type]?.percentileBand)
+        .find(
+          (
+            band,
+          ): band is HistoricalBacktestResult["percentileBand"] =>
+            Boolean(band?.length),
+        ) ?? [],
+    [comparisonResults],
+  );
 
   const strategyComparisonRows = useMemo<WithdrawalStrategyComparisonPoint[]>(
     () =>

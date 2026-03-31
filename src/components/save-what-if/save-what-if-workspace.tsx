@@ -20,14 +20,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   calculateQuickFireSummary,
   formatCompactCurrency,
-  formatCurrency,
-  formatPercent,
   formatYears,
-  getSavingsRate,
 } from "@/lib/calc";
-import { buildSavingsRateTableRows } from "@/lib/calc/savings-rate-table";
 import { getPlannedAnnualInvestmentContribution } from "@/lib/calc/scenario";
-import { US_BENCHMARKS } from "@/lib/data/benchmarks";
 import {
   buildDecisionTemplates,
   resolveDecision,
@@ -40,19 +35,6 @@ import {
 } from "@/lib/share";
 import { useScenarioStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-
-function formatFireDate(yearsToFi: number | null): string {
-  if (yearsToFi === null) return "Never";
-  const now = new Date();
-  const targetDate = new Date(
-    now.getFullYear(),
-    now.getMonth() + Math.round(yearsToFi * 12),
-  );
-  return targetDate.toLocaleDateString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-}
 
 /* -------------------------------------------------------------------------- */
 /*  Decision card color helpers                                                */
@@ -96,7 +78,7 @@ function formatParamValue(param: DecisionParam, value: number): string {
 /* -------------------------------------------------------------------------- */
 
 export default function SaveWhatIfWorkspace() {
-  const { activeScenario, status } = useScenarioStore();
+  const { activeScenario } = useScenarioStore();
   const searchParams = useSearchParams();
   const sharedScenarioParam = searchParams.get(SCENARIO_QUERY_KEY);
 
@@ -157,19 +139,6 @@ export default function SaveWhatIfWorkspace() {
     });
   }, [resolvedDecisions, activeScenario, baseSummary]);
 
-  const savingsRateRows = useMemo(
-    () =>
-      buildSavingsRateTableRows(
-        activeScenario.annualIncome,
-        activeScenario.assumptions.withdrawalRate,
-        activeScenario.assumptions.expectedRealReturn,
-        activeScenario.accounts.reduce((t, a) => t + a.currentBalance, 0),
-      ),
-    [activeScenario],
-  );
-
-  const userSavingsRate = getSavingsRate(activeScenario);
-
   /* ---- Combined multi-select scenario ---- */
   const selectedDecisions = useMemo(
     () => resolvedDecisions.filter((d) => selectedIds.has(d.id)),
@@ -225,21 +194,6 @@ export default function SaveWhatIfWorkspace() {
 
     return [...coreMilestones, ...eventMarkers];
   }, [selectedDecisions, combinedSummary, baseSummary, activeScenario, customValues]);
-
-  /* ---- Find closest savings rate row for user highlight ---- */
-  function isClosestToUser(rate: number): boolean {
-    if (savingsRateRows.length === 0) return false;
-    let closest = savingsRateRows[0].rate;
-    let minDiff = Math.abs(userSavingsRate - closest);
-    for (const row of savingsRateRows) {
-      const diff = Math.abs(userSavingsRate - row.rate);
-      if (diff < minDiff) {
-        closest = row.rate;
-        minDiff = diff;
-      }
-    }
-    return rate === closest;
-  }
 
   /* ---- Handlers ---- */
   function handleCardClick(id: string) {

@@ -80,7 +80,6 @@ export function PlanDrawerContent() {
     updateAnnualSavings,
     updateCurrentBalance,
     updateProfileAge,
-    updateRetirementAge,
     updateExpectedRealReturn,
     updateWithdrawalRate,
     updatePartTimeIncome,

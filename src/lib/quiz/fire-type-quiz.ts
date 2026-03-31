@@ -261,7 +261,6 @@ function pickRecommendationId(
   fullFireNumber: number,
   coastTargetToday: number,
 ): FireTypeSummary["id"] {
-  const progress = answers.currentPortfolio / Math.max(fullFireNumber, 1);
   const yearsToFi = Math.max(answers.targetFiAge - answers.currentAge, 0);
 
   // Coast: strong portfolio + enough time for compounding

@@ -27,7 +27,6 @@ function SummaryPill({ children }: { children: ReactNode }) {
 export function SpendQuickControls({
   saveStatus,
   strategy,
-  strategyLabel,
   strategyDescription,
   strategyOptions,
   withdrawalRate,

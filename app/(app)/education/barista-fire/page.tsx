@@ -1,5 +1,7 @@
 import { BaristaFireArticle } from "@/components/education/barista-fire-article";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "What is Barista FIRE? | Calcifer",
   description: "Learn how Barista FIRE works — part-time income, healthcare benefits, and a smaller portfolio target, personalized with your numbers.",

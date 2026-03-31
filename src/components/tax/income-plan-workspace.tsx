@@ -40,7 +40,6 @@ import {
 export default function IncomePlanWorkspace() {
   const {
     activeScenario,
-    status,
     saveStatus,
   } = useScenarioStore();
   const pathname = usePathname();

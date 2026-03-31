@@ -1,4 +1,4 @@
-import type { FireTypeSummary, ProjectionPoint, QuickFireSummary, Scenario } from "@/lib/domain/types";
+import type { FireTypeSummary, QuickFireSummary, Scenario } from "@/lib/domain/types";
 
 export interface MilestoneMarker {
   year: number;

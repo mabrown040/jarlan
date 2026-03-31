@@ -14,7 +14,7 @@ import {
 import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
 import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
-import { calculateFireTypeSummaries, calculateQuickFireSummary, getCurrentPortfolioBalance, getSavingsRate } from "@/lib/calc";
+import { calculateFireTypeSummaries, calculateQuickFireSummary } from "@/lib/calc";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
 import { formatCompactCurrency, formatPercent } from "@/lib/calc/format";
 

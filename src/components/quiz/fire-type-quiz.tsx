@@ -149,15 +149,6 @@ export function FireTypeQuiz() {
   const {
     activeScenario,
     status,
-    updateCurrentBalance,
-    updateIncome,
-    updateExpenses,
-    updatePartTimeIncome,
-    updateProfileAge,
-    updateRetirementAge,
-    updateWithdrawalRate,
-    updateSaferWithdrawalRate,
-    updateExpenseGrowthRate,
     replaceScenario,
     saveDraft,
   } = useScenarioStore();

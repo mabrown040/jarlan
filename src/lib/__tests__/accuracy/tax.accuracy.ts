@@ -143,7 +143,6 @@ describe("Tax Estimation — Golden Tests", () => {
 
     // The difference should be roughly the tax on the deduction amount
     // Standard deduction for single = $14,600
-    const taxOnFullIncome = estimateFederalTax(100_000, "single");
     const taxAfterDeduction = estimateFederalTax(100_000 - 14_600, "single");
     golden("tax.standard-deduction.single.100k", {
       input: { income: 100_000, filingStatus: "single", standardDeduction: 14_600 },

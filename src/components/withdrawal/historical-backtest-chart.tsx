@@ -10,7 +10,6 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-  type TooltipProps,
 } from "recharts";
 
 import { ChartFrame } from "@/components/charts/chart-frame";
@@ -28,8 +27,12 @@ function FanChartTooltip({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
-  const point = payload?.[0]?.payload as FanChartPoint | undefined;
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: FanChartPoint }>;
+  label?: string | number;
+}) {
+  const point = payload?.[0]?.payload;
 
   if (!active || !point) {
     return null;

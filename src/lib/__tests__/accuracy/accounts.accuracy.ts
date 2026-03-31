@@ -5,7 +5,6 @@
  * and withdrawal strategy recommendations.
  */
 import { describe, it, expect } from "vitest";
-import { golden } from "./_fixtures/golden";
 import { createCoastAccumulatorScenario } from "./_fixtures/scenarios";
 import { cloneScenario, createDefaultAccount } from "@/lib/domain";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
@@ -101,14 +100,12 @@ describe("Account Allocation — Golden Tests", () => {
   it("after-tax savings rate is higher with pre-tax 401k", () => {
     const base = cloneScenario(createCoastAccumulatorScenario());
     base.accounts = [{ ...createDefaultAccount("taxable", "Brokerage"), currentBalance: 50_000, annualContribution: 24_000 }];
-    const rateAllTaxable = estimateScenarioTax(base).afterTaxSavingsRate;
 
     const withTrad = cloneScenario(base);
     withTrad.accounts = [
       { ...createDefaultAccount("traditional_401k", "401k"), currentBalance: 25_000, annualContribution: 23_500 },
       { ...createDefaultAccount("taxable", "Brokerage"), currentBalance: 25_000, annualContribution: 500 },
     ];
-    const rateWithTrad = estimateScenarioTax(withTrad).afterTaxSavingsRate;
 
     // Take-home increases when traditional contributions reduce taxes,
     // but the savings rate may shift depending on how take-home vs savings compare.

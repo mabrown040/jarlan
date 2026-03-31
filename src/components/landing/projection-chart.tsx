@@ -282,7 +282,6 @@ function MilestoneLabel({
 /* ── Legend ── */
 
 export function ChartLegend({ showBands, comparisonLabel }: { showBands?: boolean; comparisonLabel?: string }) {
-  const useLineStyle = showBands || !!comparisonLabel;
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] text-muted-foreground">
       {showBands ? (
@@ -389,7 +388,7 @@ export function ProjectionChart({
   comparisonLabel?: string;
   ariaLabel?: string;
 }) {
-  const { chartData: rawChartData, crossover } = buildChartData(
+  const { chartData: rawChartData } = buildChartData(
     data,
     annualContribution,
     startAge,
@@ -447,7 +446,6 @@ export function ProjectionChart({
               stroke="var(--ember)"
               strokeDasharray="6 4"
               strokeOpacity={0.3}
-              isFront={false}
               label={{
                 value: `${formatCompactCurrency(target)} target`,
                 position: "right",

@@ -1,5 +1,7 @@
 import { WithdrawalStrategiesArticle } from "@/components/education/withdrawal-strategies-article";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "How to choose a withdrawal strategy | Calcifer",
   description:

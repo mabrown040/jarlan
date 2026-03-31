@@ -5,7 +5,7 @@ import { getRetirementStartAge } from "@/lib/calc/scenario";
 import { getMortalityDataset } from "@/lib/data";
 import { getStateTaxPreset } from "@/lib/data/state-taxes";
 import type { FilingStatus, Scenario } from "@/lib/domain/types";
-import { calculateFica, type FicaResult } from "@/lib/tax/fica";
+import { calculateFica } from "@/lib/tax/fica";
 import { get401kEmployeeLimit, getHsaLimit } from "@/lib/tax/limits";
 
 const taxBracketDataset = rawTaxBrackets as unknown as {

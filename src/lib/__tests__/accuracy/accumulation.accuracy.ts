@@ -7,15 +7,12 @@
 import { describe, it, expect } from "vitest";
 import { golden } from "./_fixtures/golden";
 import {
-  createTrinityClassicScenario,
   createCoastAccumulatorScenario,
   createBaristaFireScenario,
 } from "./_fixtures/scenarios";
 import {
   calculateQuickFireSummary,
   calculateFireTypeSummaries,
-  getCurrentPortfolioBalance,
-  getSavingsRate,
 } from "@/lib/calc";
 import { calculateFireNumber, calculateYearsToTarget } from "@/lib/calc/quick-fire";
 

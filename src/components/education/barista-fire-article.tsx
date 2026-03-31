@@ -29,7 +29,6 @@ import {
 import { calculateFireTypeSummaries } from "@/lib/calc/fire-types";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
 import { formatCompactCurrency, formatPercent } from "@/lib/calc/format";
-import { cn } from "@/lib/utils";
 
 /* ── Helpers ──────────────────────────────────────────────── */
 
@@ -130,8 +129,6 @@ export function BaristaFireArticle() {
 
   const currentBalance = getCurrentPortfolioBalance(activeScenario.accounts);
   const yearsToRetirement = getYearsUntilRetirement(activeScenario) ?? 0;
-  const currentAge = activeScenario.profile.age;
-  const retirementAge = activeScenario.profile.retirementAge ?? currentAge;
   const effectiveReturn =
     activeScenario.assumptions.expectedRealReturn -
     (activeScenario.simulationSettings?.feeDrag ?? 0.001);
@@ -145,8 +142,6 @@ export function BaristaFireArticle() {
   /* ---- Derived targets ---- */
   const traditionalTarget =
     fireTypes.find((ft) => ft.id === "traditional")?.target ?? summary.fireNumber;
-  const coastTarget =
-    fireTypes.find((ft) => ft.id === "coast")?.target ?? summary.fireNumber;
   const userBaristaTarget =
     fireTypes.find((ft) => ft.id === "barista")?.target ?? 0;
 

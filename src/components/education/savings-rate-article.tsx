@@ -7,7 +7,7 @@ import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
 import { buildSavingsRateTableRows } from "@/lib/calc/savings-rate-table";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
-import { getCurrentPortfolioBalance, getSavingsRate } from "@/lib/calc";
+import { getCurrentPortfolioBalance } from "@/lib/calc";
 import { formatCompactCurrency, formatPercent } from "@/lib/calc/format";
 import { US_BENCHMARKS } from "@/lib/data/benchmarks";
 import { PersonalizedInsight } from "./personalized-insight";

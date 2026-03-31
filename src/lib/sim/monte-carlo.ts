@@ -510,6 +510,12 @@ function buildHistogram(values: number[], labelSuffix: string): HistogramBin[] {
   });
 }
 
+function standardDeviation(values: number[]): number {
+  if (values.length <= 1) return 0;
+  const mean = average(values);
+  return Math.sqrt(values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length);
+}
+
 function buildWithdrawalSummary(paths: MonteCarloPathOutcome[]): WithdrawalSummary {
   const firstYearWithdrawals = paths.map((path) => path.annualWithdrawals[0] ?? 0);
   const medianWithdrawalsByYear = paths[0].annualWithdrawals.map((_, year) =>
@@ -519,13 +525,19 @@ function buildWithdrawalSummary(paths: MonteCarloPathOutcome[]): WithdrawalSumma
     ),
   );
 
+  const minMedian = Math.min(...medianWithdrawalsByYear);
+  const maxMedian = Math.max(...medianWithdrawalsByYear);
+
   return {
     firstYearP10: roundTo(percentile(firstYearWithdrawals, 0.1)),
     firstYearMedian: roundTo(percentile(firstYearWithdrawals, 0.5)),
     firstYearP90: roundTo(percentile(firstYearWithdrawals, 0.9)),
-    minMedian: roundTo(Math.min(...medianWithdrawalsByYear)),
+    minMedian: roundTo(minMedian),
+    minMedianYear: medianWithdrawalsByYear.findIndex((v) => roundTo(v, 4) === roundTo(minMedian, 4)),
     averageMedian: roundTo(average(medianWithdrawalsByYear)),
-    maxMedian: roundTo(Math.max(...medianWithdrawalsByYear)),
+    medianStdDev: roundTo(standardDeviation(medianWithdrawalsByYear)),
+    maxMedian: roundTo(maxMedian),
+    maxMedianYear: medianWithdrawalsByYear.findIndex((v) => roundTo(v, 4) === roundTo(maxMedian, 4)),
   };
 }
 

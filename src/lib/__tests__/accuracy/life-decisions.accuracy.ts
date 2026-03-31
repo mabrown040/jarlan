@@ -5,7 +5,6 @@
  * Ensures the apply() chain produces correct results when composing decisions.
  */
 import { describe, it, expect } from "vitest";
-import { golden } from "./_fixtures/golden";
 import { createCoastAccumulatorScenario } from "./_fixtures/scenarios";
 import {
   buildDecisionTemplates,

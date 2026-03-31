@@ -23,8 +23,12 @@ const COLORS = {
   match: "#2ecc71",       // bright green
 };
 
+/* ── Payload types ─────────────────────────────────────────── */
+interface SankeyNodePayload { color?: string; displayName?: string }
+interface SankeyLinkPayload { source?: SankeyNodePayload; target?: SankeyNodePayload; value?: number }
+
 /* ── Custom node rendering ─────────────────────────────────── */
-function SankeyNode({ x, y, width, height, index, payload }: any) {
+function SankeyNode({ x = 0, y = 0, width = 0, height = 0, index = 0, payload = {} }: { x?: number; y?: number; width?: number; height?: number; index?: number; payload?: SankeyNodePayload }) {
   const color = payload?.color ?? "#ccc";
   return (
     <Layer key={`node-${index}`}>
@@ -54,16 +58,16 @@ function SankeyNode({ x, y, width, height, index, payload }: any) {
 
 /* ── Custom link rendering ─────────────────────────────────── */
 function SankeyLink({
-  sourceX,
-  sourceY,
-  sourceControlX,
-  targetX,
-  targetY,
-  targetControlX,
-  linkWidth,
-  index,
-  payload,
-}: any) {
+  sourceX = 0,
+  sourceY = 0,
+  sourceControlX = 0,
+  targetX = 0,
+  targetY = 0,
+  targetControlX = 0,
+  linkWidth = 0,
+  index = 0,
+  payload = {},
+}: { sourceX?: number; sourceY?: number; sourceControlX?: number; targetX?: number; targetY?: number; targetControlX?: number; linkWidth?: number; index?: number; payload?: SankeyLinkPayload }) {
   const sourceColor = payload?.source?.color ?? "#ccc";
   const targetColor = payload?.target?.color ?? "#ccc";
   const gradientId = `link-gradient-${index}`;
@@ -90,7 +94,7 @@ function SankeyLink({
 }
 
 /* ── Tooltip ───────────────────────────────────────────────── */
-function SankeyTooltip({ active, payload }: any) {
+function SankeyTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: SankeyLinkPayload & SankeyNodePayload & { value?: number } }> }) {
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload;
   if (!data) return null;
@@ -102,7 +106,7 @@ function SankeyTooltip({ active, payload }: any) {
         <p className="font-medium">
           {data.source.displayName} → {data.target.displayName}
         </p>
-        <p className="text-muted-foreground">{formatCompactCurrency(data.value)}/yr</p>
+        <p className="text-muted-foreground">{formatCompactCurrency(data.value ?? 0)}/yr</p>
       </div>
     );
   }

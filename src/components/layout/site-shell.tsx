@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -137,7 +138,7 @@ function ProNavLink({
 }) {
   return (
     <Link
-      href={href as any}
+      href={href as Route}
       className={`group relative inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-all duration-300 ${
         isActive
           ? "bg-gradient-to-r from-[var(--ember)] to-[var(--flame)] font-semibold text-white shadow-[0_2px_12px_rgba(255,107,53,0.35)]"
@@ -222,7 +223,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
                   ) : (
                     <Link
                       key={group.id}
-                      href={group.href as any}
+                      href={group.href as Route}
                       className={`rounded-full px-3 py-1.5 text-sm transition-all duration-200 ${
                         activeGroup.id === group.id
                           ? "bg-[rgba(255,107,53,0.1)] font-medium text-foreground"
@@ -259,7 +260,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
               {activeGroup.items.map((item) => (
                 <Link
                   key={item.href}
-                  href={item.href as any}
+                  href={item.href as Route}
                   aria-current={isActivePath(item.href) ? "page" : undefined}
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-all duration-200 ${
                     isActivePath(item.href)
@@ -290,7 +291,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
                       />
                     ) : (
                       <Link
-                        href={group.href as any}
+                        href={group.href as Route}
                         className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
                           activeGroup.id === group.id
                             ? "bg-[rgba(255,107,53,0.1)] font-medium text-foreground"
@@ -306,7 +307,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
                         {group.items.map((item) => (
                           <Link
                             key={item.href}
-                            href={item.href as any}
+                            href={item.href as Route}
                             className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors ${
                               isActivePath(item.href)
                                 ? "font-medium text-foreground"
