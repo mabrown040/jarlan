@@ -58,9 +58,6 @@ export function AppErrorState({
             <Button asChild variant="outline">
               <Link href="/">Return to Quick FIRE</Link>
             </Button>
-            <Button asChild variant="ghost">
-              <Link href="/dashboard">Open dashboard</Link>
-            </Button>
           </div>
         </CardContent>
       </Card>

@@ -345,7 +345,7 @@ export function CoastFireArticle() {
               : "Example based on $50K saved, $20K/yr contributions, and 7% real returns."}
           </p>
           <ChartFrame ariaLabel="Chart comparing portfolio growth with continued contributions versus coasting" className="mt-4 h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
               <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="gradWith" x1="0" y1="0" x2="0" y2="1">

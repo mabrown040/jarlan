@@ -405,7 +405,7 @@ export function ProjectionChart({
 
   return (
     <ChartFrame ariaLabel={ariaLabel} className="h-72 w-full sm:h-96">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
         <ComposedChart data={chartData} margin={{ top: 44, right: 24, left: 8, bottom: 28 }}>
           <CartesianGrid
             strokeDasharray="3 3"

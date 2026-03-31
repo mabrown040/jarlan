@@ -878,26 +878,6 @@ export function QuickFireWorkspace({
                   </div>
                 </div>
 
-                {/* Track */}
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <div className="flex items-center gap-2">
-                    <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(168,85,247,0.1)]">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                    </div>
-                    <h3 className="font-semibold text-foreground">Track</h3>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    <Link
-                      href={"/dashboard" as Route}
-                      className="group block"
-                    >
-                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                        Dashboard {"\u2192"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Net worth snapshots, portfolio checkups, and milestone tracking.</p>
-                    </Link>
-                  </div>
-                </div>
               </div>
             </section>
 

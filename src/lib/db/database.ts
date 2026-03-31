@@ -110,24 +110,6 @@ export async function listStoredScenarios() {
   return db.scenarios.orderBy("updatedAt").reverse().toArray();
 }
 
-export async function captureScenarioSnapshot(scenario: Scenario) {
-  await db.snapshots.add({
-    scenarioId: scenario.id,
-    capturedAt: new Date().toISOString(),
-    netWorth: scenario.accounts.reduce(
-      (total, account) => total + account.currentBalance,
-      0,
-    ),
-    retirementExpenses: scenario.retirementExpenses,
-    accountBalances: scenario.accounts.map((account) => ({
-      id: account.id,
-      name: account.name,
-      type: account.type,
-      balance: account.currentBalance,
-    })),
-  });
-}
-
 export async function listScenarioSnapshots(scenarioId: string) {
   const snapshots = await db.snapshots.where("scenarioId").equals(scenarioId).toArray();
   return snapshots.sort((left, right) => left.capturedAt.localeCompare(right.capturedAt));

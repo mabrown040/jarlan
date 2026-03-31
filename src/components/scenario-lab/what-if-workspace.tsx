@@ -50,9 +50,9 @@ import { withdrawalStrategyMetadata } from "@/lib/sim";
 import { cn } from "@/lib/utils";
 
 const evidenceViews = [
-  { id: "worst-case", label: "Worst case" },
-  { id: "historical", label: "Historical fan" },
-  { id: "sequence", label: "Sequence risk" },
+  { id: "worst-case", label: "Hardest path" },
+  { id: "historical", label: "Historical range" },
+  { id: "sequence", label: "Early risk" },
 ] as const;
 
 type EvidenceView = (typeof evidenceViews)[number]["id"];
@@ -86,14 +86,14 @@ function getDirectionColor(direction: "positive" | "negative" | "neutral") {
 
 function getDirectionLabel(direction: "positive" | "negative" | "neutral") {
   if (direction === "positive") {
-    return "Usually sturdier";
+    return "Usually safer";
   }
 
   if (direction === "negative") {
-    return "Usually riskier";
+    return "Usually less safe";
   }
 
-  return "Depends on your baseline";
+  return "Depends on this plan";
 }
 
 function getSuccessTone(value: number | null) {
@@ -142,6 +142,60 @@ function formatPointDelta(value: number) {
   }
 
   return `${value > 0 ? "+" : "-"}${Math.abs(value * 100).toFixed(1)} pts`;
+}
+
+function getEvidenceTitle(
+  evidenceView: EvidenceView,
+  hasComparison: boolean,
+) {
+  if (hasComparison) {
+    switch (evidenceView) {
+      case "historical":
+        return "Before and after the historical range";
+      case "sequence":
+        return "Before and after early failure risk";
+      case "worst-case":
+      default:
+        return "Before and after the hardest retirement path";
+    }
+  }
+
+  switch (evidenceView) {
+    case "historical":
+      return "The historical range for your current plan";
+    case "sequence":
+      return "How early failure risk builds today";
+    case "worst-case":
+    default:
+      return "The hardest path for your current plan";
+  }
+}
+
+function getEvidenceDescription(
+  evidenceView: EvidenceView,
+  hasComparison: boolean,
+) {
+  if (!hasComparison) {
+    switch (evidenceView) {
+      case "historical":
+        return "Zoom out to the full spread of historical retirement outcomes, or pick a change above to turn this into a before-and-after comparison.";
+      case "sequence":
+        return "See how much risk sits in the first decade of retirement, or pick a change above to compare before and after.";
+      case "worst-case":
+      default:
+        return "Start here to see how painful the hardest historical retirement path could feel. Pick a change above to turn this into a before-and-after comparison.";
+    }
+  }
+
+  switch (evidenceView) {
+    case "historical":
+      return "Zoom out from the hardest cohort and compare the full spread of historical retirement outcomes.";
+    case "sequence":
+      return "See how much of the remaining risk is concentrated in the fragile first decade of retirement.";
+    case "worst-case":
+    default:
+      return "Start here if you want the most intuitive spend-phase story: how the hardest historical path feels before and after the selected change.";
+  }
 }
 
 export default function WhatIfWorkspace() {
@@ -251,10 +305,6 @@ export default function WhatIfWorkspace() {
     autoSimulate: false,
   });
 
-  const comparisonLabel =
-    selectedDecisions.length === 1
-      ? selectedDecisions[0].label
-      : `Combined (${selectedDecisions.length})`;
   const comparisonReady =
     !hasComparison ||
     (baseSimulation.status === "ready" &&
@@ -389,7 +439,7 @@ export default function WhatIfWorkspace() {
       return (
         <div className="rounded-xl border border-border/60 bg-card/40 p-6 text-sm text-muted-foreground">
           Running the retirement simulations for your current plan
-          {hasComparison ? " and selected scenario" : ""}...
+          {hasComparison ? " and selected path" : ""}...
         </div>
       );
     }
@@ -466,7 +516,7 @@ export default function WhatIfWorkspace() {
 
     return (
       <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-6 text-sm text-muted-foreground">
-        Select a scenario above to compare the base plan against a different
+        Pick a change above to compare your current plan against a different
         retirement path.
       </div>
     );
@@ -475,16 +525,16 @@ export default function WhatIfWorkspace() {
   return (
     <div className="space-y-8 pb-12">
       <CompactPageHeader
-        title="What changes make this retirement plan sturdier?"
-        description="Choose a real retirement lever first, then see how it changes durability, early sequence risk, and the trade-offs you would actually feel."
+        title="Which retirement changes make this plan safer?"
+        description="Start with a real retirement change, then see how much safer the plan gets and what trade-off you accept."
         metrics={[
           {
-            label: "Retirement spend",
+            label: "Retirement spending",
             value: formatCompactCurrency(activeScenario.retirementExpenses),
             accent: true,
           },
           {
-            label: "Starting portfolio",
+            label: "Testing portfolio",
             value: formatCompactCurrency(baseSimulation.startingPortfolio),
           },
           {
@@ -518,38 +568,18 @@ export default function WhatIfWorkspace() {
       />
 
       <section className="mx-auto max-w-7xl space-y-8 px-6">
-        <SpendWhatIfGlobalControls
-          saveStatus={saveStatus}
-          strategy={selectedStrategy}
-          strategyDescription={selectedStrategyMeta.shortDescription}
-          strategyOptions={strategyOptions}
-          retirementExpenses={activeScenario.retirementExpenses}
-          retirementDuration={activeScenario.simulationSettings.retirementDuration}
-          portfolioMode={portfolioMode}
-          onStrategyChange={(value) =>
-            updateWithdrawalStrategyType(
-              value as typeof activeScenario.withdrawalStrategy.type,
-            )
-          }
-          onRetirementExpensesChange={updateRetirementExpenses}
-          onRetirementDurationChange={updateRetirementDuration}
-          onPortfolioModeChange={setPortfolioMode}
-          onOpenAdvancedSettings={() => drawerStore.open("retirement")}
-        />
-
         <ChartShell
           eyebrow="Retirement levers"
-          title="The main choices that change withdrawal durability"
-          description="Start with the concrete levers most people actually use in retirement: spending, timing, bridge income, flexible guardrails, and how much legacy the plan still needs to preserve."
+          title="Start with the retirement change you would actually make"
+          description="These are the levers that usually move a spend plan the most: retirement spending, timing, bridge income, guardrails, and ending-wealth expectations."
         >
           <div className="flex items-start gap-2 rounded-lg border border-border/40 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
             <span className="mt-0.5 shrink-0">💡</span>
             <div>
               <span>
-                Pick one or more changes to see how they alter your retirement
-                plan. The full simulations only run for the scenario you select,
-                so the page stays fast while still using the real retirement
-                engine for the final answer.
+                Pick the real change you would consider first. Once you select
+                one, the page reruns the same retirement analysis used in Your
+                Plan and shows the before-and-after answer below.
               </span>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -565,20 +595,15 @@ export default function WhatIfWorkspace() {
                     How this works
                   </p>
                   <p className="mt-1.5">
-                    Each card changes the real retirement scenario behind your
-                    plan, then the historical and Monte Carlo engines rerun for
-                    the selected scenario only.
+                    Each card changes the real retirement plan behind your
+                    scenario. The evidence and guidance below compare your
+                    current plan with the selected path using the same
+                    historical, Monte Carlo, and readiness logic as Your Plan.
                   </p>
                   <p className="mt-1.5">
-                    Current path uses the portfolio projected to your
-                    retirement start date. FIRE target instead stress-tests the
-                    spending plan at the target size implied by your current
-                    withdrawal rate.
-                  </p>
-                  <p className="mt-1.5">
-                    The guidance section uses the same readiness model as Your
-                    Plan, so strengths, watchouts, and next actions stay tied to
-                    the same retirement logic.
+                    Current path uses the portfolio you are projected to retire
+                    with. FIRE target stress-tests the plan at the target size
+                    implied by your withdrawal rate.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -599,10 +624,18 @@ export default function WhatIfWorkspace() {
                       : "border-border/60 bg-card hover:border-[var(--ember)]/30",
                   )}
                 >
-                  <button
-                    type="button"
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={isSelected}
                     onClick={() => handleCardClick(decision.id)}
-                    className="w-full p-4 text-left"
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        handleCardClick(decision.id);
+                      }
+                    }}
+                    className="w-full cursor-pointer p-4 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ember)]/30"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -614,9 +647,14 @@ export default function WhatIfWorkspace() {
                           <span className="flex-1">{decision.label}</span>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="flex-shrink-0 cursor-help rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/80">
+                              <button
+                                type="button"
+                                aria-label={`Explain ${decision.label}`}
+                                onClick={(event) => event.stopPropagation()}
+                                className="flex-shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+                              >
                                 ?
-                              </span>
+                              </button>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-xs text-xs leading-relaxed">
                               {decision.methodology}
@@ -627,10 +665,7 @@ export default function WhatIfWorkspace() {
                           {decision.description}
                         </p>
                         <p className="mt-2 text-xs text-muted-foreground/80">
-                          {decision.tradeoff}
-                        </p>
-                        <p className="mt-2 text-[11px] text-muted-foreground/60">
-                          e.g. {decision.examples.slice(0, 3).join(", ")}
+                          You accept: {decision.tradeoff}
                         </p>
                       </div>
                     </div>
@@ -645,11 +680,11 @@ export default function WhatIfWorkspace() {
                       </span>
                       {decision.template.params.length > 0 ? (
                         <span className="text-xs text-muted-foreground">
-                          Adjust on select
+                          Fine-tune after selecting
                         </span>
                       ) : null}
                     </div>
-                  </button>
+                  </div>
 
                   {isSelected && decision.template.params.length > 0 ? (
                     <div className="px-4 pb-4">
@@ -692,17 +727,39 @@ export default function WhatIfWorkspace() {
 
           {selectedIds.size > 0 ? (
             <p className="text-center text-xs text-muted-foreground/60">
-              {selectedIds.size} selected. Scroll down to see how the full
-              retirement answer changes.
+              {selectedIds.size === 1
+                ? "1 change selected."
+                : `${selectedIds.size} changes selected.`}{" "}
+              Scroll down for the before-and-after answer.
             </p>
           ) : null}
         </ChartShell>
+
+        <SpendWhatIfGlobalControls
+          saveStatus={saveStatus}
+          strategy={selectedStrategy}
+          strategyLabel={selectedStrategyMeta.label}
+          strategyDescription={selectedStrategyMeta.shortDescription}
+          strategyOptions={strategyOptions}
+          retirementExpenses={activeScenario.retirementExpenses}
+          retirementDuration={activeScenario.simulationSettings.retirementDuration}
+          portfolioMode={portfolioMode}
+          onStrategyChange={(value) =>
+            updateWithdrawalStrategyType(
+              value as typeof activeScenario.withdrawalStrategy.type,
+            )
+          }
+          onRetirementExpensesChange={updateRetirementExpenses}
+          onRetirementDurationChange={updateRetirementDuration}
+          onPortfolioModeChange={setPortfolioMode}
+          onOpenAdvancedSettings={() => drawerStore.open("retirement")}
+        />
 
         {hasComparison && impactSummary ? (
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
               <StatCard
-                label="Your plan"
+                label="Current plan"
                 value={formatPercent(
                   baseSimulation.historicalResult?.successRate ?? 0,
                   1,
@@ -713,11 +770,7 @@ export default function WhatIfWorkspace() {
                 )} · readiness ${Math.round(baseReadiness.assessment.score)}/100`}
               />
               <StatCard
-                label={
-                  selectedDecisions.length === 1
-                    ? "With this change"
-                    : `With ${selectedDecisions.length} changes`
-                }
+                label="Selected path"
                 value={formatPercent(
                   comparisonSimulation.historicalResult?.successRate ?? 0,
                   1,
@@ -729,13 +782,17 @@ export default function WhatIfWorkspace() {
                 tone="accent"
               />
               <StatCard
-                label="Impact"
-                value={`${formatPointDelta(
-                  impactSummary.historicalSuccessDelta,
-                )} success`}
+                label="Safety gain"
+                value={
+                  Math.abs(impactSummary.historicalSuccessDelta) < 0.0005
+                    ? "No big change"
+                    : `${formatPointDelta(
+                        impactSummary.historicalSuccessDelta,
+                      )} success`
+                }
                 description={`Readiness ${
                   impactSummary.readinessScoreDelta >= 0 ? "+" : ""
-                }${Math.round(impactSummary.readinessScoreDelta)} · worst-case floor ${
+                }${Math.round(impactSummary.readinessScoreDelta)} · hardest-path floor ${
                   impactSummary.worstCaseFloorDelta >= 0 ? "+" : "-"
                 }${formatCompactCurrency(
                   Math.abs(impactSummary.worstCaseFloorDelta),
@@ -768,9 +825,8 @@ export default function WhatIfWorkspace() {
 
             {selectedDecisions.length > 1 ? (
               <p className="text-center text-[11px] text-muted-foreground/60">
-                Combined impact can differ from the sum of each card because the
-                retirement engine reruns the full scenario after the changes are
-                stacked together.
+                Combined impact is not just the sum of the cards. The full
+                retirement answer reruns after the changes stack together.
               </p>
             ) : null}
           </div>
@@ -778,16 +834,8 @@ export default function WhatIfWorkspace() {
 
         <ChartShell
           eyebrow="Evidence"
-          title={
-            hasComparison
-              ? `How ${comparisonLabel} changes the answer`
-              : "How your current retirement plan looks today"
-          }
-          description={
-            hasComparison
-              ? "Switch between the hardest historical cohort, the full historical distribution, and first-decade sequence risk to see what improved or got worse."
-              : "Choose a scenario above to turn this into a before-and-after comparison."
-          }
+          title={getEvidenceTitle(evidenceView, hasComparison)}
+          description={getEvidenceDescription(evidenceView, hasComparison)}
           actions={
             <div className="inline-flex flex-wrap items-center gap-1 rounded-full border border-border/60 bg-card/70 p-1.5 shadow-sm">
               {evidenceViews.map((view) => (
@@ -820,7 +868,7 @@ export default function WhatIfWorkspace() {
               }
               description={
                 hasComparison && comparisonReady && baseSimulation.historicalResult
-                  ? `Base ${formatPercent(
+                  ? `Current ${formatPercent(
                       baseSimulation.historicalResult.successRate,
                       1,
                     )} · ${formatPointDelta(
@@ -829,7 +877,7 @@ export default function WhatIfWorkspace() {
                             baseSimulation.historicalResult.successRate
                         : 0,
                     )}`
-                  : "Rolling historical start dates using the active strategy."
+                  : "Share of historical start dates that made it through the full plan."
               }
               tone={getSuccessTone(activeHistoricalResult?.successRate ?? null)}
             />
@@ -842,7 +890,7 @@ export default function WhatIfWorkspace() {
               }
               description={
                 hasComparison && comparisonReady && baseSimulation.monteCarloResult
-                  ? `Base ${formatPercent(
+                  ? `Current ${formatPercent(
                       baseSimulation.monteCarloResult.successRate,
                       1,
                     )} · ${formatPointDelta(
@@ -851,12 +899,12 @@ export default function WhatIfWorkspace() {
                             baseSimulation.monteCarloResult.successRate
                         : 0,
                     )}`
-                  : "Forward-looking success at your current return model."
+                  : "Forward-looking success under your selected return model."
               }
               tone={getSuccessTone(activeMonteCarloResult?.successRate ?? null)}
             />
             <StatCard
-              label="First 10-year failure risk"
+              label="Early failure risk"
               value={
                 comparisonFirstDecadeFailureRisk === null
                   ? "Pending"
@@ -864,26 +912,19 @@ export default function WhatIfWorkspace() {
               }
               description={
                 hasComparison && comparisonReady && baseFirstDecadeFailureRisk !== null
-                  ? `Base ${formatPercent(
+                  ? `Current ${formatPercent(
                       baseFirstDecadeFailureRisk,
                       1,
-                    )} · ${
-                      (baseFirstDecadeFailureRisk ?? 0) -
-                        (comparisonFirstDecadeFailureRisk ?? 0) >=
-                      0
-                        ? "-"
-                        : "+"
-                    }${Math.abs(
-                      ((baseFirstDecadeFailureRisk ?? 0) -
-                        (comparisonFirstDecadeFailureRisk ?? 0)) *
-                        100,
-                    ).toFixed(1)} pts`
-                  : "A direct read on how exposed the early retirement years are."
+                    )} · ${formatPointDelta(
+                      (comparisonFirstDecadeFailureRisk ?? 0) -
+                        (baseFirstDecadeFailureRisk ?? 0),
+                    )}`
+                  : "Chance of failure by year 10, when sequence risk is usually most painful."
               }
               tone={getRiskTone(comparisonFirstDecadeFailureRisk)}
             />
             <StatCard
-              label="Worst-case spending floor"
+              label="Hardest-path floor"
               value={
                 activeHistoricalResult
                   ? formatCompactCurrency(
@@ -893,7 +934,7 @@ export default function WhatIfWorkspace() {
               }
               description={
                 hasComparison && comparisonReady && baseSimulation.historicalResult
-                  ? `Base ${formatCompactCurrency(
+                  ? `Current ${formatCompactCurrency(
                       baseSimulation.historicalResult.withdrawalSummary.minMedian,
                     )} · ${
                       activeHistoricalResult &&
@@ -911,7 +952,7 @@ export default function WhatIfWorkspace() {
                             .minMedian,
                       ),
                     )}`
-                  : "The lowest real median spending the hardest historical path reached."
+                  : "Lowest real spending reached in the hardest historical path."
               }
               tone="accent"
             />
@@ -922,29 +963,71 @@ export default function WhatIfWorkspace() {
           eyebrow="Guidance"
           title={
             hasComparison && comparisonReady
-              ? "Why the answer changed"
+              ? "Why the answer changes"
               : "Why the current answer looks this way"
           }
           description={
             guidanceReady && hasComparison
-              ? `Readiness moves from ${Math.round(
+              ? `Same readiness model as Your Plan: current plan ${Math.round(
                   baseReadiness.assessment.score,
-                )}/100 to ${Math.round(
+                )}/100, selected path ${Math.round(
                   selectedAssessment.score,
-                )}/100. The strengths, watchouts, and next actions below reflect the selected scenario.`
-              : "These strengths, watchouts, and next actions are generated from the same readiness model as your spend plan once the simulations finish."
+                )}/100. The notes below describe the selected path.`
+              : "This uses the same readiness model as Your Plan, so the strengths, watchouts, and next actions stay tied to the same retirement logic once the simulations finish."
           }
         >
           {guidanceReady ? (
             <>
-              <div className="rounded-2xl border border-border/60 bg-card/35 p-5">
-                <p className="font-medium text-foreground">
-                  {selectedAssessment.title}
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {selectedAssessment.summary}
-                </p>
-              </div>
+              {hasComparison && comparisonReady ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-border/60 bg-card/35 p-5">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Current plan
+                    </p>
+                    <div className="mt-3 flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">
+                          {baseReadiness.assessment.title}
+                        </p>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {baseReadiness.assessment.summary}
+                        </p>
+                      </div>
+                      <span className="font-display text-3xl leading-none tracking-[-0.03em] text-foreground">
+                        {Math.round(baseReadiness.assessment.score)}/100
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-[rgba(255,107,53,0.24)] bg-[rgba(255,107,53,0.08)] p-5">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Selected path
+                    </p>
+                    <div className="mt-3 flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">
+                          {selectedAssessment.title}
+                        </p>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {selectedAssessment.summary}
+                        </p>
+                      </div>
+                      <span className="font-display text-3xl leading-none tracking-[-0.03em] text-[var(--ember)]">
+                        {Math.round(selectedAssessment.score)}/100
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-border/60 bg-card/35 p-5">
+                  <p className="font-medium text-foreground">
+                    {selectedAssessment.title}
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {selectedAssessment.summary}
+                  </p>
+                </div>
+              )}
 
               <div className="grid gap-4 xl:grid-cols-3">
                 <div className="rounded-2xl border border-border/60 bg-card/35 p-5">
@@ -963,7 +1046,7 @@ export default function WhatIfWorkspace() {
                       ))
                     ) : (
                       <div className="rounded-xl border border-border/60 bg-background/60 p-3 text-sm text-muted-foreground">
-                        No major strengths surfaced beyond the baseline tax and
+                        No standout strengths surfaced beyond the baseline
                         planning assumptions.
                       </div>
                     )}
@@ -997,14 +1080,21 @@ export default function WhatIfWorkspace() {
                     Next actions
                   </p>
                   <div className="mt-3 space-y-2">
-                    {selectedAssessment.nextActions.map((item) => (
-                      <div
-                        key={item}
-                        className="rounded-xl border border-border/60 bg-background/60 p-3 text-sm text-muted-foreground"
-                      >
-                        {item}
+                    {selectedAssessment.nextActions.length > 0 ? (
+                      selectedAssessment.nextActions.map((item) => (
+                        <div
+                          key={item}
+                          className="rounded-xl border border-border/60 bg-background/60 p-3 text-sm text-muted-foreground"
+                        >
+                          {item}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-xl border border-border/60 bg-background/60 p-3 text-sm text-muted-foreground">
+                        No immediate next step stands out beyond staying on plan
+                        and monitoring the key assumptions.
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               </div>
@@ -1018,8 +1108,9 @@ export default function WhatIfWorkspace() {
         </ChartShell>
 
         <CollapsibleSection
-          title="Advanced analysis"
-          summary="Open strategy comparison, valuation stress tests, and the current-year retirement checkup."
+          title="Advanced detail"
+          summary="Open the full retirement lab for strategy comparison, stress tests, and your ongoing checkup."
+          defaultOpen={false}
         >
           <SpendWhatIfAdvancedDetail
             baseScenario={activeScenario}

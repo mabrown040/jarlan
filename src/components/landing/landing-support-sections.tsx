@@ -37,14 +37,6 @@ const journeyCards: Array<{
     href: "/withdrawal",
     cta: "Test retirement durability",
   },
-  {
-    eyebrow: "Already retired",
-    title: "Check in instead of rebuilding the whole plan",
-    description:
-      "Use the dashboard and retirement checkup flow for current-year guidance and progress tracking.",
-    href: "/dashboard",
-    cta: "Open the dashboard",
-  },
 ];
 
 const capabilityCards: Array<{
@@ -86,14 +78,7 @@ const capabilityCards: Array<{
     description:
       "Layer in Roth ladders, ACA planning, Social Security, and scenario comparison.",
     href: "/tax-strategy",
-    tier: "pro",
-  },
-  {
-    title: "Tracking and reviews",
-    description:
-      "Log snapshots, run yearly checkups, and keep the plan grounded in reality.",
-    href: "/dashboard",
-    tier: "pro",
+    tier: "free",
   },
 ];
 
@@ -165,9 +150,6 @@ export function LandingCapabilitySection() {
               <CardContent className="space-y-3 py-6">
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-medium text-foreground">{card.title}</p>
-                  <span className="rounded-full border border-border/60 px-2 py-0.5 font-mono text-[0.58rem] uppercase tracking-[0.16em] text-muted-foreground">
-                    {card.tier === "free" ? "Free" : "Pro"}
-                  </span>
                 </div>
                 <p className="text-sm text-muted-foreground">{card.description}</p>
                 <p className="text-sm font-medium text-foreground transition-colors group-hover:text-primary">

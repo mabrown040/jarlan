@@ -88,7 +88,7 @@ export function buildSpendDecisionTemplates(
       emoji: "\u{1F4B8}",
       category: "Spending",
       methodology:
-        "Changes retirement spending directly. Lower retirement expenses reduce the amount your strategy has to withdraw and immediately improve the withdrawal rate the simulations need to sustain.",
+        "Changes retirement spending only. Lower spending means a smaller day-one withdrawal and more room if bad markets hit early.",
       examples: [
         "Downsize housing",
         "Travel less",
@@ -113,9 +113,8 @@ export function buildSpendDecisionTemplates(
           return {
             label: `Spend ${formatCompactCurrency(Math.abs(amount))}/yr less in retirement`,
             description:
-              "Starts retirement with a lower withdrawal and more room for bad early markets.",
-            tradeoff:
-              "Trade-off: more durability, but less lifestyle spending on day one.",
+              "Cuts retirement spending only, so the portfolio has more room if bad markets hit early.",
+            tradeoff: "Less lifestyle spending on day one.",
           };
         }
 
@@ -123,16 +122,15 @@ export function buildSpendDecisionTemplates(
           return {
             label: `Spend ${formatCompactCurrency(amount)}/yr more in retirement`,
             description:
-              "Tests a richer retirement lifestyle against the same market history.",
-            tradeoff:
-              "Trade-off: more lifestyle freedom, but less margin if returns disappoint early.",
+              "Raises retirement spending only to test a richer lifestyle after leaving work.",
+            tradeoff: "Less margin if returns disappoint early.",
           };
         }
 
         return {
           label: "Keep retirement spending where it is",
-          description: "Use your current retirement spending plan as-is.",
-          tradeoff: "Trade-off: no change to the current plan assumptions.",
+          description: "Leaves your retirement spending target unchanged.",
+          tradeoff: "No change to the current retirement spending plan.",
         };
       },
       apply: (baseScenario, values) => {
@@ -153,7 +151,7 @@ export function buildSpendDecisionTemplates(
       emoji: "\u{23F3}",
       category: "Timing",
       methodology:
-        "Delays retirement by the chosen number of years. That gives the portfolio more time to compound and shortens the number of retirement years the plan needs to fund.",
+        "Delays retirement by the chosen number of years. That adds more saving time before withdrawals begin and shortens the years the portfolio has to fund.",
       examples: [
         "One more year",
         "Two-year glide path",
@@ -175,10 +173,8 @@ export function buildSpendDecisionTemplates(
         const years = Math.max(Math.round(values.years ?? 1), 1);
         return {
           label: `Work ${formatYears(years)} longer before retiring`,
-          description:
-            "Adds more accumulation runway before withdrawals begin.",
-          tradeoff:
-            "Trade-off: a sturdier plan, but retirement starts later.",
+          description: "Adds more saving runway before retirement withdrawals begin.",
+          tradeoff: "Retirement starts later.",
         };
       },
       apply: (baseScenario, values) => {
@@ -198,7 +194,7 @@ export function buildSpendDecisionTemplates(
       emoji: "\u{1F91D}",
       category: "Income",
       methodology:
-        "Adds part-time income in the first retirement years. This offsets withdrawals during the sequence-risk window without permanently changing your long-run spending target.",
+        "Adds bridge income in the first retirement years. That offsets withdrawals during the fragile sequence-risk window without changing your long-run spending target.",
       examples: [
         "Consulting",
         "Seasonal work",
@@ -229,11 +225,10 @@ export function buildSpendDecisionTemplates(
         const amount = Math.max(values.amount ?? 0, 0);
         const duration = Math.max(Math.round(values.duration ?? 1), 1);
         return {
-          label: `Earn ${formatCompactCurrency(amount)}/yr for ${formatYears(duration)} after retiring`,
+          label: `Add ${formatCompactCurrency(amount)}/yr of bridge income for ${formatYears(duration)}`,
           description:
-            "Offsets withdrawals when early-retirement sequence risk is usually the highest.",
-          tradeoff:
-            "Trade-off: more flexibility in the first decade, but retirement still includes some paid work.",
+            "Offsets withdrawals when early-retirement sequence risk is usually at its highest.",
+          tradeoff: "Retirement still includes some paid work.",
         };
       },
       apply: (baseScenario, values) => {
@@ -258,7 +253,7 @@ export function buildSpendDecisionTemplates(
       emoji: "\u{1F6DF}",
       category: "Strategy",
       methodology:
-        "Switches the retirement spending rule to Guyton-Klinger guardrails, which allows spending cuts or raises as portfolio conditions change instead of holding the initial withdrawal flat forever.",
+        "Switches the spending rule to Guyton-Klinger guardrails, so spending can move up or down with market conditions instead of staying fixed in real terms.",
       examples: [
         "Accept flexible spending",
         "Use guardrails",
@@ -269,12 +264,11 @@ export function buildSpendDecisionTemplates(
       resolveCopy: (_, currentScenario) => ({
         label:
           currentScenario.withdrawalStrategy.type === "guyton_klinger"
-            ? "Keep using guardrail spending"
-            : "Switch from fixed spending to guardrails",
+            ? "Stay with guardrails"
+            : "Switch to guardrails",
         description:
-          "Lets spending flex with market conditions instead of forcing a single real withdrawal path.",
-        tradeoff:
-          "Trade-off: often more durable, but annual spending becomes less predictable.",
+          "Lets spending flex with market conditions instead of forcing the same real paycheck every year.",
+        tradeoff: "Annual spending becomes less predictable.",
       }),
       apply: (baseScenario) => {
         const nextScenario = cloneScenario(baseScenario);
@@ -297,7 +291,7 @@ export function buildSpendDecisionTemplates(
       emoji: "\u{1F381}",
       category: "Legacy",
       methodology:
-        "Changes how much ending wealth the plan still tries to preserve. Lowering the target increases flexibility because the simulations no longer need to finish with as much of the starting portfolio intact.",
+        "Changes how much ending wealth the plan still tries to preserve. Lower targets give the plan more flexibility because less of the starting portfolio has to be left intact at the end.",
       examples: [
         "Prioritize survival",
         "Lower inheritance goal",
@@ -307,7 +301,7 @@ export function buildSpendDecisionTemplates(
       params: [
         {
           id: "target",
-          label: "Ending portfolio target",
+          label: "Ending-wealth target",
           type: "percent",
           min: 0,
           max: 1,
@@ -315,16 +309,32 @@ export function buildSpendDecisionTemplates(
           defaultValue: defaultLegacyTarget,
         },
       ],
-      resolveCopy: (values) => {
+      resolveCopy: (values, currentScenario) => {
         const target = Math.max(Math.min(values.target ?? 0, 1), 0);
+        const currentTarget = currentScenario.simulationSettings.finalValueTarget;
 
         if (target === 0) {
           return {
-            label: "Optimize for survival, not legacy",
+            label:
+              currentTarget === 0
+                ? "Keep a survival-first ending target"
+                : "Optimize for survival, not legacy",
             description:
-              "Stops requiring the retirement plan to preserve a leftover portfolio at the end.",
+              currentTarget === 0
+                ? "Leaves the plan focused on making the money last instead of preserving a legacy balance."
+                : "Stops requiring the retirement plan to preserve a leftover portfolio at the end.",
             tradeoff:
-              "Trade-off: higher success odds, but less inheritance or end-of-plan cushion.",
+              currentTarget === 0
+                ? "No change to the current legacy goal."
+                : "Less inheritance or end-of-plan cushion.",
+          };
+        }
+
+        if (target === currentTarget) {
+          return {
+            label: `Keep the ending-wealth target at ${formatPercent(target, 0)}`,
+            description: "Leaves the amount you want left at the end unchanged.",
+            tradeoff: "No change to the current legacy goal.",
           };
         }
 
@@ -332,8 +342,7 @@ export function buildSpendDecisionTemplates(
           label: `Keep ${formatPercent(target, 0)} of the starting portfolio at the end`,
           description:
             "Balances spending durability against how much legacy or cushion you still want left over.",
-          tradeoff:
-            "Trade-off: more legacy protection means the plan has less spending flexibility.",
+          tradeoff: "Less flexibility to support spending along the way.",
         };
       },
       apply: (baseScenario, values) => {

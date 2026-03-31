@@ -45,13 +45,6 @@ export const productFeatures: ProductFeature[] = [
     tier: "pro",
   },
   {
-    id: "dashboard_tracking",
-    label: "Dashboard tracking and annual reviews",
-    description:
-      "Progress tracking, annual checkups, and long-running historical logs are grouped into the Pro planning layer.",
-    tier: "pro",
-  },
-  {
     id: "cloud_sync",
     label: "Account-backed cloud sync",
     description:
@@ -82,7 +75,7 @@ export const planSummaries = {
     priceMonthly: 12,
     priceYearly: 96,
     description:
-      "Advanced decision support, scenario comparisons, dashboard tracking, and cloud-backed scenario continuity for people actively making retirement calls.",
+      "Advanced decision support, scenario comparisons, and cloud-backed scenario continuity for people actively making retirement calls.",
   },
 } as const;
 
@@ -96,7 +89,6 @@ export const routePlanBoundaries: Record<string, SubscriptionPlan> = {
   "/account": "free",
   "/tax-strategy": "pro",
   "/scenario-lab": "pro",
-  "/dashboard": "pro",
 };
 
 export function getRoutePlanBoundary(route: string) {

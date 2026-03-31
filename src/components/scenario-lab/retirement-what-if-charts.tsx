@@ -59,10 +59,10 @@ export function HistoricalScenarioComparisonChart({
 
   return (
     <ChartFrame
-      ariaLabel="Historical comparison chart showing the base plan and selected scenario median retirement outcomes, plus the selected scenario's outcome band."
+      ariaLabel="Historical comparison chart showing the current plan and selected path median retirement outcomes, plus the selected path outcome band."
       className="h-[25rem] w-full"
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
         <AreaChart data={data} margin={{ top: 12, right: 18, left: 6, bottom: 8 }}>
           <CartesianGrid
             strokeDasharray="3 3"
@@ -125,7 +125,7 @@ export function HistoricalScenarioComparisonChart({
             type="monotone"
             dataKey="outerBandSize"
             stackId="comparison-band"
-            name="With change range"
+            name="Selected path range"
             stroke="transparent"
             fill="var(--ember)"
             fillOpacity={0.12}
@@ -134,7 +134,7 @@ export function HistoricalScenarioComparisonChart({
           <Line
             type="monotone"
             dataKey="baseMedian"
-            name="Your plan"
+            name="Current plan"
             stroke="var(--color-muted-foreground)"
             strokeDasharray="5 5"
             strokeWidth={2}
@@ -144,7 +144,7 @@ export function HistoricalScenarioComparisonChart({
           <Line
             type="monotone"
             dataKey="comparisonMedian"
-            name="With change"
+            name="Selected path"
             stroke="var(--ember)"
             strokeWidth={3}
             dot={false}
@@ -191,10 +191,10 @@ export function WorstCaseScenarioComparisonChart({
 
   return (
     <ChartFrame
-      ariaLabel="Worst-case comparison chart showing the annual withdrawal path for the base plan and the selected scenario in their hardest historical cohorts."
+      ariaLabel="Worst-case comparison chart showing the annual withdrawal path for the current plan and selected path in their hardest historical cohorts."
       className="h-[25rem] w-full"
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
         <LineChart data={data} margin={{ top: 12, right: 18, left: 6, bottom: 8 }}>
           <CartesianGrid
             strokeDasharray="3 3"
@@ -259,7 +259,7 @@ export function WorstCaseScenarioComparisonChart({
           <Line
             type="monotone"
             dataKey="baseWithdrawal"
-            name="Your plan"
+            name="Current plan"
             stroke="var(--color-muted-foreground)"
             strokeDasharray="5 5"
             strokeWidth={2}
@@ -269,7 +269,7 @@ export function WorstCaseScenarioComparisonChart({
           <Line
             type="monotone"
             dataKey="comparisonWithdrawal"
-            name="With change"
+            name="Selected path"
             stroke="var(--ember)"
             strokeWidth={3}
             dot={false}
@@ -306,10 +306,10 @@ export function FailureRateScenarioComparisonChart({
 
   return (
     <ChartFrame
-      ariaLabel="Failure-rate comparison chart showing cumulative probability of failure for the base plan and selected scenario."
+      ariaLabel="Failure-rate comparison chart showing cumulative probability of failure for the current plan and selected path."
       className="h-[22rem] w-full"
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
         <LineChart data={data} margin={{ top: 12, right: 18, left: 6, bottom: 8 }}>
           <CartesianGrid
             strokeDasharray="3 3"
@@ -355,7 +355,7 @@ export function FailureRateScenarioComparisonChart({
           <Line
             type="monotone"
             dataKey="baseFailureRate"
-            name="Your plan"
+            name="Current plan"
             stroke="var(--color-muted-foreground)"
             strokeDasharray="5 5"
             strokeWidth={2}
@@ -365,7 +365,7 @@ export function FailureRateScenarioComparisonChart({
           <Line
             type="monotone"
             dataKey="comparisonFailureRate"
-            name="With change"
+            name="Selected path"
             stroke="var(--ember)"
             strokeWidth={3}
             dot={false}

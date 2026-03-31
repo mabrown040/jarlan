@@ -214,8 +214,8 @@ export function SpendWhatIfAdvancedDetail({
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-border/60 bg-card/40 px-5 py-4 text-sm text-muted-foreground">
-        This section exposes the full retirement analysis stack for the active
-        what-if scenario. The checkup below stays tied to your saved plan
+        Use this section when you want the full retirement lab for the active
+        path. The checkup below still stays tied to your saved baseline plan
         history, not the hypothetical changes above.
       </div>
 

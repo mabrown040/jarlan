@@ -213,7 +213,7 @@ export function MoneyFlowSankey({ scenario }: { scenario: Scenario }) {
 
   return (
     <div className="h-[340px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
         <Sankey
           data={data}
           nodeWidth={16}

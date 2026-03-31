@@ -9,7 +9,7 @@ import {
   CompactPageHeader,
   StatCard,
 } from "@/components/brand";
-import { ProUpgradePrompt } from "@/components/product/pro-upgrade-prompt";
+
 import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
 import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
@@ -147,12 +147,6 @@ export default function IncomePlanWorkspace() {
       />
 
       <section className="mx-auto max-w-7xl space-y-8 px-6">
-        {/* ── Pro prompt ── */}
-        <ProUpgradePrompt
-          title="Use Pro when tax decisions become part of your annual process"
-          description="This tax workspace stays explorable, but the paid tier is where recurring reviews, cloud sync, and partner-shareable planning handoffs now live."
-        />
-
         {/* ── Section 1: Social Security Claiming ── */}
         <ChartShell
           eyebrow="Social Security"

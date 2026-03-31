@@ -532,7 +532,7 @@ export function BaristaFireArticle() {
             ariaLabel="Chart showing cumulative healthcare savings over time"
             className="mt-4 h-48"
           >
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
               <BarChart
                 data={healthcareData}
                 margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
@@ -651,7 +651,7 @@ export function BaristaFireArticle() {
             ariaLabel="Chart comparing portfolio recovery after a market crash with full vs barista withdrawals"
             className="mt-4 h-64"
           >
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
               <LineChart
                 data={sequenceData}
                 margin={{ top: 4, right: 4, bottom: 0, left: 0 }}

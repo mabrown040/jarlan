@@ -231,7 +231,7 @@ export function FireTypeQuiz() {
     curious: { href: "/education" as Route, label: "Start learning about FIRE" },
     saving: { href: "/accumulation" as Route, label: "Open Your Plan" },
     pre_retirement: { href: "/withdrawal" as Route, label: "Stress-test your retirement" },
-    retired: { href: "/dashboard" as Route, label: "Check your plan" },
+    retired: { href: "/withdrawal" as Route, label: "Check your plan" },
   };
 
   async function handleQuizComplete() {

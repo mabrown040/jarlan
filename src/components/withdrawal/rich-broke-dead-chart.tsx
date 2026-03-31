@@ -24,7 +24,7 @@ export function RichBrokeDeadChart({
 }) {
   return (
     <ChartFrame ariaLabel={ariaLabel} className="h-80 w-full">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
         <AreaChart data={data} margin={{ top: 12, right: 18, left: 6, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" opacity={0.35} />
           <XAxis

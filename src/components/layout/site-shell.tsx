@@ -38,15 +38,9 @@ const navGroups: NavGroup[] = [
     href: "/withdrawal",
     items: [
       { href: "/withdrawal", label: "Your Plan", tier: "free" },
-      { href: "/tax-strategy", label: "Income plan", tier: "pro" },
-      { href: "/scenario-lab", label: "What if?", tier: "pro" },
+      { href: "/scenario-lab", label: "What if?", tier: "free" },
+      { href: "/tax-strategy", label: "Income plan", tier: "free" },
     ],
-  },
-  {
-    id: "track",
-    label: "Track",
-    href: "/dashboard",
-    items: [{ href: "/dashboard", label: "Dashboard", tier: "pro" }],
   },
   {
     id: "learn",
@@ -274,11 +268,6 @@ export function SiteShell({ children }: { children: ReactNode }) {
                   }`}
                 >
                   {item.label}
-                  {item.tier === "pro" ? (
-                    <span className="rounded-full border border-[rgba(255,107,53,0.22)] bg-[rgba(255,107,53,0.08)] px-1.5 py-0.5 font-mono text-[0.52rem] uppercase tracking-[0.14em] text-[var(--ember)]">
-                      Pro
-                    </span>
-                  ) : null}
                 </Link>
               ))}
             </div>
@@ -325,11 +314,6 @@ export function SiteShell({ children }: { children: ReactNode }) {
                             }`}
                           >
                             {item.label}
-                            {item.tier === "pro" ? (
-                              <span className="rounded-full border border-[rgba(255,107,53,0.22)] bg-[rgba(255,107,53,0.08)] px-1.5 py-0.5 font-mono text-[0.5rem] uppercase tracking-[0.14em] text-[var(--ember)]">
-                                Pro
-                              </span>
-                            ) : null}
                           </Link>
                         ))}
                       </div>
