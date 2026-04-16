@@ -1,4 +1,5 @@
 import type { Scenario } from "@/lib/domain/types";
+import { isAccumulationPhase } from "@/lib/retirement/phase";
 import type {
   HistoricalBacktestResult,
   MonteCarloResult,
@@ -13,8 +14,11 @@ import type {
 import { clamp, roundTo } from "@/lib/utils";
 
 export interface RetirementReadinessAssessment {
+  /** 0-100 readiness score. Meaningless (always 0) while `verdict` is
+   *  `"accumulation"` — consumers should check verdict first and render a
+   *  different UI (no gauge). */
   score: number;
-  verdict: "ready" | "close" | "needs_work";
+  verdict: "ready" | "close" | "needs_work" | "accumulation";
   title: string;
   summary: string;
   historicalSuccessRate: number | null;
@@ -77,6 +81,42 @@ export function buildRetirementReadinessAssessment({
   socialSecurityAnalysis,
   drawdownComparison,
 }: BuildRetirementReadinessAssessmentArgs): RetirementReadinessAssessment {
+  // Short-circuit when the scenario is still in accumulation — the simulations
+  // return high success rates on tiny portfolios (because spending barely dents
+  // the target FIRE balance), producing misleading scores like 89/100 for a
+  // 28-year-old with $5K. The UI shows an "accumulation" banner instead.
+  if (isAccumulationPhase(scenario)) {
+    const bestDrawdown =
+      [...drawdownComparison].sort(
+        (left, right) => left.estimatedTenYearTaxes - right.estimatedTenYearTaxes,
+      )[0] ?? null;
+    return {
+      score: 0,
+      verdict: "accumulation",
+      title: "You're still accumulating",
+      summary:
+        "Retirement readiness applies once you're drawing from the portfolio. For now, use the Save module to project your FI date.",
+      historicalSuccessRate: null,
+      monteCarloSuccessRate: null,
+      firstDecadeFailureRisk: null,
+      peakAliveAndBrokeProbability: null,
+      acaRoomRemaining: acaProjection.roomRemaining,
+      acaRoomRatio: 0,
+      bridgeFundingNeed: rothPlan.rows[0]?.bridgeFundingNeed ?? 0,
+      bridgeReserveLeft: rothPlan.remainingBridge,
+      bestDrawdown,
+      recommendedClaimAge: socialSecurityAnalysis.recommendedClaimAge,
+      worstCaseStartDate: null,
+      worstCaseFailureYear: null,
+      worstCaseMedianSpendingFloor: null,
+      strengths: [],
+      watchouts: [],
+      nextActions: [
+        "Keep building the portfolio — return here once you're closer to retirement spending.",
+      ],
+    };
+  }
+
   const historicalSuccessRate = historicalResult?.successRate ?? null;
   const monteCarloSuccessRate = monteCarloResult?.successRate ?? null;
   const firstDecadeFailureRisk =

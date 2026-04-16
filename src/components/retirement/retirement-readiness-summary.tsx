@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Copy, Printer } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, Hourglass, Printer } from "lucide-react";
 
 import { SectionHeading, StatCard } from "@/components/brand";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,13 @@ const verdictTone = {
     ring: "stroke-[var(--danger)]",
     surface: "border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.08)]",
     icon: AlertTriangle,
+  },
+  accumulation: {
+    // Readiness score is meaningless in this phase — use a neutral tone and
+    // the callers swap the gauge for a banner.
+    ring: "stroke-border",
+    surface: "border-border/60 bg-muted/40",
+    icon: Hourglass,
   },
 } as const;
 
@@ -97,6 +104,53 @@ export function RetirementReadinessSummary({
   secondaryCta?: { href: Route; label: string };
 }) {
   const Icon = verdictTone[assessment.verdict].icon;
+  const isAccumulation = assessment.verdict === "accumulation";
+
+  if (isAccumulation) {
+    // Skip the score gauge and simulation stat grid — those are meaningless
+    // while the user is still net-saving. Show a guidance banner instead.
+    return (
+      <Card data-print-section="summary">
+        <CardHeader>
+          <SectionHeading
+            eyebrow="Retirement readiness"
+            title="Can I retire now?"
+            titleAs="h3"
+            titleClassName="text-[1.9rem]"
+            description="This view is designed for the moment you start drawing from the portfolio."
+          />
+        </CardHeader>
+        <CardContent>
+          <div
+            className={cn(
+              "rounded-2xl border p-5 shadow-[var(--shadow-soft)]",
+              verdictTone.accumulation.surface,
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <Icon className="size-5" />
+              <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                Still building
+              </p>
+            </div>
+            <p className="mt-3 font-display text-2xl leading-tight tracking-[-0.03em] text-foreground">
+              {assessment.title}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {assessment.summary}
+            </p>
+            {secondaryCta ? (
+              <div className="mt-4">
+                <Button asChild variant="outline" size="sm">
+                  <Link href={secondaryCta.href}>{secondaryCta.label}</Link>
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card data-print-section="summary">

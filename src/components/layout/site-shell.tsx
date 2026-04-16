@@ -38,7 +38,9 @@ const navGroups: NavGroup[] = [
     label: "Spend",
     href: "/withdrawal",
     items: [
-      { href: "/withdrawal", label: "Your Plan", tier: "free" },
+      // Renamed from "Your Plan" to disambiguate from the Save module's
+      // "Your plan" sub-tab — the page purpose is the stress-test question.
+      { href: "/withdrawal", label: "Can I retire?", tier: "free" },
       { href: "/scenario-lab", label: "What if?", tier: "free" },
       { href: "/tax-strategy", label: "Income plan", tier: "free" },
     ],
@@ -183,6 +185,16 @@ export function SiteShell({ children }: { children: ReactNode }) {
       group.items.some((item) => isActivePath(item.href)),
     ) ?? navGroups[0];
 
+  // Track which group is expanded in the mobile hamburger menu. Previously
+  // only the *active* group's sub-tabs rendered, so tapping "Spend" from Home
+  // never revealed its sub-nav. Default to the active group; reset on route.
+  const [openMobileGroupId, setOpenMobileGroupId] = useState<string>(
+    activeGroup.id,
+  );
+  useEffect(() => {
+    setOpenMobileGroupId(activeGroup.id);
+  }, [activeGroup.id]);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <a
@@ -283,7 +295,42 @@ export function SiteShell({ children }: { children: ReactNode }) {
               <div className="flex flex-col gap-1">
                 {navGroups.map((group) => (
                   <div key={group.id}>
-                    {group.isPro ? (
+                    {group.items.length > 1 && !group.isPro ? (
+                      // Tappable header that toggles the sub-nav without
+                      // navigating — lets users browse Spend's sub-tabs from
+                      // any page without having to land on /withdrawal first.
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenMobileGroupId((current) =>
+                            current === group.id ? "" : group.id,
+                          )
+                        }
+                        aria-expanded={openMobileGroupId === group.id}
+                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                          activeGroup.id === group.id
+                            ? "bg-[rgba(255,107,53,0.1)] font-medium text-foreground"
+                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                        }`}
+                      >
+                        <span>{group.label}</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className={`size-3.5 transition-transform ${
+                            openMobileGroupId === group.id ? "rotate-180" : ""
+                          }`}
+                          aria-hidden="true"
+                        >
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </button>
+                    ) : group.isPro ? (
                       <ProNavLink
                         href={group.href}
                         isActive={activeGroup.id === group.id}
@@ -301,8 +348,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
                         {group.label}
                       </Link>
                     )}
-                    {/* Show sub-items for active group */}
-                    {activeGroup.id === group.id && group.items.length > 1 ? (
+                    {openMobileGroupId === group.id && group.items.length > 1 ? (
                       <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l border-border/40 pl-3">
                         {group.items.map((item) => (
                           <Link

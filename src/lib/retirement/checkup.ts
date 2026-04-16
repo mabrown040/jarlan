@@ -3,6 +3,7 @@ import { getShillerDataset } from "@/lib/data";
 import type { ScenarioSnapshotRecord } from "@/lib/db";
 import { cloneScenario } from "@/lib/domain";
 import type { Scenario } from "@/lib/domain/types";
+import { isAccumulationPhase } from "@/lib/retirement/phase";
 import {
   resolveAnnualWithdrawalAmount,
   resolveInitialAnnualWithdrawal,
@@ -12,11 +13,14 @@ import {
 export interface RetirementCheckupSummary {
   currentPortfolio: number;
   currentSpending: number;
-  currentWithdrawalRate: number;
+  /** `null` while still in the accumulation phase — the ratio is meaningless
+   *  when the user hasn't started drawing down (e.g. $45K spend ÷ $5K portfolio
+   *  → 900% is a math artefact, not a guidance signal). */
+  currentWithdrawalRate: number | null;
   activeStrategyGuidance: number;
   capeGuidedWithdrawal: number;
   latestCape: number | null;
-  status: "on_track" | "watch" | "adjust";
+  status: "on_track" | "watch" | "adjust" | "accumulation";
   statusLabel: string;
   statusMessage: string;
   netWorthDelta: number | null;
@@ -33,8 +37,12 @@ export function buildRetirementCheckup({
 }): RetirementCheckupSummary {
   const currentPortfolio = getCurrentPortfolioBalance(scenario.accounts);
   const currentSpending = scenario.retirementExpenses;
-  const currentWithdrawalRate =
-    currentPortfolio > 0 ? currentSpending / currentPortfolio : 0;
+  const accumulating = isAccumulationPhase(scenario);
+  const currentWithdrawalRate = accumulating
+    ? null
+    : currentPortfolio > 0
+      ? currentSpending / currentPortfolio
+      : 0;
   const previousAnnualWithdrawal =
     snapshots.at(-1)?.retirementExpenses ?? scenario.retirementExpenses;
   const initialAnnualWithdrawal = resolveInitialAnnualWithdrawal(
@@ -76,7 +84,15 @@ export function buildRetirementCheckup({
   let statusMessage =
     "Current spending is broadly aligned with the active withdrawal strategy.";
 
-  if (scenario.withdrawalStrategy.type === "guyton_klinger") {
+  if (accumulating) {
+    status = "accumulation";
+    statusLabel = "Still building";
+    statusMessage =
+      "You're net-saving, not drawing down. Withdrawal-rate guidance doesn't apply yet — use the Save module to project when you'll be ready to retire.";
+  } else if (
+    scenario.withdrawalStrategy.type === "guyton_klinger" &&
+    currentWithdrawalRate !== null
+  ) {
     const params = scenario.withdrawalStrategy.gkParams ?? {
       guardrailWidth: 0.2,
       adjustmentSize: 0.1,

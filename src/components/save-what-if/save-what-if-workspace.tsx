@@ -256,10 +256,13 @@ export default function SaveWhatIfWorkspace() {
       />
 
       <section className="mx-auto max-w-7xl space-y-8 px-6">
-        {/* ---- Life Decision Cards (primary interaction — shown first) ---- */}
+        {/* ---- Life Decision Cards (primary interaction — shown first) ----
+            Page header above already says "How real choices change your
+            timeline"; the inner shell gets a scoped title so the user
+            doesn't read the same headline twice in a row. */}
         <ChartShell
           eyebrow="Life decisions"
-          title="How real choices change your timeline"
+          title="Pick the changes you want to model"
         >
           <div className="flex items-start gap-2 rounded-lg border border-border/40 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
             <span className="mt-0.5 shrink-0">💡</span>

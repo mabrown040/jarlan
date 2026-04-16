@@ -13,6 +13,47 @@ export function RetirementCheckupSummary({
   checkup: RetirementCheckupSummaryData;
   description?: string;
 }) {
+  const isAccumulation = checkup.status === "accumulation";
+
+  // Map status → tone for the stat cards. "accumulation" reads as a neutral
+  // "accent" rather than any good/bad signal.
+  const statusTone =
+    checkup.status === "on_track"
+      ? "success"
+      : checkup.status === "watch"
+        ? "warning"
+        : checkup.status === "accumulation"
+          ? "accent"
+          : "danger";
+
+  if (isAccumulation) {
+    // Skip the WR + guidance grid entirely — every cell would be misleading.
+    // Show a compact banner that explains why and points back to Save.
+    return (
+      <Card>
+        <CardHeader>
+          <SectionHeading
+            eyebrow="Retirement checkup"
+            title="Current-year status"
+            titleAs="h3"
+            titleClassName="text-[1.9rem]"
+            description="Withdrawal-rate guidance kicks in once you're drawing from the portfolio."
+          />
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-2xl border border-border/60 bg-muted/40 p-5">
+            <p className="font-medium text-foreground">
+              {checkup.statusLabel}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {checkup.statusMessage}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -28,13 +69,17 @@ export function RetirementCheckupSummary({
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Current withdrawal rate"
-            value={formatPercent(checkup.currentWithdrawalRate, 2)}
+            value={
+              checkup.currentWithdrawalRate === null
+                ? "—"
+                : formatPercent(checkup.currentWithdrawalRate, 2)
+            }
             description={`Based on ${formatCompactCurrency(
               checkup.currentSpending,
             )} of annual spending and ${formatCompactCurrency(
               checkup.currentPortfolio,
             )} of portfolio value.`}
-            tone={checkup.status === "on_track" ? "success" : checkup.status === "watch" ? "warning" : "danger"}
+            tone={statusTone}
           />
           <StatCard
             label="Active strategy guidance"
@@ -55,7 +100,7 @@ export function RetirementCheckupSummary({
             label="Status"
             value={checkup.statusLabel}
             description={checkup.statusMessage}
-            tone={checkup.status === "on_track" ? "success" : checkup.status === "watch" ? "warning" : "danger"}
+            tone={statusTone}
           />
         </div>
 

@@ -220,9 +220,13 @@ export function buildScenarioFromQuizAnswers(
   scenario.accounts = accounts;
 
   // Compute tax-aware savings using the scenario's tax estimation
-  // (Traditional 401k contributions now reduce taxable income automatically)
+  // (Traditional 401k contributions now reduce taxable income automatically).
+  // Round to whole dollars — the tax estimator returns cents, and those
+  // would otherwise leak into UI inputs as "$16548.3" etc.
   const { takeHome } = estimateScenarioTax(scenario);
-  const taxAwareSavings = Math.max(takeHome - answers.annualSpending, 0);
+  const taxAwareSavings = Math.round(
+    Math.max(takeHome - answers.annualSpending, 0),
+  );
   const totalContributions = accounts.reduce((sum, a) => sum + a.annualContribution, 0);
 
   // If no contributions were allocated (user skipped the step), put all savings

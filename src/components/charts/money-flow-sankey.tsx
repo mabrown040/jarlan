@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Sankey, Tooltip, ResponsiveContainer, Rectangle, Layer } from "recharts";
 import type { Scenario } from "@/lib/domain/types";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
@@ -28,8 +28,29 @@ interface SankeyNodePayload { color?: string; displayName?: string }
 interface SankeyLinkPayload { source?: SankeyNodePayload; target?: SankeyNodePayload; value?: number }
 
 /* ── Custom node rendering ─────────────────────────────────── */
-function SankeyNode({ x = 0, y = 0, width = 0, height = 0, index = 0, payload = {} }: { x?: number; y?: number; width?: number; height?: number; index?: number; payload?: SankeyNodePayload }) {
+function SankeyNode({
+  x = 0,
+  y = 0,
+  width = 0,
+  height = 0,
+  index = 0,
+  payload = {},
+  compact = false,
+}: {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  index?: number;
+  payload?: SankeyNodePayload;
+  compact?: boolean;
+}) {
   const color = payload?.color ?? "#ccc";
+  // On narrow viewports, drop the "$XK" amount from the inline label — it
+  // collides with adjacent nodes when right-margin shrinks. The tooltip still
+  // shows the full value on tap.
+  const label = payload?.displayName ?? "";
+  const compactLabel = compact ? label.replace(/\s+\$.+$/, "") : label;
   return (
     <Layer key={`node-${index}`}>
       <Rectangle
@@ -44,13 +65,17 @@ function SankeyNode({ x = 0, y = 0, width = 0, height = 0, index = 0, payload = 
       />
       {/* Label to the right of the node */}
       <text
-        x={x + width + 8}
+        x={x + width + (compact ? 4 : 8)}
         y={y + height / 2}
         textAnchor="start"
         dominantBaseline="central"
-        className="fill-foreground text-[11px] font-medium"
+        className={
+          compact
+            ? "fill-foreground text-[9px] font-medium"
+            : "fill-foreground text-[11px] font-medium"
+        }
       >
-        {payload?.displayName ?? ""}
+        {compactLabel}
       </text>
     </Layer>
   );
@@ -213,6 +238,19 @@ function buildSankeyData(scenario: Scenario) {
 export function MoneyFlowSankey({ scenario }: { scenario: Scenario }) {
   const data = useMemo(() => buildSankeyData(scenario), [scenario]);
 
+  // Narrow viewports collapsed the label region into node overlap. Track the
+  // `sm` breakpoint so we can tighten the right margin and drop $-amounts
+  // from node labels on phones.
+  const [isCompact, setIsCompact] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 640px)");
+    const sync = () => setIsCompact(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   if (!data) return null;
 
   return (
@@ -220,11 +258,16 @@ export function MoneyFlowSankey({ scenario }: { scenario: Scenario }) {
       <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
         <Sankey
           data={data}
-          nodeWidth={16}
-          nodePadding={28}
-          margin={{ top: 16, right: 160, bottom: 16, left: 16 }}
+          nodeWidth={isCompact ? 10 : 16}
+          nodePadding={isCompact ? 20 : 28}
+          margin={{
+            top: 16,
+            right: isCompact ? 72 : 160,
+            bottom: 16,
+            left: isCompact ? 8 : 16,
+          }}
           link={<SankeyLink />}
-          node={<SankeyNode />}
+          node={<SankeyNode compact={isCompact} />}
         >
           <Tooltip content={<SankeyTooltip />} />
         </Sankey>

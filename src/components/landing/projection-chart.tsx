@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Area,
   Bar,
@@ -16,6 +17,25 @@ import {
 import { ChartFrame } from "@/components/charts/chart-frame";
 import { formatCompactCurrency } from "@/lib/calc/format";
 import type { ProjectionPoint } from "@/lib/domain/types";
+
+/**
+ * Detect narrow viewports so the milestone labels on the projection chart
+ * can stagger more aggressively and optionally shorten their text. On phone
+ * widths ~36 years of projection collapse into ~300px, which means 3-year
+ * milestone gaps render as fully-overlapped labels ("RetireBaristaFIRE").
+ */
+function useIsCompactViewport(maxWidth = 640) {
+  const [isCompact, setIsCompact] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia(`(max-width: ${maxWidth}px)`);
+    const sync = () => setIsCompact(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, [maxWidth]);
+  return isCompact;
+}
 
 /* ── Brand colors ── */
 const CONTRIBUTIONS_COLOR = "var(--chart-contributions)";
@@ -395,6 +415,7 @@ export function ProjectionChart({
     showBands ? bandProjections : undefined,
   );
   const target = data[0]?.target ?? 0;
+  const isCompact = useIsCompactViewport();
 
   // Merge comparison data into chart points
   const chartData = rawChartData.map((point, i) => ({
@@ -454,10 +475,13 @@ export function ProjectionChart({
             />
           ) : null}
 
-          {/* Milestone reference lines — stagger overlapping labels */}
+          {/* Milestone reference lines — stagger overlapping labels.
+              On mobile, milestone years (e.g. retire 50 / barista 55 / FIRE 58)
+              collapse into a few dozen pixels, so widen the stagger threshold
+              and abbreviate the goal label to avoid "RetireBaristaFIRE" mush. */}
           {(() => {
             const sorted = [...milestones].sort((a, b) => a.year - b.year);
-            const OVERLAP_THRESHOLD = 2;
+            const OVERLAP_THRESHOLD = isCompact ? 8 : 2;
             const STAGGER_PX = 16;
             let prevYear = -999;
             let staggerLevel = 0;
@@ -470,16 +494,23 @@ export function ProjectionChart({
               m._offsetY = staggerLevel * STAGGER_PX;
               prevYear = m.year;
             }
-            return sorted.map((m) => (
-              <ReferenceLine
-                key={m.label}
-                x={m.year}
-                stroke={m.isGoal ? "var(--muted-foreground)" : m.isEvent ? "var(--muted-foreground)" : "var(--ember)"}
-                strokeDasharray={m.isGoal ? "4 4" : m.isEvent ? "2 4" : "3 3"}
-                strokeOpacity={m.isGoal ? 0.15 : m.isEvent ? 0.1 : 0.15}
-                label={<MilestoneLabel milestone={m} />}
-              />
-            ));
+            return sorted.map((m) => {
+              const labelForRender = isCompact && m.isGoal
+                ? // "Retire (age 50)" → "Goal 50" is dramatically narrower and
+                  // still legible next to the Barista/FIRE markers.
+                  m.label.replace(/Retire \(age (\d+)\)/, "Goal $1")
+                : m.label;
+              return (
+                <ReferenceLine
+                  key={m.label}
+                  x={m.year}
+                  stroke={m.isGoal ? "var(--muted-foreground)" : m.isEvent ? "var(--muted-foreground)" : "var(--ember)"}
+                  strokeDasharray={m.isGoal ? "4 4" : m.isEvent ? "2 4" : "3 3"}
+                  strokeOpacity={m.isGoal ? 0.15 : m.isEvent ? 0.1 : 0.15}
+                  label={<MilestoneLabel milestone={{ ...m, label: labelForRender }} />}
+                />
+              );
+            });
           })()}
 
           {showBands || comparisonData ? (

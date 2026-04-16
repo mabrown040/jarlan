@@ -225,10 +225,16 @@ export function FireTypeQuiz() {
     retired: { href: "/withdrawal" as Route, label: "Check your plan" },
   };
 
-  async function handleQuizComplete() {
+  async function persistQuizToStore() {
     const built = buildScenarioFromQuizAnswers(answers);
     replaceScenario(built);
     await saveDraft();
+  }
+
+  async function handleQuizComplete() {
+    // Persist again in case the user edited answers between "See my result" and this CTA.
+    // replaceScenario is idempotent for identical inputs.
+    await persistQuizToStore();
     router.push("/" as Route);
   }
 
@@ -922,8 +928,8 @@ export function FireTypeQuiz() {
               />
             </div>
 
-            {/* Question content */}
-            <div className="mt-6">
+            {/* Question content — keyed so stateful children (e.g. NumberInput draft state) reset on step change */}
+            <div key={currentStep.key} className="mt-6">
               {renderStep()}
             </div>
 
@@ -939,7 +945,15 @@ export function FireTypeQuiz() {
                 Back
               </Button>
               {isLastStep ? (
-                <Button type="button" onClick={() => setQuizComplete(true)}>
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    // Persist quiz answers to the scenario store BEFORE showing the result,
+                    // so the header pill + navigation anywhere reflects the quiz immediately.
+                    await persistQuizToStore();
+                    setQuizComplete(true);
+                  }}
+                >
                   <Sparkles className="size-4" />
                   See my result
                 </Button>

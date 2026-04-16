@@ -16,7 +16,9 @@ import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scen
 import { RothLadderTimeline } from "@/components/tax/roth-ladder-timeline";
 import { TaxWaterfallChart } from "@/components/tax/tax-waterfall-chart";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
+import { isAccumulationPhase } from "@/lib/retirement/phase";
 import {
   formatCompactCurrency,
   formatCurrency,
@@ -50,6 +52,11 @@ export default function IncomePlanWorkspace() {
   useInitializeStore(sharedScenarioParam);
   useAutoSaveScenario({ syncUrl: true });
   useGlobalScenarioFormatting(activeScenario);
+
+  const accumulating = useMemo(
+    () => isAccumulationPhase(activeScenario),
+    [activeScenario],
+  );
 
   /* ── Derived benchmark premium from scenario ── */
   const benchmarkPremium = useMemo(
@@ -144,6 +151,32 @@ export default function IncomePlanWorkspace() {
           </div>
         }
       />
+
+      {accumulating ? (
+        // The drawdown / Roth / ACA sections simulate against the user's
+        // current portfolio. In accumulation phase the portfolio is tiny
+        // relative to spending, so every strategy ends at $0 and the "Best"
+        // tag is arbitrary. Warn the user that this page is a preview.
+        <section className="mx-auto max-w-7xl px-6">
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Preview mode
+              </p>
+              <p className="mt-2 font-display text-xl leading-tight tracking-[-0.03em] text-foreground">
+                You&apos;re still accumulating
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                These drawdown, Roth-conversion, and ACA models assume you&apos;re
+                drawing from the portfolio. Treat the numbers below as a
+                preview of the decisions you&apos;ll make once you&apos;re closer to
+                retirement — the rankings become meaningful when your balance
+                approaches the FIRE target.
+              </p>
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
 
       <section className="mx-auto max-w-7xl space-y-8 px-6">
         {/* ── Section 1: Social Security Claiming ── */}

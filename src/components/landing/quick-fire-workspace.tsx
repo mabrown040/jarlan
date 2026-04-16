@@ -179,6 +179,30 @@ export function QuickFireWorkspace({
     });
   }, [summary, fireTypes, activeScenario, plannedContribution]);
 
+  // Year the projection table first hits the FIRE target. Rendered stat cards
+  // use this (integer) so the "Years to FI / age" display matches the row
+  // where the FIRE milestone badge lands. Falls back to the analytical
+  // `summary.yearsToFi` if the target is outside the projection window.
+  const projectionFireYearIndex = useMemo(() => {
+    const traditionalTarget =
+      fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
+    if (traditionalTarget <= 0) return -1;
+    return summary.projection.findIndex(
+      (p, idx) => idx > 0 && p.balance >= traditionalTarget,
+    );
+  }, [fireTypes, summary.projection]);
+
+  const displayYearsToFi: number | null =
+    projectionFireYearIndex >= 0
+      ? projectionFireYearIndex
+      : summary.yearsToFi === null
+        ? null
+        : Math.ceil(summary.yearsToFi);
+  const displayFireAge: number | null =
+    displayYearsToFi === null
+      ? null
+      : activeScenario.profile.age + displayYearsToFi;
+
   // Uncertainty bands: ±2% return projections
   const [showBands, setShowBands] = useState(false);
   const bandProjections = useMemo(() => {
@@ -278,7 +302,7 @@ export function QuickFireWorkspace({
                     Take the quiz
                   </h3>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Answer 10 questions and get a personalized FIRE type, target number, and a clear next step.
+                    Answer a few quick questions and get a personalized FIRE type, target number, and a clear next step.
                   </p>
                   <p className="mt-4 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
                     Start the quiz →
@@ -417,8 +441,15 @@ export function QuickFireWorkspace({
                   )}
                   <span className="text-border">{"\u00B7"}</span>
                   <span>
-                    <span className="font-semibold text-foreground">{formatPercent(summary.savingsRate, 0)}</span>
-                    {" "}savings rate
+                    {/* Use after-tax rate to match the Save module; falls back
+                        to gross when tax data isn't available. */}
+                    <span className="font-semibold text-foreground">
+                      {Number.isFinite(taxEstimate.afterTaxSavingsRate) &&
+                      taxEstimate.afterTaxSavingsRate > 0
+                        ? formatPercent(taxEstimate.afterTaxSavingsRate, 0)
+                        : formatPercent(summary.savingsRate, 0)}
+                    </span>
+                    {" "}after-tax savings rate
                   </span>
                 </div>
               </button>
@@ -799,18 +830,35 @@ export function QuickFireWorkspace({
                   </div>
                   <div className="mt-2 flex items-baseline gap-2">
                     <p className="font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
-                      {formatYears(summary.yearsToFi)}
+                      {/* Integer year count matching the FIRE milestone row in
+                          the projection table — avoids "28.1 yrs" here with
+                          the badge on the age-57 row below. */}
+                      {displayYearsToFi === null ? "—" : `${displayYearsToFi} yrs`}
                     </p>
-                    {summary.fireAge !== null ? (
-                      <span className="text-sm text-muted-foreground">age {summary.fireAge}</span>
+                    {displayFireAge !== null ? (
+                      <span className="text-sm text-muted-foreground">age {displayFireAge}</span>
                     ) : null}
                   </div>
                   <p className="mt-3 text-sm text-muted-foreground">
                     {formatCompactCurrency(activeScenario.annualSavings)}/yr at {formatPercent(activeScenario.assumptions.expectedRealReturn, 0)} real return
                   </p>
-                  {summary.fireAge !== null && summary.fireAge < US_BENCHMARKS.averageRetirementAge ? (
+                  {/* Plan-health callout. Pick the most urgent signal in order:
+                      (1) won't hit FI at all, (2) target age is before FI age,
+                      (3) freedom-years comparison when user is ahead. */}
+                  {displayYearsToFi === null ? (
+                    <p className="mt-2 text-xs font-medium text-[var(--danger)]">
+                      ⚠ Not projected to hit FI at the current savings rate. Increase savings or lower spending.
+                    </p>
+                  ) : activeScenario.profile.retirementAge !== null &&
+                    displayFireAge !== null &&
+                    displayFireAge > activeScenario.profile.retirementAge ? (
+                    <p className="mt-2 text-xs font-medium text-[var(--warning,#b45309)]">
+                      ⚠ Target retirement age {activeScenario.profile.retirementAge} is {displayFireAge - activeScenario.profile.retirementAge} yr
+                      {displayFireAge - activeScenario.profile.retirementAge === 1 ? "" : "s"} before projected FI (age {displayFireAge}). Raise savings or push the target.
+                    </p>
+                  ) : displayFireAge !== null && displayFireAge < US_BENCHMARKS.averageRetirementAge ? (
                     <p className="mt-2 text-xs text-muted-foreground/70">
-                      The average American retires at {US_BENCHMARKS.averageRetirementAge}. You&apos;re on track for {Math.round(summary.fireAge)} — that&apos;s {Math.round(US_BENCHMARKS.averageRetirementAge - summary.fireAge)} extra years of freedom.
+                      The average American retires at {US_BENCHMARKS.averageRetirementAge}. You&apos;re on track for {displayFireAge} — that&apos;s {US_BENCHMARKS.averageRetirementAge - displayFireAge} extra years of freedom.
                     </p>
                   ) : null}
                   <Link

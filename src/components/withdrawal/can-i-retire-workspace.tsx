@@ -544,7 +544,9 @@ export function CanIRetireWorkspace() {
   return (
     <div className="space-y-8 pb-12">
       <CompactPageHeader
-        title="Your Plan"
+        // Matches the sub-nav label and the page's actual question — the
+        // Save module owns "Your plan".
+        title="Can I retire?"
         description="See whether your spending plan survives real history, forward-looking randomness, and expensive starting markets."
         metrics={[
           {
@@ -561,11 +563,17 @@ export function CanIRetireWorkspace() {
           },
           {
             label: "Readiness",
+            // "accumulation" verdict → score is 0 by design but displaying
+            // "0/100" alongside the "Still building" banner is confusing.
+            // Show "—" instead; consumers check the banner for phase context.
             value: readiness.assessment
-              ? `${Math.round(readiness.assessment.score)}/100`
+              ? readiness.assessment.verdict === "accumulation"
+                ? "—"
+                : `${Math.round(readiness.assessment.score)}/100`
               : "...",
             accent: readiness.assessment
-              ? readiness.assessment.score >= 80
+              ? readiness.assessment.verdict !== "accumulation" &&
+                readiness.assessment.score >= 80
               : false,
           },
         ]}
@@ -685,7 +693,8 @@ export function CanIRetireWorkspace() {
           defaultOpen={false}
         >
           <div className="space-y-6">
-            {readiness.assessment ? (
+            {readiness.assessment &&
+            readiness.assessment.verdict !== "accumulation" ? (
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
                 <span>
                   Your {Math.round(readiness.assessment.score)}/100 readiness
