@@ -1,4 +1,5 @@
 import { calculateQuickFireSummary } from "@/lib/calc";
+import { getHouseholdAnnualIncome } from "@/lib/calc/scenario";
 import { cloneScenario } from "@/lib/domain";
 import type { Scenario } from "@/lib/domain/types";
 import { estimateScenarioTax } from "@/lib/tax";
@@ -64,9 +65,14 @@ export interface LifeDecisionResult {
 
 export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate[] {
   const income = scenario.annualIncome;
+  const householdIncome = getHouseholdAnnualIncome(scenario);
   const expenses = scenario.annualExpenses;
   const age = scenario.profile.age;
   const retAge = scenario.profile.retirementAge ?? age + 15;
+  // Years remaining until the user's retirement target — used as the upper
+  // bound on "take time off" so users can model leaving the workforce
+  // permanently (e.g. a partner stopping work for good).
+  const maxBreakYears = Math.max(retAge - age, 5);
 
   // Compute effective tax rate for after-tax income adjustments
   const taxCalc = estimateScenarioTax(scenario);
@@ -260,23 +266,63 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
       category: "Income",
       labelTemplate: "Take {duration} off at age {startAge}",
       descriptionTemplate: "{duration} off work. Income during break: {breakIncome}/yr",
-      methodology: "During a career break you lose your savings AND continue spending from your portfolio. Total cost = (normal expenses + lost savings - any income during break) × duration. Set 'income during break' for severance, partner income, or part-time work.",
-      examples: ["Sabbatical", "Parental leave", "Health recovery", "Travel year", "Grad school"],
+      methodology:
+        "Model stepping away from full-time work — for a single year, a multi-year break, or permanently. During the break, savings stop and expenses come from the portfolio. Total cost = (normal expenses + lost savings - any income during break) × duration. Use 'income during break' to capture severance, a partner who keeps working, or part-time work.",
+      examples: [
+        "Sabbatical",
+        "Parental leave",
+        "Partner stops working",
+        "Leave the workforce permanently",
+        "Grad school",
+      ],
       params: [
-        { id: "duration", label: "Time off", type: "years", min: 0.25, max: 5, step: 0.25, defaultValue: 1 },
+        // Upper bound extends to the remaining years until the target retire
+        // age so users can model "stop working forever" (partner leaves the
+        // workforce, early semi-retirement, etc.) without the slider clipping.
+        {
+          id: "duration",
+          label: "Time off",
+          type: "years",
+          min: 0.25,
+          max: maxBreakYears,
+          step: 0.25,
+          defaultValue: 1,
+        },
         { id: "startAge", label: "Starting at age", type: "age", min: age, max: retAge, step: 1, defaultValue: age },
-        { id: "breakIncome", label: "Income during break", type: "currency", min: 0, max: 200_000, step: 5000, defaultValue: 0 },
+        // Break income goes up to full household income (primary + partner)
+        // so users can represent keeping the whole salary (= no real break)
+        // or anything in between — e.g. one partner stops and the other
+        // keeps earning. Falls back to a $200K floor when the scenario has
+        // no income entered yet so the slider still has useful range.
+        {
+          id: "breakIncome",
+          label: "Income during break",
+          type: "currency",
+          min: 0,
+          max: Math.max(householdIncome, 200_000),
+          step: 5000,
+          defaultValue: 0,
+        },
       ],
       getDirection: () => "negative",
       apply: (s, v) => {
         const next = cloneScenario(s);
-        // During the break: no savings + spending from portfolio
-        // Net cost per year = expenses + lost savings - break income
+        // During the break: no savings + spending from portfolio.
+        // Lost savings + continuing expenses is paid for, in part, by
+        // whatever `breakIncome` the user set (partner income, severance,
+        // part-time work). The net-cost CF cancels the ongoing contribution
+        // (`annualSavings`) and funds expenses; a separate income CF carries
+        // `breakIncome` so the Year-by-year "Income" column can render it
+        // (otherwise the break year shows Income = $0 even when the user
+        // entered e.g. $240K of partner income).
         const annualSavings = s.annualSavings;
-        const netCostPerYear = Math.max(s.annualExpenses + annualSavings - v.breakIncome, 0);
+        const lostSavingsAndExpenses = s.annualExpenses + annualSavings;
 
         if (v.startAge <= s.profile.age) {
-          // Immediate: deduct the full cost from portfolio
+          // Immediate: deduct the full cost from portfolio. Allow surplus
+          // (breakIncome > expenses+savings) to grow the portfolio rather
+          // than clamping it to 0 and discarding the extra.
+          const netCostPerYear = lostSavingsAndExpenses - v.breakIncome;
           const totalCost = Math.round(netCostPerYear * v.duration);
           if (next.accounts[0]) {
             next.accounts[0].currentBalance = Math.max(
@@ -284,20 +330,36 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
             );
           }
         } else {
-          // Future: model the net cost as an expense cash flow
-          // Note: this is one combined CF for portfolio math correctness.
-          // The display layer interprets "Career break net cost" CFs specially
-          // to show income=$breakIncome and expenses=base expenses.
+          // Future: model as two cash flows so the display can attribute
+          // income vs. expenses correctly. Net effect on portfolio is the
+          // same as the old single-CF model:
+          //   +contribution (scenario.annualSavings, continues during break)
+          //   + breakIncome (new income CF)
+          //   − (expenses + savings)  (new expense CF)
+          //   = +breakIncome − expenses   (i.e. lost savings canceled)
+          const breakId = `break-${Date.now()}`;
           next.cashFlows.push({
-            id: `break-${Date.now()}`,
+            id: `${breakId}-expense`,
             name: "Career break net cost",
             type: "expense",
-            amount: Math.round(netCostPerYear),
+            amount: Math.round(lostSavingsAndExpenses),
             startAge: v.startAge,
             endAge: v.startAge + v.duration,
             inflationAdjusted: true,
             taxable: false,
           });
+          if (v.breakIncome > 0) {
+            next.cashFlows.push({
+              id: `${breakId}-income`,
+              name: "Career break income",
+              type: "income",
+              amount: Math.round(v.breakIncome),
+              startAge: v.startAge,
+              endAge: v.startAge + v.duration,
+              inflationAdjusted: true,
+              taxable: false,
+            });
+          }
         }
         return next;
       },
