@@ -212,9 +212,22 @@ export function buildScenarioFromQuizAnswers(
     acct.annualContribution = answers.hsaContribution;
     accounts.push(acct);
   }
-  // Always create taxable — it's the catch-all
+  // Always create taxable — it's the catch-all.
+  // If the user entered `currentPortfolio` but skipped the account-split
+  // step, the split balances still hold their defaults and won't add up to
+  // the user-entered total. When the split disagrees with the total,
+  // trust the total and park the remainder in taxable so their scenario
+  // reflects what they typed.
+  const totalOtherBalances =
+    answers.traditionalBalance + answers.rothBalance + answers.hsaBalance;
+  const splitTotal = totalOtherBalances + answers.taxableBalance;
+  const splitsDisagreeWithTotal =
+    answers.currentPortfolio > 0 &&
+    Math.abs(splitTotal - answers.currentPortfolio) > 1;
   const taxableAcct = createDefaultAccount("taxable", "Taxable brokerage");
-  taxableAcct.currentBalance = answers.taxableBalance;
+  taxableAcct.currentBalance = splitsDisagreeWithTotal
+    ? Math.max(answers.currentPortfolio - totalOtherBalances, 0)
+    : answers.taxableBalance;
   taxableAcct.annualContribution = answers.taxableContribution;
   accounts.push(taxableAcct);
   scenario.accounts = accounts;

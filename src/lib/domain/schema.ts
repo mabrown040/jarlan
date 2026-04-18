@@ -156,6 +156,11 @@ export const scenarioSchema = z.object({
   assetAllocationGlidepath: z.array(glidepathPointSchema),
   simulationSettings: simulationSettingsSchema,
   socialSecurity: socialSecuritySchema,
+  // Optional: set `true` once the user has personalized the defaults (via
+  // quiz completion, drawer edits, etc.). Preserved through share-URL
+  // serialization so recipients see the same "personalized vs default"
+  // state as the sender.
+  isPersonalized: z.boolean().optional(),
 });
 
 export function parseScenario(input: unknown): Scenario | null {

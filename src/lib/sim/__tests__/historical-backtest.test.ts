@@ -50,7 +50,11 @@ describe("historical data and backtesting", () => {
     expect(result.worstCasePath).toHaveLength(31);
     expect(result.worstCasePath[0]?.age).toBe(45);
     expect(result.cohortSummaries).toHaveLength(result.periodsTested);
-    expect(result.withdrawalSummary.medianStdDev).toBeGreaterThan(0);
+    // Fixed-real 4% withdrawal: every year's median is the same $60K in real
+    // dollars by construction, so the per-year median series has zero
+    // dispersion. Assert exactly 0 so the invariant is documented — a
+    // regression (e.g. a strategy leak injecting variance) would flip this.
+    expect(result.withdrawalSummary.medianStdDev).toBe(0);
     expect(result.withdrawalSummary.maxMedianYear).toBeGreaterThanOrEqual(
       result.withdrawalSummary.minMedianYear,
     );
