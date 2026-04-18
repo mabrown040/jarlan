@@ -73,6 +73,78 @@ export function getNetCashFlowAtAge(scenario: Scenario, age: number) {
 }
 
 /**
+ * Compute the real-dollar value of a single cash flow at a given year offset.
+ *
+ * Rules:
+ *   - `inflationAdjusted: true`  → real-dollar amount stays constant
+ *   - `inflationAdjusted: false` → nominal amount stays constant; its real
+ *     value erodes by `(1 + inflation)^yearsElapsed`
+ *   - Name `"Career break income (raises)"` (an opt-in from the What-if card)
+ *     additionally scales the real amount by the scenario's real income
+ *     growth rate per year since the break started, matching how the base
+ *     salary grows in non-break years.
+ */
+function computeRealAmount(
+  cashFlow: Scenario["cashFlows"][number],
+  scenario: Scenario,
+  yearsElapsed: number,
+) {
+  const inflation = scenario.assumptions.inflation ?? 0;
+  let real = cashFlow.inflationAdjusted
+    ? cashFlow.amount
+    : cashFlow.amount / (1 + inflation) ** Math.max(yearsElapsed, 0);
+  if (cashFlow.name === "Career break income (raises)") {
+    const growth = scenario.assumptions.incomeGrowthRate ?? 0;
+    // Age-of-break years since the CF started, so raises compound during
+    // the break rather than from the scenario epoch.
+    const yearsIntoBreak = Math.max(
+      Math.floor(yearsElapsed) - (cashFlow.startAge - scenario.profile.age),
+      0,
+    );
+    real *= (1 + growth) ** yearsIntoBreak;
+  }
+  return real;
+}
+
+/**
+ * Real-dollar variant of {@link getNetCashFlowAtAge} that respects each cash
+ * flow's `inflationAdjusted` flag and the "Career break income (raises)"
+ * growth convention. Shared by the accumulation projection.
+ */
+export function getRealNetCashFlowAtAge(
+  scenario: Scenario,
+  age: number,
+  yearsElapsed: number,
+) {
+  const yearAge = Math.floor(age);
+  return scenario.cashFlows.reduce((total, cashFlow) => {
+    const isActive =
+      yearAge >= cashFlow.startAge &&
+      (cashFlow.endAge === null || yearAge < cashFlow.endAge);
+    if (!isActive) return total;
+    const realAmount = computeRealAmount(cashFlow, scenario, yearsElapsed);
+    return total + (cashFlow.type === "income" ? realAmount : -realAmount);
+  }, 0);
+}
+
+/**
+ * True when the scenario has an active "Career break net cost" cash flow at
+ * the given age. The projection uses this to zero out the normal monthly
+ * contribution during break years (the user isn't earning the base salary
+ * that funds `annualSavings`).
+ */
+export function isOnCareerBreakAtAge(scenario: Scenario, age: number): boolean {
+  const yearAge = Math.floor(age);
+  for (const cf of scenario.cashFlows) {
+    if (cf.name !== "Career break net cost") continue;
+    const active =
+      yearAge >= cf.startAge && (cf.endAge === null || yearAge < cf.endAge);
+    if (active) return true;
+  }
+  return false;
+}
+
+/**
  * Split cash flows at a given age into income vs expense totals.
  * Also tracks "lost income" from career breaks separately so the display
  * layer can show income=$0 instead of expenses=$300K+.
@@ -80,24 +152,33 @@ export function getNetCashFlowAtAge(scenario: Scenario, age: number) {
 export function getCashFlowBreakdownAtAge(
   scenario: Scenario,
   age: number,
+  // Optional year offset used to apply each CF's `inflationAdjusted` flag
+  // (and the "raises" growth convention) to its displayed real-dollar
+  // amount. When omitted, amounts are returned as stored for backwards
+  // compatibility.
+  yearsElapsed?: number,
 ): { income: number; expense: number; lostIncome: number; net: number } {
   let income = 0;
   let expense = 0;
   let lostIncome = 0;
   const yearAge = Math.floor(age);
+  const applyRealDollars = yearsElapsed !== undefined;
   for (const cf of scenario.cashFlows) {
     const isActive =
       yearAge >= cf.startAge && (cf.endAge === null || yearAge < cf.endAge);
     if (!isActive) continue;
+    const realAmount = applyRealDollars
+      ? computeRealAmount(cf, scenario, yearsElapsed)
+      : cf.amount;
     if (cf.type === "income") {
-      income += cf.amount;
+      income += realAmount;
     } else {
       // Career break "net cost" CFs represent lost income + lost savings,
       // not actual spending increases. Track them separately.
       if (cf.name === "Career break net cost") {
-        lostIncome += cf.amount;
+        lostIncome += realAmount;
       }
-      expense += cf.amount;
+      expense += realAmount;
     }
   }
   return { income, expense, lostIncome, net: income - expense };

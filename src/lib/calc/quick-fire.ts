@@ -3,10 +3,11 @@ import { clamp, roundTo } from "@/lib/utils";
 import {
   getCashFlowBreakdownAtAge,
   getCurrentPortfolioBalance,
-  getNetCashFlowAtAge,
   getPlannedAnnualInvestmentContribution,
+  getRealNetCashFlowAtAge,
   getSavingsRate,
   getYearsUntilRetirement,
+  isOnCareerBreakAtAge,
 } from "@/lib/calc/scenario";
 import type { ProjectionPoint, QuickFireSummary, Scenario } from "@/lib/domain/types";
 
@@ -147,8 +148,15 @@ function calculateScenarioYearsToTarget(
   for (let month = 1; month <= maxYears * 12; month += 1) {
     const yearOffset = (month - 1) / 12;
     const age = scenario.profile.age + yearOffset;
-    const monthlyContribution = getMonthlyContributionForYear(scenario, Math.floor(yearOffset));
-    const monthlyCashFlow = getNetCashFlowAtAge(scenario, age) / 12;
+    // Zero contribution during a career break — the base salary that feeds
+    // `annualSavings` isn't being earned. The break's income/expense CFs
+    // still flow through `monthlyCashFlow` below.
+    const onBreak = isOnCareerBreakAtAge(scenario, age);
+    const monthlyContribution = onBreak
+      ? 0
+      : getMonthlyContributionForYear(scenario, Math.floor(yearOffset));
+    const monthlyCashFlow =
+      getRealNetCashFlowAtAge(scenario, age, yearOffset) / 12;
     balance = balance * (1 + monthlyReturn) + monthlyContribution + monthlyCashFlow;
 
     if (balance >= targetBalance) {
@@ -206,8 +214,17 @@ export function buildScenarioProjection({
   for (let month = 1; month <= horizon * 12; month += 1) {
     const yearOffset = (month - 1) / 12;
     const age = scenario.profile.age + yearOffset;
-    const monthlyContribution = getMonthlyContributionForYear(scenario, Math.floor(yearOffset));
-    const monthlyCashFlow = getNetCashFlowAtAge(scenario, age) / 12;
+    // Zero the normal contribution during a career break so the "Savings/yr"
+    // column reflects reality (breakIncome − expenses) instead of still
+    // pretending the base salary is being earned.
+    const onBreak = isOnCareerBreakAtAge(scenario, age);
+    const monthlyContribution = onBreak
+      ? 0
+      : getMonthlyContributionForYear(scenario, Math.floor(yearOffset));
+    // Real-dollar cash flow — respects each CF's `inflationAdjusted` flag
+    // so nominal-fixed severance / partner salary erodes over break years.
+    const monthlyCashFlow =
+      getRealNetCashFlowAtAge(scenario, age, yearOffset) / 12;
     balance = balance * (1 + monthlyReturn) + monthlyContribution + monthlyCashFlow;
 
     yearContributions += monthlyContribution;
@@ -221,23 +238,31 @@ export function buildScenarioProjection({
       // Compute income/expenses for this year using the START of the year age.
       // Year N runs from age (base+N-1) to age (base+N). Cash flows active
       // during the year should use the start-of-year age for display.
+      // Pass yearsElapsed so nominal-fixed CFs (e.g. a severance the user
+      // ticked "Increase with inflation" off for) erode in real terms.
       const yearStartAge = scenario.profile.age + yearNum - 1;
-      const cfBreakdown = getCashFlowBreakdownAtAge(scenario, yearStartAge);
+      const cfBreakdown = getCashFlowBreakdownAtAge(
+        scenario,
+        yearStartAge,
+        yearNum - 1,
+      );
       const grownIncome = scenario.annualIncome * (1 + incomeGrowthRate) ** yearNum;
       const grownExpenses = scenario.annualExpenses * (1 + expenseGrowthRate) ** yearNum;
 
-      // Career break handling: the "Career break net cost" CF bundles
-      // lost income + lost savings into one expense CF. For display:
-      // - Income = just breakIncome (from income CFs), not grownIncome
-      // - Expenses = base expenses + OTHER expense CFs (baby, etc.) but
-      //   excluding the career break "net cost" CF itself
+      // Career break handling: the "Career break net cost" CF carries the
+      // actual expenses the portfolio has to cover during the break. Display:
+      // - Income = break income (respects inflationAdjusted via breakdown)
+      // - Expenses = the break CF's amount + any OTHER expense CFs (baby etc.)
+      //   so the Savings column (income − expenses) matches the real per-year
+      //   change to the portfolio. We don't re-apply lifestyle creep here —
+      //   the break CF already represents the expense side of the break.
       const onCareerBreak = cfBreakdown.lostIncome > 0;
       const displayIncome = onCareerBreak
         ? cfBreakdown.income  // Just break income (e.g., $0 or severance)
         : grownIncome + cfBreakdown.income;
       const otherExpenseCFs = cfBreakdown.expense - cfBreakdown.lostIncome;
       const displayExpenses = onCareerBreak
-        ? grownExpenses + otherExpenseCFs  // Base + baby/other CFs, minus break net cost
+        ? cfBreakdown.lostIncome + otherExpenseCFs
         : grownExpenses + cfBreakdown.expense;
 
       projection.push({

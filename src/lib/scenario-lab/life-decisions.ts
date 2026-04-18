@@ -6,7 +6,17 @@ import { estimateScenarioTax } from "@/lib/tax";
 
 /* ── Parameter system ── */
 
-export type ParamType = "currency" | "currency_signed" | "percent" | "years" | "return" | "age";
+export type ParamType =
+  | "currency"
+  | "currency_signed"
+  | "percent"
+  | "years"
+  | "return"
+  | "age"
+  // `boolean` params render as a checkbox in the decision card. Values are
+  // stored as numbers (0 | 1) to share the same `Record<string, number>`
+  // shape the slider-based params use.
+  | "boolean";
 
 export interface DecisionParam {
   id: string;
@@ -303,63 +313,78 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
           step: 5000,
           defaultValue: 0,
         },
+        // When checked, break income grows over the break at the scenario's
+        // real income growth rate — same treatment as the base salary in
+        // non-break years (modeling a partner who keeps getting raises).
+        // The table is in real dollars, so checked makes the number visibly
+        // rise; unchecked keeps it flat in real terms (still keeps pace with
+        // inflation, but no raises). Default off — most part-time / severance
+        // arrangements don't come with yearly raises.
+        {
+          id: "growsWithRaises",
+          label: "Grows with yearly raises",
+          type: "boolean",
+          min: 0,
+          max: 1,
+          step: 1,
+          defaultValue: 0,
+        },
       ],
       getDirection: () => "negative",
       apply: (s, v) => {
         const next = cloneScenario(s);
-        // During the break: no savings + spending from portfolio.
-        // Lost savings + continuing expenses is paid for, in part, by
-        // whatever `breakIncome` the user set (partner income, severance,
-        // part-time work). The net-cost CF cancels the ongoing contribution
-        // (`annualSavings`) and funds expenses; a separate income CF carries
-        // `breakIncome` so the Year-by-year "Income" column can render it
-        // (otherwise the break year shows Income = $0 even when the user
-        // entered e.g. $240K of partner income).
-        const annualSavings = s.annualSavings;
-        const lostSavingsAndExpenses = s.annualExpenses + annualSavings;
-
-        if (v.startAge <= s.profile.age) {
-          // Immediate: deduct the full cost from portfolio. Allow surplus
-          // (breakIncome > expenses+savings) to grow the portfolio rather
-          // than clamping it to 0 and discarding the extra.
-          const netCostPerYear = lostSavingsAndExpenses - v.breakIncome;
-          const totalCost = Math.round(netCostPerYear * v.duration);
-          if (next.accounts[0]) {
-            next.accounts[0].currentBalance = Math.max(
-              next.accounts[0].currentBalance - totalCost, 0,
-            );
-          }
-        } else {
-          // Future: model as two cash flows so the display can attribute
-          // income vs. expenses correctly. Net effect on portfolio is the
-          // same as the old single-CF model:
-          //   +contribution (scenario.annualSavings, continues during break)
-          //   + breakIncome (new income CF)
-          //   − (expenses + savings)  (new expense CF)
-          //   = +breakIncome − expenses   (i.e. lost savings canceled)
-          const breakId = `break-${Date.now()}`;
+        // During the break:
+        //   - Normal contributions stop (user isn't earning the base salary
+        //     that fed `annualSavings`). The projection loop detects the
+        //     break via the "Career break net cost" expense CF and zeroes
+        //     the monthly contribution for those years, so we don't need to
+        //     model it here.
+        //   - Expenses continue. The portfolio either covers them directly
+        //     (no break income) or they're offset by break income from a
+        //     partner / severance / part-time work.
+        //
+        // Net per-break-year effect on portfolio = breakIncome − expenses
+        // (plus normal investment growth on the balance).
+        const breakExpenses = s.annualExpenses;
+        const growsWithRaises = v.growsWithRaises !== 0;
+        // Clamp startAge to the scenario's current age so a break that starts
+        // "now" still emits cash flows the projection can render (previously
+        // the same-age path used a lump-sum portfolio deduction, which left
+        // the Year-by-year Income/Expenses columns showing the base salary).
+        const effectiveStartAge = Math.max(v.startAge, s.profile.age);
+        const breakId = `break-${Date.now()}`;
+        next.cashFlows.push({
+          id: `${breakId}-expense`,
+          name: "Career break net cost",
+          type: "expense",
+          amount: Math.round(breakExpenses),
+          startAge: effectiveStartAge,
+          endAge: effectiveStartAge + v.duration,
+          // Expenses always keep pace with inflation (rent, groceries
+          // don't stop rising just because you took a break).
+          inflationAdjusted: true,
+          taxable: false,
+        });
+        if (v.breakIncome > 0) {
+          // The CF name encodes whether the projection should grow this
+          // income year-over-year at the scenario's real income growth
+          // rate. Both variants keep pace with inflation (they're in real
+          // dollars); the "raises" variant additionally applies
+          // scenario.assumptions.incomeGrowthRate — matching how the base
+          // salary grows in non-break years.
+          const incomeName = growsWithRaises
+            ? "Career break income (raises)"
+            : "Career break income";
           next.cashFlows.push({
-            id: `${breakId}-expense`,
-            name: "Career break net cost",
-            type: "expense",
-            amount: Math.round(lostSavingsAndExpenses),
-            startAge: v.startAge,
-            endAge: v.startAge + v.duration,
+            id: `${breakId}-income`,
+            name: incomeName,
+            type: "income",
+            amount: Math.round(v.breakIncome),
+            startAge: effectiveStartAge,
+            endAge: effectiveStartAge + v.duration,
             inflationAdjusted: true,
             taxable: false,
           });
-          if (v.breakIncome > 0) {
-            next.cashFlows.push({
-              id: `${breakId}-income`,
-              name: "Career break income",
-              type: "income",
-              amount: Math.round(v.breakIncome),
-              startAge: v.startAge,
-              endAge: v.startAge + v.duration,
-              inflationAdjusted: true,
-              taxable: false,
-            });
-          }
         }
         return next;
       },

@@ -166,4 +166,92 @@ describe("Life Decision Composition — Golden Tests", () => {
       10,
     );
   });
+
+  /**
+   * @golden Career break with partner income: displayed Income column = breakIncome
+   *
+   * The Coast Accumulator scenario is 28yo, age-55 target, $35K expenses.
+   * Running a 10-year break at age 30 with $40K "partner income" should
+   * make the Year-by-year Income column report exactly $40K during the
+   * break years — not $0 (old single-CF bug) and not "full salary" (base
+   * income CF). Savings should reduce to breakIncome − expenses.
+   */
+  it("career break: Income column shows breakIncome during break years", () => {
+    const decision = applyDecisionToScenario(base, "career-break", {
+      duration: 10,
+      startAge: 30,
+      breakIncome: 40_000,
+      growsWithRaises: 0,
+    });
+    const modified = decision.apply(base);
+    const summary = calculateQuickFireSummary(modified);
+
+    // Display layer uses start-of-year age to pick up active CFs. A break
+    // starting at age 30 shows up beginning with the row whose start-of-year
+    // age is 30 — i.e. projection year 3 in Coast (base age 28 → 28+3-1=30).
+    const breakRow = summary.projection.find((p) => Math.floor(p.age) === 31);
+    expect(breakRow).toBeDefined();
+    expect(breakRow!.income).toBe(40_000);
+    // Savings = breakIncome − expenses (~$35K with 1% creep for one year).
+    expect(breakRow!.savings).toBeGreaterThan(3_000);
+    expect(breakRow!.savings).toBeLessThan(7_000);
+  });
+
+  /**
+   * @golden Career break with "grows with raises" scales income over time
+   *
+   * Same setup but with raises enabled. Break income should grow at the
+   * scenario's incomeGrowthRate (default 1% real for this fixture), so the
+   * last break year's displayed income is materially higher than the first.
+   */
+  it("career break raises: income grows year over year during break", () => {
+    const decision = applyDecisionToScenario(base, "career-break", {
+      duration: 10,
+      startAge: 30,
+      breakIncome: 40_000,
+      growsWithRaises: 1,
+    });
+    const modified = decision.apply(base);
+    const summary = calculateQuickFireSummary(modified);
+
+    // First displayable break row = start-of-year age 30 (projection year 3)
+    const firstBreakRow = summary.projection.find(
+      (p) => Math.floor(p.age) === 31,
+    );
+    const lastBreakRow = summary.projection.find(
+      (p) => Math.floor(p.age) === 40,
+    );
+    expect(firstBreakRow).toBeDefined();
+    expect(lastBreakRow).toBeDefined();
+    // With raises on, the final break year income strictly exceeds the first.
+    expect(lastBreakRow!.income).toBeGreaterThan(firstBreakRow!.income);
+    // And the first-break row matches the flat baseline ($40K) — growth
+    // hasn't compounded yet at that point.
+    expect(firstBreakRow!.income).toBe(40_000);
+  });
+
+  /**
+   * @golden Career break with zero breakIncome: Income column = $0
+   *
+   * No partner income / no severance. The Income column should reflect
+   * that, and the Savings column should be strongly negative because the
+   * portfolio alone has to cover expenses.
+   */
+  it("career break with no income: Income = 0 and savings negative", () => {
+    const decision = applyDecisionToScenario(base, "career-break", {
+      duration: 3,
+      startAge: 30,
+      breakIncome: 0,
+      growsWithRaises: 0,
+    });
+    const modified = decision.apply(base);
+    const summary = calculateQuickFireSummary(modified);
+
+    // Display-row age 31 (start-of-year 30) is the first break row
+    const breakRow = summary.projection.find((p) => Math.floor(p.age) === 31);
+    expect(breakRow).toBeDefined();
+    expect(breakRow!.income).toBe(0);
+    // Savings = 0 − expenses ≈ −$35K
+    expect(breakRow!.savings).toBeLessThan(-30_000);
+  });
 });

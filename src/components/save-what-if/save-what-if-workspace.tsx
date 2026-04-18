@@ -358,6 +358,32 @@ export default function SaveWhatIfWorkspace() {
                           customValues[decision.id]?.[param.id] ??
                           param.defaultValue;
 
+                        if (param.type === "boolean") {
+                          const checked = currentValue !== 0;
+                          return (
+                            <div
+                              key={param.id}
+                              className="mt-3 border-t border-border/40 pt-3"
+                            >
+                              <label className="flex cursor-pointer items-center justify-between gap-3 text-xs text-muted-foreground">
+                                <span>{param.label}</span>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) =>
+                                    updateParam(
+                                      decision.id,
+                                      param.id,
+                                      e.target.checked ? 1 : 0,
+                                    )
+                                  }
+                                  className="size-4 rounded border-border/60 text-[var(--ember)] focus:ring-1 focus:ring-[var(--ember)]"
+                                />
+                              </label>
+                            </div>
+                          );
+                        }
+
                         return (
                           <div
                             key={param.id}
