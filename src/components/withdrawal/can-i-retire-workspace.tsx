@@ -550,7 +550,14 @@ export function CanIRetireWorkspace() {
         description="See whether your spending plan survives real history, forward-looking randomness, and expensive starting markets."
         metrics={[
           {
-            label: "Testing with",
+            // Disambiguate from the header pill's FIRE number, which uses
+            // the growth-adjusted target ($70K × creep^years / WR). This
+            // number is today's-dollars (retirementExpenses / WR) — the
+            // right framing for "if you retired RIGHT NOW, does it work?"
+            label:
+              portfolioMode === "fire-target"
+                ? "Testing with today's FIRE"
+                : "Testing with current portfolio",
             value: formatCompactCurrency(effectivePortfolio),
             accent: portfolioMode === "fire-target",
           },

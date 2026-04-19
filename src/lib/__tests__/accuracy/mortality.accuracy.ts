@@ -29,7 +29,9 @@ function makeMockMonteCarloResult(duration: number): MonteCarloResult {
     failureYearHistogram: [{ label: "1-5 yrs", start: 1, end: 5, count: 20 }],
     withdrawalSummary: {
       firstYearP10: 60_000, firstYearMedian: 60_000, firstYearP90: 60_000,
-      minMedian: 55_000, averageMedian: 60_000, maxMedian: 65_000,
+      minMedian: 55_000, minMedianYear: 0,
+      averageMedian: 60_000, medianStdDev: 0,
+      maxMedian: 65_000, maxMedianYear: duration - 1,
     },
     failureRateByYear: Array.from({ length: duration }, (_, i) => ({
       year: i + 1,

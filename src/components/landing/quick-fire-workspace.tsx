@@ -728,7 +728,9 @@ export function QuickFireWorkspace({
                       className="group block"
                     >
                       <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                        Your Plan {"\u2192"}
+                        {/* Matches the sub-nav label. Previously read "Your
+                            Plan" which was the pre-rename Spend sub-tab name. */}
+                        Can I retire? {"\u2192"}
                       </p>
                       <p className="text-xs text-muted-foreground">Historical backtests and Monte Carlo stress tests.</p>
                     </Link>

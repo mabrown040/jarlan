@@ -10,6 +10,7 @@ import {
   ChartLegend,
   type MilestoneMarker,
 } from "@/components/landing/projection-chart";
+import { deriveDisplayYearsToFi } from "@/components/landing/fire-display";
 import { computeProjectionMilestones } from "@/lib/calc/milestones";
 import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
 import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
@@ -18,6 +19,7 @@ import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
+  calculateFireTypeSummaries,
   calculateQuickFireSummary,
   formatCompactCurrency,
   formatYears,
@@ -115,6 +117,20 @@ export default function SaveWhatIfWorkspace() {
     () => calculateQuickFireSummary(activeScenario),
     [activeScenario],
   );
+
+  // Integer years + fire age — match Save's stat card so the page header
+  // doesn't disagree with it (fractional "11.3 yrs" vs. integer "12 yrs").
+  const { displayYearsToFi, displayFireAge } = useMemo(() => {
+    const fireTypes = calculateFireTypeSummaries(activeScenario);
+    const traditionalTarget =
+      fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
+    return deriveDisplayYearsToFi({
+      scenario: activeScenario,
+      traditionalTarget,
+      projection: baseSummary.projection,
+      analyticalYearsToFi: baseSummary.yearsToFi,
+    });
+  }, [activeScenario, baseSummary.projection, baseSummary.yearsToFi]);
 
   const plannedContribution = useMemo(
     () => getPlannedAnnualInvestmentContribution(activeScenario),
@@ -242,15 +258,20 @@ export default function SaveWhatIfWorkspace() {
             accent: true,
           },
           {
+            // Integer years (same source of truth as Save's stat card and the
+            // header pill). Fractional display was the source of "29.8 yrs"
+            // here vs. "30 yrs" on the Save card.
             label: "Years to FI",
-            value: formatYears(baseSummary.yearsToFi),
+            value:
+              displayYearsToFi === null
+                ? "—"
+                : displayYearsToFi === 0
+                  ? "at FI"
+                  : `${displayYearsToFi} yr${displayYearsToFi === 1 ? "" : "s"}`,
           },
           {
             label: "FI age",
-            value:
-              baseSummary.fireAge !== null
-                ? `${Math.round(baseSummary.fireAge)}`
-                : "---",
+            value: displayFireAge === null ? "---" : `${displayFireAge}`,
           },
         ]}
       />

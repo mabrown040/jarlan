@@ -58,8 +58,11 @@ describe("mortality-aware risk", () => {
         firstYearMedian: 60_000,
         firstYearP90: 60_000,
         minMedian: 55_000,
+        minMedianYear: 0,
         averageMedian: 60_000,
+        medianStdDev: 0,
         maxMedian: 65_000,
+        maxMedianYear: 29, // duration - 1 in the 30-year fixture
       },
       failureRateByYear: Array.from({ length: 30 }, (_, index) => ({
         year: index + 1,

@@ -34,8 +34,11 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  // `data-scroll-behavior="smooth"` is the Next.js 16 opt-in replacement for
+  // CSS `scroll-behavior: smooth` on <html>. Without it we get a deprecation
+  // warning in the console on every route change.
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <body
         className={`${plusJakartaSans.variable} ${dmSerifDisplay.variable} ${jetBrainsMono.variable} font-sans antialiased`}
       >

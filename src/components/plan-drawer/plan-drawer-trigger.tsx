@@ -2,10 +2,11 @@
 
 import { useMemo } from "react";
 
+import { deriveDisplayYearsToFi } from "@/components/landing/fire-display";
 import {
+  calculateFireTypeSummaries,
   calculateQuickFireSummary,
   formatCompactCurrency,
-  formatYears,
 } from "@/lib/calc";
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
 
@@ -17,6 +18,20 @@ export function PlanDrawerTrigger() {
     () => (status === "ready" ? calculateQuickFireSummary(activeScenario) : null),
     [activeScenario, status],
   );
+  // Use the same integer display the Save stat card uses, so the pill and
+  // the card never disagree (was "11.3 yrs" pill vs "12 yrs" card).
+  const pillYears = useMemo(() => {
+    if (!summary) return null;
+    const fireTypes = calculateFireTypeSummaries(activeScenario);
+    const traditionalTarget =
+      fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
+    return deriveDisplayYearsToFi({
+      scenario: activeScenario,
+      traditionalTarget,
+      projection: summary.projection,
+      analyticalYearsToFi: summary.yearsToFi,
+    }).displayYearsToFi;
+  }, [activeScenario, summary]);
 
   if (status !== "ready" || !summary) return null;
 
@@ -33,7 +48,11 @@ export function PlanDrawerTrigger() {
         </span>
         <span className="mx-1 text-muted-foreground">·</span>
         <span className="text-muted-foreground">
-          {formatYears(summary.yearsToFi)}
+          {pillYears === null
+            ? "—"
+            : pillYears === 0
+              ? "at FI"
+              : `${pillYears} yr${pillYears === 1 ? "" : "s"}`}
         </span>
       </span>
       <span className="sm:hidden text-xs font-medium text-foreground">Plan</span>

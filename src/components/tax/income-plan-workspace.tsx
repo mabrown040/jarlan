@@ -308,7 +308,7 @@ export default function IncomePlanWorkspace() {
         <ChartShell
           eyebrow="Roth ladder"
           title="Roth conversion ladder plan"
-          description="A simple bracket-fill ladder from retirement until age 60, with bridge funding and 5-year availability timing."
+          description="Fills the target tax bracket each year from retirement until RMDs begin at age 73. Early retirees also get a 5-year bridge clock; retirees past 59.5 can already pull from Traditional penalty-free, so the ladder is purely for bracket management."
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard

@@ -305,9 +305,14 @@ export function buildRothConversionPlan(
   let remainingTraditional = traditionalBalance;
   let remainingBridge = taxableBalance;
 
+  // Cap the loop at the IRS RMD age (73) rather than 59.5. For early
+  // retirees the ladder is a 5-year bridge to penalty-free withdrawals;
+  // for 60+ retirees it's a bracket-fill strategy to pre-empt RMDs
+  // (they can already pull from Traditional without penalty). Same code
+  // path serves both — just a wider window.
   for (
     let yearOffset = 0;
-    yearOffset < 20 && remainingTraditional > 0 && retirementAge + yearOffset < 60;
+    yearOffset < 20 && remainingTraditional > 0 && retirementAge + yearOffset < 73;
     yearOffset += 1
   ) {
     const age = retirementAge + yearOffset;
