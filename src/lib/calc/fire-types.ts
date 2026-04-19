@@ -44,8 +44,23 @@ export function calculateFireTypeSummaries(scenario: Scenario): FireTypeSummary[
   const fatSpending = Math.round(spending * 1.5);
   const fatTarget = calculateFireNumber(fatSpending, wr);
 
-  // Coast: compounding alone reaches your FIRE number by retirement
+  // Coast FIRE — two related numbers:
+  //   - coastTarget: the balance you'd need TODAY so pure compounding at the
+  //     scenario's effective real return reaches the FIRE number by retirement.
+  //     This is what the card renders as "need $X today".
+  //   - coastBalance: what the user's CURRENT portfolio would grow to by
+  //     retirement if they stopped contributing now. Used for the status
+  //     message ("compounding alone reaches $Y by retirement").
+  // Matches the effectiveReturn convention in quick-fire.ts's coastFiTarget
+  // (real return minus fee drag) so the two coast calculations agree.
   const yearsUntilRetirement = getYearsUntilRetirement(scenario) ?? 0;
+  const effectiveReturn =
+    scenario.assumptions.expectedRealReturn -
+    (scenario.simulationSettings?.feeDrag ?? 0);
+  const coastTarget =
+    yearsUntilRetirement > 0 && effectiveReturn > 0
+      ? traditionalTarget / (1 + effectiveReturn) ** yearsUntilRetirement
+      : traditionalTarget;
   const coastBalance =
     currentPortfolio *
     (1 + scenario.assumptions.expectedRealReturn) ** yearsUntilRetirement;
@@ -104,14 +119,21 @@ export function calculateFireTypeSummaries(scenario: Scenario): FireTypeSummary[
       ...createSummary(
         "coast",
         "Coast FIRE",
-        traditionalTarget,
+        // The "need today" number — present value of the traditional FIRE
+        // target, discounted back at the effective real return. When the
+        // user already has this much, they can stop contributing today.
+        coastTarget,
         currentPortfolio,
         "Enough invested today that compounding alone reaches your full FIRE number by retirement.",
         coastBalance >= traditionalTarget
           ? `Compounding alone reaches ${formatCompactCurrency(coastBalance)} by retirement.`
           : `Compounding alone leaves a gap of ${formatCompactCurrency(traditionalTarget - coastBalance)} by retirement.`,
       ),
-      progress: clamp(coastBalance / Math.max(traditionalTarget, 1), 0, 1.5),
+      // Progress toward the coast target — how close the current portfolio is
+      // to the "you can stop saving today" threshold. Equivalent to
+      // coastBalance/traditionalTarget mathematically but expressed against
+      // the number we actually display on the card.
+      progress: clamp(currentPortfolio / Math.max(coastTarget, 1), 0, 1.5),
     },
     createSummary(
       "barista",

@@ -110,6 +110,42 @@ describe("Accumulation Engine — Golden Tests", () => {
   });
 
   /**
+   * @golden Coast FIRE target surfaced via calculateFireTypeSummaries
+   * @methodology The Coast summary's .target must be the PV of the Traditional
+   *   target (the "need today" amount), not the Traditional target itself.
+   *   Pre-fix, the Home page's Coast card displayed the Traditional number as
+   *   "need today" — e.g. $2M when the true coast amount was ~$856K.
+   */
+  it("Coast summary .target equals PV of Traditional target (not the Traditional target)", () => {
+    const scenario = createCoastAccumulatorScenario();
+    const summaries = calculateFireTypeSummaries(scenario);
+    const traditional = summaries.find((s) => s.id === "traditional");
+    const coast = summaries.find((s) => s.id === "coast");
+
+    const yearsToRetirement =
+      (scenario.profile.retirementAge ?? 55) - scenario.profile.age;
+    const effectiveReturn =
+      scenario.assumptions.expectedRealReturn -
+      scenario.simulationSettings.feeDrag;
+    const expected =
+      (traditional?.target ?? 0) /
+      Math.pow(1 + effectiveReturn, yearsToRetirement);
+
+    golden("accumulation.fire-types.coast-target-is-pv", {
+      input: {
+        traditionalTarget: traditional?.target ?? 0,
+        return: effectiveReturn,
+        years: yearsToRetirement,
+      },
+      expected,
+      actual: coast?.target ?? 0,
+      tolerance: 2, // 2 decimal places — PV of a rounded FIRE number
+      methodology:
+        "coast.target = traditional.target / (1 + effectiveReturn)^years",
+    });
+  });
+
+  /**
    * @golden FIRE type: Lean = 60% of traditional target
    * @methodology Lean FIRE uses 60% of current spending as the baseline
    */

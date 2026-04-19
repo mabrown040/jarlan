@@ -29,6 +29,12 @@ import {
   getCurrentPortfolioBalance,
 } from "@/lib/calc";
 import { computeProjectionMilestones } from "@/lib/calc/milestones";
+import {
+  deriveDisplayYearsToFi,
+  deriveProjectionFireYearIndex,
+  shouldShowRaiseSavingsWarning,
+} from "@/components/landing/fire-display";
+import { getRetirementPhase } from "@/lib/retirement/phase";
 import { estimateScenarioTax } from "@/lib/tax";
 import { SCENARIO_QUERY_KEY } from "@/lib/share";
 import {
@@ -179,29 +185,45 @@ export function QuickFireWorkspace({
     });
   }, [summary, fireTypes, activeScenario, plannedContribution]);
 
-  // Year the projection table first hits the FIRE target. Rendered stat cards
-  // use this (integer) so the "Years to FI / age" display matches the row
-  // where the FIRE milestone badge lands. Falls back to the analytical
-  // `summary.yearsToFi` if the target is outside the projection window.
-  const projectionFireYearIndex = useMemo(() => {
-    const traditionalTarget =
-      fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
-    if (traditionalTarget <= 0) return -1;
-    return summary.projection.findIndex(
-      (p, idx) => idx > 0 && p.balance >= traditionalTarget,
-    );
-  }, [fireTypes, summary.projection]);
-
-  const displayYearsToFi: number | null =
-    projectionFireYearIndex >= 0
-      ? projectionFireYearIndex
-      : summary.yearsToFi === null
-        ? null
-        : Math.ceil(summary.yearsToFi);
-  const displayFireAge: number | null =
-    displayYearsToFi === null
-      ? null
-      : activeScenario.profile.age + displayYearsToFi;
+  // Derived display values for the Years-to-FI card and the plan-health
+  // warning. Logic lives in `./fire-display` so the past-FIRE / phase guard
+  // edge cases can be unit tested without mounting the whole workspace.
+  const traditionalFireTarget =
+    fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
+  const projectionFireYearIndex = useMemo(
+    () =>
+      deriveProjectionFireYearIndex({
+        projection: summary.projection,
+        traditionalTarget: traditionalFireTarget,
+        currentBalance,
+      }),
+    [currentBalance, summary.projection, traditionalFireTarget],
+  );
+  const { displayYearsToFi, displayFireAge, isPastFire } = useMemo(
+    () =>
+      deriveDisplayYearsToFi({
+        scenario: activeScenario,
+        traditionalTarget: traditionalFireTarget,
+        projection: summary.projection,
+        analyticalYearsToFi: summary.yearsToFi,
+      }),
+    [
+      activeScenario,
+      summary.projection,
+      summary.yearsToFi,
+      traditionalFireTarget,
+    ],
+  );
+  const scenarioPhase = useMemo(
+    () => getRetirementPhase(activeScenario),
+    [activeScenario],
+  );
+  const showRaiseSavingsWarning = shouldShowRaiseSavingsWarning({
+    scenario: activeScenario,
+    phase: scenarioPhase,
+    isPastFire,
+    displayFireAge,
+  });
 
   // Uncertainty bands: ±2% return projections
   const [showBands, setShowBands] = useState(false);
@@ -844,14 +866,17 @@ export function QuickFireWorkspace({
                   </p>
                   {/* Plan-health callout. Pick the most urgent signal in order:
                       (1) won't hit FI at all, (2) target age is before FI age,
-                      (3) freedom-years comparison when user is ahead. */}
+                      (3) freedom-years comparison when user is ahead.
+                      The (2) "raise savings" warning is gated behind a phase
+                      check so it doesn't fire for users already past FIRE or
+                      already in withdrawal phase. */}
                   {displayYearsToFi === null ? (
                     <p className="mt-2 text-xs font-medium text-[var(--danger)]">
                       ⚠ Not projected to hit FI at the current savings rate. Increase savings or lower spending.
                     </p>
-                  ) : activeScenario.profile.retirementAge !== null &&
-                    displayFireAge !== null &&
-                    displayFireAge > activeScenario.profile.retirementAge ? (
+                  ) : showRaiseSavingsWarning &&
+                    activeScenario.profile.retirementAge !== null &&
+                    displayFireAge !== null ? (
                     <p className="mt-2 text-xs font-medium text-[var(--warning,#b45309)]">
                       ⚠ Target retirement age {activeScenario.profile.retirementAge} is {displayFireAge - activeScenario.profile.retirementAge} yr
                       {displayFireAge - activeScenario.profile.retirementAge === 1 ? "" : "s"} before projected FI (age {displayFireAge}). Raise savings or push the target.

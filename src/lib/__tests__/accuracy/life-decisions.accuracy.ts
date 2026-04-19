@@ -224,7 +224,9 @@ describe("Life Decision Composition — Golden Tests", () => {
     expect(firstBreakRow).toBeDefined();
     expect(lastBreakRow).toBeDefined();
     // With raises on, the final break year income strictly exceeds the first.
-    expect(lastBreakRow!.income).toBeGreaterThan(firstBreakRow!.income);
+    // `.income` is optional on ProjectionPoint; fallback to 0 keeps the TS
+    // signature for `toBeGreaterThan(number)` happy.
+    expect(lastBreakRow!.income ?? 0).toBeGreaterThan(firstBreakRow!.income ?? 0);
     // And the first-break row matches the flat baseline ($40K) — growth
     // hasn't compounded yet at that point.
     expect(firstBreakRow!.income).toBe(40_000);
