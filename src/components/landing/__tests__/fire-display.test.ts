@@ -4,7 +4,9 @@ import { cloneScenario, createDefaultScenario } from "@/lib/domain";
 import type { ProjectionPoint } from "@/lib/domain/types";
 import {
   deriveDisplayYearsToFi,
+  deriveIncomeCardVariant,
   deriveProjectionFireYearIndex,
+  derivedProjectedSpendingExplanation,
   shouldShowRaiseSavingsWarning,
 } from "@/components/landing/fire-display";
 
@@ -199,5 +201,83 @@ describe("shouldShowRaiseSavingsWarning", () => {
         displayFireAge: 56,
       }),
     ).toBe(false);
+  });
+});
+
+describe("deriveIncomeCardVariant", () => {
+  it("returns 'retirement' for withdrawal-phase users with no income", () => {
+    // Matches the Already-Retired persona: 65yo, $0 income, portfolio funded.
+    const s = cloneScenario(createDefaultScenario());
+    s.annualIncome = 0;
+    expect(deriveIncomeCardVariant(s, "withdrawal")).toBe("retirement");
+  });
+
+  it("returns 'accumulation' for earners still contributing", () => {
+    const s = cloneScenario(createDefaultScenario());
+    s.annualIncome = 150_000;
+    expect(deriveIncomeCardVariant(s, "accumulation")).toBe("accumulation");
+  });
+
+  it("keeps 'accumulation' for a high earner past the FIRE number (withdrawal phase, but still working)", () => {
+    // Almost-FIRE-style scenario: portfolio past target, but they still have
+    // a paycheck. Hiding the take-home/tax tiles here would throw away the
+    // info they use to decide when to pull the trigger.
+    const s = cloneScenario(createDefaultScenario());
+    s.annualIncome = 150_000;
+    expect(deriveIncomeCardVariant(s, "withdrawal")).toBe("accumulation");
+  });
+
+  it("keeps 'accumulation' for a retiree in transition phase", () => {
+    // Transition phase = funded between 50-100% of FIRE, no contributions.
+    // Not yet fully retired in the signal sense — keep accumulation tiles.
+    const s = cloneScenario(createDefaultScenario());
+    s.annualIncome = 0;
+    expect(deriveIncomeCardVariant(s, "transition")).toBe("accumulation");
+  });
+});
+
+describe("derivedProjectedSpendingExplanation", () => {
+  it("returns null when expense growth is zero", () => {
+    const s = cloneScenario(createDefaultScenario());
+    s.profile.age = 35;
+    s.profile.retirementAge = 55;
+    s.retirementExpenses = 70_000;
+    s.assumptions.expenseGrowthRate = 0;
+    expect(derivedProjectedSpendingExplanation(s)).toBeNull();
+  });
+
+  it("returns null when no retirement-age gap to compound over", () => {
+    const s = cloneScenario(createDefaultScenario());
+    s.profile.age = 55;
+    s.profile.retirementAge = 55;
+    s.assumptions.expenseGrowthRate = 0.01;
+    expect(derivedProjectedSpendingExplanation(s)).toBeNull();
+  });
+
+  it("projects real-dollar retirement spending over the horizon", () => {
+    // Matches Dual Income: $70K today, 1% real creep, 15 yrs → ~$81K.
+    // This is the sub-line that explains the "FIRE number = $2M, not $1.75M"
+    // mystery.
+    const s = cloneScenario(createDefaultScenario());
+    s.profile.age = 35;
+    s.profile.retirementAge = 50;
+    s.retirementExpenses = 70_000;
+    s.assumptions.expenseGrowthRate = 0.01;
+    const result = derivedProjectedSpendingExplanation(s);
+    expect(result).not.toBeNull();
+    expect(result!.todaySpending).toBe(70_000);
+    expect(result!.yearsUntilRetirement).toBe(15);
+    expect(result!.expenseGrowthRate).toBeCloseTo(0.01, 5);
+    expect(result!.projectedSpending).toBeCloseTo(70_000 * 1.01 ** 15, 0);
+  });
+
+  it("returns null when divergence is under 2% (avoids cluttering short horizons)", () => {
+    // 3 years at 0.5% creep → 1.5% divergence, under the threshold.
+    const s = cloneScenario(createDefaultScenario());
+    s.profile.age = 47;
+    s.profile.retirementAge = 50;
+    s.retirementExpenses = 70_000;
+    s.assumptions.expenseGrowthRate = 0.005;
+    expect(derivedProjectedSpendingExplanation(s)).toBeNull();
   });
 });

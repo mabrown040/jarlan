@@ -213,3 +213,14 @@ Tagged by severity and by whether the fix is a quick source tweak vs. a design-l
 - Add personas I didn't cover: Lean FIRE (spending-floor sensitivity), Fat FIRE (high-dollar UI edge cases at $5M+), International (currency/state), Spreadsheet Power User (methodology transparency).
 - Run after each tier-1/2 fix lands to verify no new regressions in adjacent personas.
 
+---
+
+## Addendum — findings surfaced during Tier 1 implementation
+
+Nothing truly new. What I noticed while walking the fixes verified:
+
+- **Almost FIRE "Save per year" slider shows $40K** while account contributions in the fixture total $30.5K ($23.5K 401(k) + $7K Roth). That's a third "savings" number on the page alongside the 60.7% stat card. Same class as D3/A3 (phantom savings). No new action — will be addressed by the Tier 2 fix that standardizes the stat card to `getPlannedAnnualInvestmentContribution`.
+- **Two residual pre-existing TS errors** in `src/lib/__tests__/accuracy/mortality.accuracy.ts` and `src/lib/sim/__tests__/mortality-risk.test.ts` — test fixtures build a partial `WithdrawalSummary` missing `minMedianYear`, `medianStdDev`, `maxMedianYear`. Unrelated to any QA work. Low-priority cleanup.
+
+These don't belong in Tier 2 — logging here so they aren't forgotten.
+

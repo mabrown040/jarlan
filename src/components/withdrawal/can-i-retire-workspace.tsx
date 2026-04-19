@@ -556,7 +556,13 @@ export function CanIRetireWorkspace() {
           },
           { label: "Strategy", value: selectedStrategyMeta.label, accent: true },
           {
-            label: "Success",
+            // Disambiguate what portfolio the success rate is testing.
+            // "Success" alone read as "you're 86% of the way there" for
+            // accumulators seeing a FIRE-target simulation.
+            label:
+              portfolioMode === "fire-target"
+                ? "Success at FIRE target"
+                : "Success at today's portfolio",
             value: displayedHistoricalResult
               ? formatPercent(displayedHistoricalResult.successRate, 1)
               : "Running...",

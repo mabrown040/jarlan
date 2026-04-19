@@ -31,7 +31,9 @@ import {
 import { computeProjectionMilestones } from "@/lib/calc/milestones";
 import {
   deriveDisplayYearsToFi,
+  deriveIncomeCardVariant,
   deriveProjectionFireYearIndex,
+  derivedProjectedSpendingExplanation,
   shouldShowRaiseSavingsWarning,
 } from "@/components/landing/fire-display";
 import { getRetirementPhase } from "@/lib/retirement/phase";
@@ -218,6 +220,19 @@ export function QuickFireWorkspace({
     () => getRetirementPhase(activeScenario),
     [activeScenario],
   );
+  const incomeCardVariant = useMemo(
+    () => deriveIncomeCardVariant(activeScenario, scenarioPhase),
+    [activeScenario, scenarioPhase],
+  );
+  const projectedSpendingExplanation = useMemo(
+    () => derivedProjectedSpendingExplanation(activeScenario),
+    [activeScenario],
+  );
+  const plannedInvestmentContribution = plannedContribution;
+  const investedRate =
+    taxEstimate.takeHome > 0
+      ? plannedInvestmentContribution / taxEstimate.takeHome
+      : 0;
   const showRaiseSavingsWarning = shouldShowRaiseSavingsWarning({
     scenario: activeScenario,
     phase: scenarioPhase,
@@ -463,68 +478,102 @@ export function QuickFireWorkspace({
                   )}
                   <span className="text-border">{"\u00B7"}</span>
                   <span>
-                    {/* Use after-tax rate to match the Save module; falls back
-                        to gross when tax data isn't available. */}
+                    {/* Show what's actually being invested (account contribs +
+                        employer match), not "take-home minus expenses" which
+                        conflated potential savings with real contributions.
+                        Falls back to gross rate when tax data is unavailable. */}
                     <span className="font-semibold text-foreground">
-                      {Number.isFinite(taxEstimate.afterTaxSavingsRate) &&
-                      taxEstimate.afterTaxSavingsRate > 0
-                        ? formatPercent(taxEstimate.afterTaxSavingsRate, 0)
+                      {plannedInvestmentContribution > 0 && taxEstimate.takeHome > 0
+                        ? formatPercent(investedRate, 0)
                         : formatPercent(summary.savingsRate, 0)}
                     </span>
-                    {" "}after-tax savings rate
+                    {" "}invested rate
                   </span>
                 </div>
               </button>
             </section>
 
-            {/* Section 2: Your Numbers */}
+            {/* Section 2: Your Numbers
+                Retirees (phase === "withdrawal" && annualIncome === 0) see a
+                single "Retirement status" tile in place of the three
+                income-side tiles, which would otherwise all read "$0". */}
             <section className="mx-auto max-w-7xl px-6">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {/* Take-home */}
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Take-home</p>
-                  <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
-                    {formatCompactCurrency(taxEstimate.takeHome)}
-                    <span className="text-base font-normal text-muted-foreground">/yr</span>
-                  </p>
-                  <p className="mt-3 text-sm text-muted-foreground">After federal + state taxes</p>
-                </div>
+                {incomeCardVariant === "retirement" ? (
+                  <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] xl:col-span-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Retirement status</p>
+                    <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
+                      {formatCompactCurrency(activeScenario.retirementExpenses)}
+                      <span className="text-base font-normal text-muted-foreground">/yr spending</span>
+                    </p>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      {currentBalance > 0
+                        ? `${formatPercent(
+                            activeScenario.retirementExpenses / currentBalance,
+                            1,
+                          )} current withdrawal rate`
+                        : "No portfolio balance yet."}
+                    </p>
+                    <Link
+                      href={"/withdrawal" as Route}
+                      className="mt-1 inline-block text-[10px] font-medium text-primary hover:text-primary/80"
+                    >
+                      Run the retirement checkup &rarr;
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    {/* Take-home */}
+                    <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Take-home</p>
+                      <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
+                        {formatCompactCurrency(taxEstimate.takeHome)}
+                        <span className="text-base font-normal text-muted-foreground">/yr</span>
+                      </p>
+                      <p className="mt-3 text-sm text-muted-foreground">After federal + state taxes</p>
+                    </div>
 
-                {/* Savings */}
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Savings</p>
-                  <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
-                    {formatCompactCurrency(taxEstimate.actualSavings)}
-                    <span className="text-base font-normal text-muted-foreground">/yr</span>
-                  </p>
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    {formatPercent(taxEstimate.afterTaxSavingsRate, 0)} rate
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground/70">
-                    US average: {(US_BENCHMARKS.savingsRate * 100).toFixed(1)}%
-                  </p>
-                </div>
+                    {/* Invested (account contributions + employer match).
+                        Was "Savings" with `takeHome - expenses` — that's
+                        theoretical-max savings and diverges from the
+                        "Save per year" slider. This reports what the
+                        projection actually uses. */}
+                    <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Invested</p>
+                      <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
+                        {formatCompactCurrency(plannedInvestmentContribution)}
+                        <span className="text-base font-normal text-muted-foreground">/yr</span>
+                      </p>
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        {formatPercent(investedRate, 0)} of take-home
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground/70">
+                        US average: {(US_BENCHMARKS.savingsRate * 100).toFixed(1)}%
+                      </p>
+                    </div>
 
-                {/* Tax Estimate */}
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Tax estimate</p>
-                  <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
-                    {formatCompactCurrency(taxEstimate.totalTax)}
-                    <span className="text-base font-normal text-muted-foreground">/yr</span>
-                  </p>
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    {formatPercent(taxEstimate.effectiveRate, 0)} effective
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground/70">
-                    {activeScenario.profile.filingStatus === "single"
-                      ? "Single filer"
-                      : activeScenario.profile.filingStatus === "married_joint"
-                        ? "Married filing jointly"
-                        : activeScenario.profile.filingStatus === "married_separate"
-                          ? "Married filing separately"
-                          : "Head of household"}
-                  </p>
-                </div>
+                    {/* Tax Estimate */}
+                    <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Tax estimate</p>
+                      <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
+                        {formatCompactCurrency(taxEstimate.totalTax)}
+                        <span className="text-base font-normal text-muted-foreground">/yr</span>
+                      </p>
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        {formatPercent(taxEstimate.effectiveRate, 0)} effective
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground/70">
+                        {activeScenario.profile.filingStatus === "single"
+                          ? "Single filer"
+                          : activeScenario.profile.filingStatus === "married_joint"
+                            ? "Married filing jointly"
+                            : activeScenario.profile.filingStatus === "married_separate"
+                              ? "Married filing separately"
+                              : "Head of household"}
+                      </p>
+                    </div>
+                  </>
+                )}
 
                 {/* Peer Comparison */}
                 {(() => {
@@ -825,6 +874,26 @@ export function QuickFireWorkspace({
                           : `Based on an aggressive ${(wr * 100).toFixed(1)}% withdrawal rate`;
                     })()}
                   </p>
+                  {/* Explain the gap between user-entered retirement spend and
+                      the projected real-dollar amount the FIRE target uses. Only
+                      shows when lifestyle creep is non-zero AND divergence is
+                      > 2% (see derivedProjectedSpendingExplanation). */}
+                  {projectedSpendingExplanation ? (
+                    <p className="mt-1 text-[10px] text-muted-foreground/80">
+                      Projected retirement spending:{" "}
+                      {formatCompactCurrency(
+                        projectedSpendingExplanation.projectedSpending,
+                      )}
+                      /yr ({formatCompactCurrency(
+                        projectedSpendingExplanation.todaySpending,
+                      )}{" "}
+                      × {formatPercent(
+                        projectedSpendingExplanation.expenseGrowthRate,
+                        0,
+                      )}{" "}
+                      real growth × {projectedSpendingExplanation.yearsUntilRetirement} yrs)
+                    </p>
+                  ) : null}
                   <Link
                     href={"/withdrawal" as Route}
                     className="mt-1 inline-block text-[10px] font-medium text-primary hover:text-primary/80"
@@ -894,63 +963,104 @@ export function QuickFireWorkspace({
                     Will it last? &rarr;
                   </Link>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => drawerStore.open("basics")}
-                  className="group rounded-2xl bg-card p-6 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">After-tax savings</p>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                  </div>
-                  <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
-                    {formatPercent(taxEstimate.afterTaxSavingsRate, 1)}
-                  </p>
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    {formatCompactCurrency(taxEstimate.actualSavings)} of {formatCompactCurrency(taxEstimate.takeHome)} take-home
-                  </p>
-                  {taxEstimate.afterTaxSavingsRate > US_BENCHMARKS.savingsRate ? (() => {
-                    const multiple = Math.round(taxEstimate.afterTaxSavingsRate / US_BENCHMARKS.savingsRate);
-                    return multiple >= 2 ? (
-                      <p className="mt-2 text-xs text-muted-foreground/70">
-                        The US average is {(US_BENCHMARKS.savingsRate * 100).toFixed(1)}%. You save {multiple}× more than most Americans.
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-xs text-muted-foreground/70">
-                        Above the US average of {(US_BENCHMARKS.savingsRate * 100).toFixed(1)}%.
-                      </p>
-                    );
-                  })() : taxEstimate.afterTaxSavingsRate > 0 ? (
-                    <p className="mt-2 text-xs text-muted-foreground/70">
-                      Every dollar saved brings you closer. Even small increases make a big difference over time.
+                {/* Income-side tiles. Retirees see a Retirement status tile
+                    in place of the "Invested %" + "Tax estimate" pair (both
+                    read as $0 / 0% when annualIncome === 0). */}
+                {incomeCardVariant === "retirement" ? (
+                  <button
+                    type="button"
+                    onClick={() => drawerStore.open("basics")}
+                    className="group rounded-2xl bg-card p-6 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)] md:col-span-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Retirement status</p>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </div>
+                    <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
+                      {formatCompactCurrency(activeScenario.retirementExpenses)}
+                      <span className="ml-2 text-base font-normal text-muted-foreground">/yr</span>
                     </p>
-                  ) : null}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => drawerStore.open("basics")}
-                  className="group rounded-2xl bg-card p-6 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Tax estimate</p>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                  </div>
-                  <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
-                    {formatCompactCurrency(taxEstimate.totalTax)}
-                  </p>
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    {formatPercent(taxEstimate.effectiveRate, 0)} effective
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground/70">
-                    {activeScenario.profile.filingStatus === "single"
-                      ? "Single filer"
-                      : activeScenario.profile.filingStatus === "married_joint"
-                        ? "Married filing jointly"
-                        : activeScenario.profile.filingStatus === "married_separate"
-                          ? "Married filing separately"
-                          : "Head of household"}
-                  </p>
-                </button>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      {currentBalance > 0
+                        ? `Drawing ${formatPercent(
+                            activeScenario.retirementExpenses / currentBalance,
+                            1,
+                          )} of a ${formatCompactCurrency(currentBalance)} portfolio`
+                        : "No portfolio balance yet."}
+                    </p>
+                    <Link
+                      href={"/withdrawal" as Route}
+                      className="mt-1 inline-block text-[10px] font-medium text-primary hover:text-primary/80"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Run the retirement checkup &rarr;
+                    </Link>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => drawerStore.open("basics")}
+                      className="group rounded-2xl bg-card p-6 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                    >
+                      <div className="flex items-center justify-between">
+                        {/* Renamed from "After-tax savings" (takeHome minus
+                            expenses — theoretical max) to "Invested" (actual
+                            account contribs + match, matching the slider and
+                            the projection math). */}
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Invested</p>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                      </div>
+                      <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
+                        {formatPercent(investedRate, 1)}
+                      </p>
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        {formatCompactCurrency(plannedInvestmentContribution)} of {formatCompactCurrency(taxEstimate.takeHome)} take-home
+                      </p>
+                      {investedRate > US_BENCHMARKS.savingsRate ? (() => {
+                        const multiple = Math.round(investedRate / US_BENCHMARKS.savingsRate);
+                        return multiple >= 2 ? (
+                          <p className="mt-2 text-xs text-muted-foreground/70">
+                            The US average is {(US_BENCHMARKS.savingsRate * 100).toFixed(1)}%. You invest {multiple}× more than most Americans.
+                          </p>
+                        ) : (
+                          <p className="mt-2 text-xs text-muted-foreground/70">
+                            Above the US average of {(US_BENCHMARKS.savingsRate * 100).toFixed(1)}%.
+                          </p>
+                        );
+                      })() : investedRate > 0 ? (
+                        <p className="mt-2 text-xs text-muted-foreground/70">
+                          Every dollar invested brings you closer. Even small increases make a big difference over time.
+                        </p>
+                      ) : null}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => drawerStore.open("basics")}
+                      className="group rounded-2xl bg-card p-6 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Tax estimate</p>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                      </div>
+                      <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
+                        {formatCompactCurrency(taxEstimate.totalTax)}
+                      </p>
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        {formatPercent(taxEstimate.effectiveRate, 0)} effective
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground/70">
+                        {activeScenario.profile.filingStatus === "single"
+                          ? "Single filer"
+                          : activeScenario.profile.filingStatus === "married_joint"
+                            ? "Married filing jointly"
+                            : activeScenario.profile.filingStatus === "married_separate"
+                              ? "Married filing separately"
+                              : "Head of household"}
+                      </p>
+                    </button>
+                  </>
+                )}
               </div>
             ) : null}
 

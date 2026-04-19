@@ -1,5 +1,8 @@
 import type { ProjectionPoint, Scenario } from "@/lib/domain/types";
-import { getCurrentPortfolioBalance } from "@/lib/calc/scenario";
+import {
+  getCurrentPortfolioBalance,
+  getYearsUntilRetirement,
+} from "@/lib/calc/scenario";
 import type { RetirementPhase } from "@/lib/retirement/phase";
 
 /**
@@ -85,4 +88,65 @@ export function shouldShowRaiseSavingsWarning(args: {
   if (scenario.profile.retirementAge === null) return false;
   if (displayFireAge === null) return false;
   return displayFireAge > scenario.profile.retirementAge;
+}
+
+/**
+ * Decide whether Home + Save should render the income-side stat tiles
+ * (Take-home / Savings / Tax estimate) in accumulation mode or swap them
+ * for a single "Retirement status" tile. Retirees living off the portfolio
+ * see all three tiles as "$0" in accumulation mode — dead data.
+ *
+ * "retirement" only when both are true:
+ *   - Phase classifier says withdrawal (portfolio funded, no ongoing savings)
+ *   - Annual income is zero (user truly isn't working)
+ * Either alone leaves accumulation framing — a high-earner past the FIRE
+ * number is still generating take-home/tax/savings numbers worth showing.
+ */
+export type IncomeCardVariant = "accumulation" | "retirement";
+
+export function deriveIncomeCardVariant(
+  scenario: Scenario,
+  phase: RetirementPhase,
+): IncomeCardVariant {
+  if (phase === "withdrawal" && scenario.annualIncome === 0) {
+    return "retirement";
+  }
+  return "accumulation";
+}
+
+/**
+ * Real-dollar retirement spending projected to retirement age at the
+ * scenario's `expenseGrowthRate`. The FIRE number displayed on the Save card
+ * is calculated against this projected value — which can differ materially
+ * from the user-entered `retirementExpenses` when horizons are long or
+ * creep is on. Returns `null` when:
+ *   - Creep is zero (no projection gap to explain)
+ *   - No future years to compound over
+ *   - The divergence is under 2% of retirementExpenses (not worth a sub-line)
+ * so the UI only renders the explanation when the math is actually surprising.
+ */
+export interface ProjectedSpendingExplanation {
+  todaySpending: number;
+  projectedSpending: number;
+  expenseGrowthRate: number;
+  yearsUntilRetirement: number;
+}
+
+export function derivedProjectedSpendingExplanation(
+  scenario: Scenario,
+): ProjectedSpendingExplanation | null {
+  const expenseGrowthRate = scenario.assumptions.expenseGrowthRate ?? 0;
+  const yearsUntilRetirement = getYearsUntilRetirement(scenario) ?? 0;
+  if (expenseGrowthRate <= 0 || yearsUntilRetirement <= 0) return null;
+  const todaySpending = scenario.retirementExpenses;
+  const projectedSpending =
+    todaySpending * (1 + expenseGrowthRate) ** yearsUntilRetirement;
+  const divergence = Math.abs(projectedSpending - todaySpending) / todaySpending;
+  if (divergence < 0.02) return null;
+  return {
+    todaySpending,
+    projectedSpending,
+    expenseGrowthRate,
+    yearsUntilRetirement,
+  };
 }
