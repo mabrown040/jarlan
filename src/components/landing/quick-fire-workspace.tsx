@@ -456,10 +456,13 @@ export function QuickFireWorkspace({
                         {formatCompactCurrency(currentBalance - summary.fireNumber)}
                       </span>
                     </span>
-                  ) : summary.fireAge !== null ? (
+                  ) : displayFireAge !== null ? (
                     <span>
+                      {/* Use displayFireAge (integer, projection-aligned)
+                          instead of the analytical summary.fireAge so Home
+                          matches Save's stat card. */}
                       FI at age{" "}
-                      <span className="font-semibold text-foreground">{Math.round(summary.fireAge)}</span>
+                      <span className="font-semibold text-foreground">{displayFireAge}</span>
                     </span>
                   ) : (
                     <span className="text-muted-foreground">FI age not yet reachable</span>
@@ -472,7 +475,15 @@ export function QuickFireWorkspace({
                     </span>
                   ) : (
                     <span>
-                      <span className="font-semibold text-foreground">{formatYears(summary.yearsToFi)}</span>
+                      {/* Use the integer displayYearsToFi so this line matches
+                          the header pill ("29 yrs") and Save stat card
+                          ("29 yrs · age 56"). Was fractional formatYears
+                          and read as "28.4 yrs away" next to a "29 yrs" pill. */}
+                      <span className="font-semibold text-foreground">
+                        {displayYearsToFi === null
+                          ? "—"
+                          : `${displayYearsToFi} yr${displayYearsToFi === 1 ? "" : "s"}`}
+                      </span>
                       {" "}away
                     </span>
                   )}
@@ -575,7 +586,12 @@ export function QuickFireWorkspace({
                   </>
                 )}
 
-                {/* Peer Comparison */}
+                {/* Peer Comparison.
+                    "Top {100-percentile}%" was mathematically correct but read
+                    as "elite" for low-percentile users (e.g. a 22yo with $5K
+                    saw "Top 89%" — technically "better than 11%" but colloquially
+                    sounds like top-of-the-pack). "Ahead of X%" scales cleanly
+                    at both ends of the distribution. */}
                 {(() => {
                   const age = activeScenario.profile.age;
                   const percentile = estimateNetWorthPercentile(currentBalance, age);
@@ -584,10 +600,10 @@ export function QuickFireWorkspace({
                     <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">You vs peers</p>
                       <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
-                        Top {100 - percentile}%
+                        Ahead of {percentile}%
                       </p>
                       <p className="mt-3 text-sm text-muted-foreground">
-                        for age {age}
+                        of {age}-year-olds
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground/70">
                         Median: {formatCompactCurrency(medianForAge)}
@@ -891,7 +907,9 @@ export function QuickFireWorkspace({
                       )}{" "}
                       × {formatPercent(
                         projectedSpendingExplanation.expenseGrowthRate,
-                        0,
+                        // 1-decimal precision so 0.5% doesn't round to "1%"
+                        // (Intl rounds half-away-from-zero on integer format).
+                        1,
                       )}{" "}
                       real growth × {projectedSpendingExplanation.yearsUntilRetirement} yrs)
                     </p>
