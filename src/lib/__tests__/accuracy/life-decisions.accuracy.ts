@@ -256,4 +256,144 @@ describe("Life Decision Composition — Golden Tests", () => {
     // Savings = 0 − expenses ≈ −$35K
     expect(breakRow!.savings).toBeLessThan(-30_000);
   });
+
+  /**
+   * @golden Order independence: income then lifestyle == lifestyle then income
+   *
+   * The Save What-if UI applies decisions in template-registration order.
+   * If a user toggles A then B vs. B then A, the combined summary MUST be
+   * identical — otherwise the outcome depends on UI click order, which is
+   * a correctness bug. Tests commutativity for monotonic decisions.
+   */
+  it("order-independent: income + lifestyle compose the same either way", () => {
+    const incomeDecision = applyDecisionToScenario(base, "income-change", {
+      amount: 15_000,
+    });
+    const lifestyleDecision = applyDecisionToScenario(
+      base,
+      "lifestyle-change",
+      { amount: -10_000 },
+    );
+
+    const aThenB = lifestyleDecision.apply(incomeDecision.apply(base));
+    const bThenA = incomeDecision.apply(lifestyleDecision.apply(base));
+
+    const summaryAB = calculateQuickFireSummary(aThenB);
+    const summaryBA = calculateQuickFireSummary(bThenA);
+
+    // yearsToFi is optional on the summary, coerce with nullish fallback
+    // so toBeCloseTo sees a real number.
+    expect(summaryAB.yearsToFi ?? -1).toBeCloseTo(summaryBA.yearsToFi ?? -1, 5);
+    expect(summaryAB.fireNumber).toBeCloseTo(summaryBA.fireNumber, 0);
+  });
+
+  /**
+   * @golden Four-way stack produces finite, sensible results
+   *
+   * Real users select 3–4 decisions at once. Stack the four most common
+   * (income, lifestyle, portfolio, market) and assert the output is
+   * finite (no NaN/Infinity leak through the compose chain) and in a
+   * plausible range.
+   */
+  it("four-way stack yields finite summary with sensible bounds", () => {
+    const decisions = [
+      applyDecisionToScenario(base, "income-change", { amount: 15_000 }),
+      applyDecisionToScenario(base, "lifestyle-change", { amount: -10_000 }),
+      applyDecisionToScenario(base, "portfolio-event", { amount: 100_000 }),
+      applyDecisionToScenario(base, "market-event"),
+    ];
+
+    const combined = decisions.reduce(
+      (scenario, decision) => decision.apply(scenario),
+      base,
+    );
+    const result = calculateQuickFireSummary(combined);
+
+    expect(Number.isFinite(result.fireNumber)).toBe(true);
+    expect(Number.isFinite(result.yearsToFi ?? 0)).toBe(true);
+    expect(result.fireNumber).toBeGreaterThan(0);
+    // yearsToFi bounded: base coast is ~27 yrs to age 55; the stack has
+    // two positives (income, portfolio) vs. two negatives (lifestyle cut
+    // is positive, market event drags returns). Should land plausibly
+    // inside [0, 60] and certainly not negative or absurdly large.
+    expect(result.yearsToFi ?? 0).toBeGreaterThanOrEqual(0);
+    expect(result.yearsToFi ?? 0).toBeLessThan(60);
+  });
+
+  /**
+   * @golden All six decision types stack without crashing or NaN
+   *
+   * The Save What-if UI lets users select every decision simultaneously.
+   * This test pins that the full 6-decision stack produces a valid
+   * summary — catches any regression where two decisions' effects
+   * combine to divide by zero, produce Infinity, or overflow the
+   * projection horizon.
+   */
+  it("six-way stack: all decision types compose without NaN", () => {
+    const decisions = [
+      applyDecisionToScenario(base, "income-change", { amount: 10_000 }),
+      applyDecisionToScenario(base, "lifestyle-change", { amount: -5_000 }),
+      applyDecisionToScenario(base, "new-dependent"),
+      applyDecisionToScenario(base, "portfolio-event", { amount: 50_000 }),
+      applyDecisionToScenario(base, "career-break", {
+        duration: 2,
+        startAge: 32,
+        breakIncome: 30_000,
+        growsWithRaises: 0,
+      }),
+      applyDecisionToScenario(base, "market-event"),
+    ];
+
+    const combined = decisions.reduce(
+      (scenario, decision) => decision.apply(scenario),
+      base,
+    );
+    const result = calculateQuickFireSummary(combined);
+
+    expect(Number.isFinite(result.fireNumber)).toBe(true);
+    expect(Number.isNaN(result.yearsToFi ?? 0)).toBe(false);
+    // Projection array populated end-to-end — no early exit from a div0.
+    expect(result.projection.length).toBeGreaterThan(0);
+    result.projection.forEach((point, idx) => {
+      expect(Number.isFinite(point.balance), `projection[${idx}].balance`).toBe(
+        true,
+      );
+    });
+  });
+
+  /**
+   * @golden Offsetting decisions net out toward baseline
+   *
+   * Applying income +$20K and lifestyle +$20K (spending up by $20K) should
+   * roughly cancel — the extra income offsets the extra spending, so the
+   * timeline should be close to base (within a couple years). Not exact
+   * because tax takes a bite out of the raise, but directionally close.
+   */
+  it("offsetting income and lifestyle nets near baseline", () => {
+    const incomeUp = applyDecisionToScenario(base, "income-change", {
+      amount: 20_000,
+    });
+    const spendingUp = applyDecisionToScenario(base, "lifestyle-change", {
+      amount: 20_000,
+    });
+
+    const combined = spendingUp.apply(incomeUp.apply(base));
+    const result = calculateQuickFireSummary(combined);
+
+    // yearsToFi change should be small relative to the individual effects.
+    // Spending +$20K alone would meaningfully push FI later (higher FIRE
+    // number + lower savings). Income +$20K partially offsets via savings
+    // but the higher spending also raised the FIRE target — net should be
+    // slightly worse than base but not catastrophically so.
+    const spendingOnly = calculateQuickFireSummary(spendingUp.apply(base));
+    // Combined should be materially better than spending-up alone (income
+    // is doing work), and the gap between combined and base should be
+    // smaller than the gap between spending-up and base.
+    const baseYears = baseSummary.yearsToFi ?? 0;
+    const combinedYears = result.yearsToFi ?? 0;
+    const spendingOnlyYears = spendingOnly.yearsToFi ?? 0;
+    expect(Math.abs(combinedYears - baseYears)).toBeLessThan(
+      Math.abs(spendingOnlyYears - baseYears),
+    );
+  });
 });

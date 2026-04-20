@@ -171,6 +171,28 @@ export default function SaveWhatIfWorkspace() {
     return calculateQuickFireSummary(combined);
   }, [selectedDecisions, selectedIds, activeScenario]);
 
+  // Round 4 finding R4-2: the "Your plan" / "With N changes" stat cards
+  // in the impact summary were rendering fractional years (e.g. "8.1 yrs")
+  // while the page header and pill use integer years via
+  // `deriveDisplayYearsToFi`. Compute the integer-years projection for
+  // the combined scenario too so the cards agree with the header.
+  const combinedDisplay = useMemo(() => {
+    if (selectedIds.size === 0 || !combinedSummary) return null;
+    let combined = activeScenario;
+    for (const d of selectedDecisions) {
+      combined = d.apply(combined);
+    }
+    const fireTypes = calculateFireTypeSummaries(combined);
+    const traditionalTarget =
+      fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
+    return deriveDisplayYearsToFi({
+      scenario: combined,
+      traditionalTarget,
+      projection: combinedSummary.projection,
+      analyticalYearsToFi: combinedSummary.yearsToFi,
+    });
+  }, [selectedDecisions, selectedIds, activeScenario, combinedSummary]);
+
   const combinedDelta = useMemo(() => {
     if (!combinedSummary) return null;
     const deltaYears =
@@ -647,18 +669,29 @@ export default function SaveWhatIfWorkspace() {
         {combinedSummary && combinedDelta ? (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
-              {/* Card 1: Your plan */}
+              {/* Card 1: Your plan. Use integer-years display so this matches
+                  the page header metric and the pill (both driven by
+                  `deriveDisplayYearsToFi`). Fall back to the fractional
+                  formatter when the projection doesn't reach FI. */}
               <StatCard
                 label="Your plan"
                 value={formatCompactCurrency(baseSummary.fireNumber)}
-                description={`${formatYears(baseSummary.yearsToFi)} to FI${baseSummary.fireAge !== null ? ` (age ${Math.round(baseSummary.fireAge)})` : ""}`}
+                description={
+                  displayYearsToFi !== null
+                    ? `${displayYearsToFi} yrs to FI${displayFireAge !== null ? ` (age ${displayFireAge})` : ""}`
+                    : `${formatYears(baseSummary.yearsToFi)} to FI${baseSummary.fireAge !== null ? ` (age ${Math.round(baseSummary.fireAge)})` : ""}`
+                }
               />
 
-              {/* Card 2: Combined scenario */}
+              {/* Card 2: Combined scenario — same integer-years treatment. */}
               <StatCard
                 label={`With ${selectedIds.size} change${selectedIds.size === 1 ? "" : "s"}`}
                 value={formatCompactCurrency(combinedSummary.fireNumber)}
-                description={`${formatYears(combinedSummary.yearsToFi)} to FI${combinedSummary.fireAge !== null ? ` (age ${Math.round(combinedSummary.fireAge)})` : ""}`}
+                description={
+                  combinedDisplay && combinedDisplay.displayYearsToFi !== null
+                    ? `${combinedDisplay.displayYearsToFi} yrs to FI${combinedDisplay.displayFireAge !== null ? ` (age ${combinedDisplay.displayFireAge})` : ""}`
+                    : `${formatYears(combinedSummary.yearsToFi)} to FI${combinedSummary.fireAge !== null ? ` (age ${Math.round(combinedSummary.fireAge)})` : ""}`
+                }
                 tone="accent"
               />
 

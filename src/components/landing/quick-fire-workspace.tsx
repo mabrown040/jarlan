@@ -1169,8 +1169,15 @@ export function QuickFireWorkspace({
                                     style={{ width: `${Math.min(point.pctToFi * 100, 100)}%` }}
                                   />
                                 </div>
+                                {/* Progress bar caps at 100% visually, but the
+                                    numeric display shows true % so past-FIRE
+                                    retirees see their overshoot (e.g. 133% at
+                                    retirement drifting up to 160% over time).
+                                    Previously capped at 100%, which flattened
+                                    the retirement trajectory into a meaningless
+                                    row of identical "100%" values. */}
                                 <span className="tabular-nums text-muted-foreground">
-                                  {formatPercent(Math.min(point.pctToFi, 1), 0)}
+                                  {formatPercent(point.pctToFi, 0)}
                                 </span>
                               </div>
                             </td>
