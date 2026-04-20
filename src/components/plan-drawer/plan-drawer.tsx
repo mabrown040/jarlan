@@ -2,7 +2,14 @@
 
 import { useMemo } from "react";
 
-import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { PlanDrawerContent } from "@/components/plan-drawer/plan-drawer-content";
 import {
   calculateQuickFireSummary,
@@ -26,7 +33,12 @@ export function PlanDrawer() {
     <Sheet open={isOpen} onOpenChange={(open) => !open && close()}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Your Plan</SheetTitle>
+          <div>
+            <SheetTitle>Your Plan</SheetTitle>
+            <SheetDescription className="sr-only">
+              Summary of your FIRE plan, savings targets, and time to financial independence.
+            </SheetDescription>
+          </div>
           <SheetClose asChild>
             <button
               type="button"

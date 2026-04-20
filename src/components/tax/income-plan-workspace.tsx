@@ -91,6 +91,13 @@ export default function IncomePlanWorkspace() {
       ),
     [activeScenario],
   );
+  // When every strategy exhausts the portfolio ("Ending balance: $0"), the
+  // lowest-tax option isn't meaningfully "Best" — it's the smallest failure.
+  // Flagging it confuses underfunded users. Detect that case so the UI can
+  // drop the badge + header metric.
+  const drawdownAllFail =
+    drawdownComparison.length > 0 &&
+    drawdownComparison.every((strategy) => strategy.endingBalance <= 0);
 
   const taxWaterfall = useMemo(
     () =>
@@ -131,8 +138,10 @@ export default function IncomePlanWorkspace() {
             value: formatCompactCurrency(rothPlan.totalPlannedConversions),
           },
           {
-            label: "Best drawdown",
-            value: drawdownComparison[0]?.label ?? "N/A",
+            label: drawdownAllFail ? "Drawdown" : "Best drawdown",
+            value: drawdownAllFail
+              ? "Portfolio runs out"
+              : (drawdownComparison[0]?.label ?? "N/A"),
           },
         ]}
         actions={
@@ -280,14 +289,14 @@ export default function IncomePlanWorkspace() {
               <div
                 key={strategy.id}
                 className={`rounded-xl border p-4 ${
-                  index === 0
+                  index === 0 && !drawdownAllFail
                     ? "border-[var(--ember)]/40 bg-[var(--ember)]/5"
                     : "border-border/60 bg-card/40"
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium text-foreground">{strategy.label}</p>
-                  {index === 0 ? (
+                  {index === 0 && !drawdownAllFail ? (
                     <span className="shrink-0 rounded-full bg-[var(--ember)]/10 px-2 py-0.5 text-xs font-medium text-[var(--ember)]">
                       Best
                     </span>

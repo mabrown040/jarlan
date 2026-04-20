@@ -76,3 +76,21 @@ export function SheetTitle({
     </Drawer.Title>
   );
 }
+
+// Vaul (like Radix Dialog) logs an a11y warning on every mount when the
+// content is missing a `<Dialog.Description>` / `aria-describedby`. Expose
+// a wrapper so consumers can satisfy the contract with an sr-only line
+// without leaking visual chrome.
+export function SheetDescription({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Drawer.Description className={cn("text-sm text-muted-foreground", className)}>
+      {children}
+    </Drawer.Description>
+  );
+}
