@@ -16,11 +16,27 @@ import { clamp, roundTo } from "@/lib/utils";
 type StoreStatus = "idle" | "hydrating" | "ready";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+/**
+ * Hydration warnings surfaced in the UI as one-time banners.
+ * - `share-link-invalid` — user landed on a ?scenario=… URL that failed to
+ *   decode/validate; we fell back to the saved draft or the demo scenario.
+ * - `storage-unavailable` — IndexedDB threw on read (private mode, extension
+ *   block). The session uses the demo scenario; changes won't persist.
+ */
+export type HydrationWarning = "share-link-invalid" | "storage-unavailable";
+
+interface InitializeInput {
+  sharedScenario?: Scenario | null;
+  shareLinkProvided?: boolean;
+}
+
 interface ScenarioStore {
   activeScenario: Scenario;
   status: StoreStatus;
   saveStatus: SaveStatus;
-  initialize: (sharedScenario?: Scenario | null) => Promise<void>;
+  hydrationWarning: HydrationWarning | null;
+  dismissHydrationWarning: () => void;
+  initialize: (input?: InitializeInput) => Promise<void>;
   replaceScenario: (scenario: Scenario) => void;
   updateCurrency: (value: Scenario["currency"]) => void;
   updateCountry: (value: string) => void;
@@ -80,8 +96,13 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
   activeScenario: createDefaultScenario(),
   status: "idle",
   saveStatus: "idle",
-  initialize: async (sharedScenario) => {
+  hydrationWarning: null,
+  dismissHydrationWarning: () => set({ hydrationWarning: null }),
+  initialize: async (input) => {
     set({ status: "hydrating" });
+
+    const sharedScenario = input?.sharedScenario;
+    const shareLinkProvided = input?.shareLinkProvided ?? false;
 
     if (sharedScenario) {
       set({
@@ -91,11 +112,37 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
       return;
     }
 
-    const draft = await loadScenarioDraft();
+    // A share link was on the URL but it failed to decode. Fall through to
+    // the saved draft so the user still gets _something_, and queue a
+    // non-blocking banner so they know their link didn't take.
+    const shareLinkInvalid = shareLinkProvided && !sharedScenario;
+
+    // IndexedDB can reject (Safari private mode, Firefox ETP strict,
+    // cookie-blocking extensions). Previously this bubbled as an unhandled
+    // promise rejection and left the store stuck in "hydrating" forever,
+    // which silently disables auto-save. Catch it here, fall back to the
+    // demo scenario, and surface a banner.
+    let draft: Scenario | null = null;
+    let storageUnavailable = false;
+    try {
+      draft = await loadScenarioDraft();
+    } catch (error) {
+      storageUnavailable = true;
+      if (typeof console !== "undefined") {
+        console.warn("[scenario-store] IndexedDB unavailable — using demo scenario", error);
+      }
+    }
+
+    const warning: HydrationWarning | null = storageUnavailable
+      ? "storage-unavailable"
+      : shareLinkInvalid
+        ? "share-link-invalid"
+        : null;
 
     set({
       activeScenario: draft ? touchScenario(cloneScenario(draft)) : createDefaultScenario(),
       status: "ready",
+      hydrationWarning: warning,
     });
   },
   replaceScenario: (scenario) =>

@@ -17,6 +17,7 @@ import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Slider } from "@/components/ui/slider";
+import { clamp } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   calculateFireTypeSummaries,
@@ -375,9 +376,18 @@ export default function SaveWhatIfWorkspace() {
                   {isSelected && decision.template.params.length > 0 ? (
                     <div className="px-4 pb-4">
                       {decision.template.params.map((param) => {
-                        const currentValue =
+                        // Source-of-truth value, pre-clamp. May be NaN /
+                        // out-of-range if a persisted draft or a racy setState
+                        // lands an invalid number; clamp defensively before
+                        // it hits the Slider (Radix's behavior on invalid
+                        // input is undefined) or derived summary math.
+                        const rawValue =
                           customValues[decision.id]?.[param.id] ??
                           param.defaultValue;
+                        const safeValue = Number.isFinite(rawValue)
+                          ? clamp(rawValue, param.min, param.max)
+                          : param.defaultValue;
+                        const currentValue = safeValue;
 
                         if (param.type === "boolean") {
                           const checked = currentValue !== 0;

@@ -25,10 +25,11 @@ export function useInitializeStore(
   useEffect(() => {
     if (hasInitialized.current) return;
     hasInitialized.current = true;
-    void initialize(
-      sharedScenarioParam
+    void initialize({
+      sharedScenario: sharedScenarioParam
         ? deserializeScenarioFromSearchParam(sharedScenarioParam)
         : undefined,
-    );
+      shareLinkProvided: Boolean(sharedScenarioParam),
+    });
   }, [initialize, sharedScenarioParam]);
 }

@@ -8,6 +8,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { PlanDrawer, PlanDrawerTrigger } from "@/components/plan-drawer";
 import { QADevModal } from "@/components/dev/qa-personas";
+import { HydrationWarningBanner } from "@/components/layout/hydration-warning-banner";
 
 type NavGroup = {
   id: string;
@@ -376,6 +377,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
           ) : null}
         </div>
       </header>
+      <HydrationWarningBanner />
       <main id="main-content" tabIndex={-1} className="focus:outline-none">
         {children}
       </main>
