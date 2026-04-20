@@ -179,6 +179,31 @@ function buildSankeyData(scenario: Scenario) {
   }
   typeMap.forEach((v) => accountGroups.push(v));
 
+  // Route any uninvested leftover into the taxable node so the Sankey
+  // balances. Previously the "Savings" node received `takeHome − expenses`
+  // but only distributed the sum of explicit account contributions, leaving
+  // a visual gap (e.g. High Earner persona: $172.9K in, $130K out →
+  // unaccounted $42.9K). Treating the remainder as default brokerage
+  // contributions matches the user's mental model ("anything leftover sits
+  // in my taxable account"). Does NOT mutate the scenario — display only.
+  const accountedContributions = accountGroups.reduce(
+    (sum, group) => sum + group.amount,
+    0,
+  );
+  const uninvestedLeftover = savings - accountedContributions;
+  if (uninvestedLeftover > 1) {
+    const taxableGroup = accountGroups.find((g) => g.color === COLORS.taxable);
+    if (taxableGroup) {
+      taxableGroup.amount += uninvestedLeftover;
+    } else {
+      accountGroups.push({
+        label: "Brokerage",
+        amount: uninvestedLeftover,
+        color: COLORS.taxable,
+      });
+    }
+  }
+
   // Build nodes — indices:  0=gross, 1=fedtax, 2=statetax, 3=fica, 4=takehome, 5=spending, 6=savings
   const nodes: Array<{ name: string; displayName: string; color: string }> = [
     { name: "gross", displayName: `Income ${formatCompactCurrency(grossIncome)}`, color: COLORS.income },
