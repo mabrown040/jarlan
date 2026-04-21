@@ -192,6 +192,28 @@ export function getPrimaryAccount(scenario: Scenario) {
   return scenario.accounts[0];
 }
 
+/**
+ * Return the index of the account that should absorb discretionary
+ * cashflow changes — raises, lifestyle cuts, inheritances, slider drags.
+ *
+ * Picks the first `taxable` account when present; falls back to `accounts[0]`
+ * when no taxable account exists (legacy behavior for edge scenarios).
+ *
+ * Rationale: routing changes blindly into `accounts[0]` is wrong when
+ * `accounts[0]` is a pre-tax 401k or HSA. Bumping a 401k contribution past
+ * the IRS limit is nonsensical, AND changes pre-tax contributions ripple
+ * into AGI → federal tax → take-home, which breaks any UI that uses
+ * take-home as a slider max (the "Save per year" slider thumb drift bug).
+ *
+ * The taxable brokerage is the natural destination for discretionary
+ * cashflow: no contribution cap, no tax-side-effects, matches the Sankey's
+ * default-brokerage treatment of uninvested leftover.
+ */
+export function getFlexAccountIndex(scenario: Scenario): number {
+  const taxableIndex = scenario.accounts.findIndex((a) => a.type === "taxable");
+  return taxableIndex >= 0 ? taxableIndex : 0;
+}
+
 export function getYearsUntilRetirement(scenario: Scenario) {
   if (scenario.profile.retirementAge === null) {
     return null;

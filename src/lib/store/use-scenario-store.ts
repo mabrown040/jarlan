@@ -10,6 +10,7 @@ import {
   touchScenario,
   type Scenario,
 } from "@/lib/domain";
+import { getFlexAccountIndex } from "@/lib/calc/scenario";
 import { syncScenarioForActiveAccount } from "@/lib/product";
 import { clamp, roundTo } from "@/lib/utils";
 
@@ -201,28 +202,9 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
     set((state) => ({
       activeScenario: updatePrimaryAccount(state.activeScenario, (scenario) => {
         const nextSavings = Math.max(value, 0);
-
-        // Route the savings delta to the TAXABLE account by type rather
-        // than blindly to accounts[0]. Two reasons this matters:
-        //
-        // 1. Correctness: if accounts[0] is a `traditional_401k` (e.g. the
-        //    High Earner persona), bumping its contribution changes pre-tax
-        //    contributions → AGI → federal tax → take-home. The linked
-        //    spend↔save slider uses take-home as its `max`, so the track
-        //    scale shifts mid-drag and the thumb visually drifts away from
-        //    its labeled value. Taxable contributions don't affect taxes,
-        //    so routing here keeps the slider invariant stable.
-        //
-        // 2. Intent: bumping the "Save per year" slider should read as
-        //    "I have more cash to invest," which most users map to their
-        //    brokerage — not "increase my 401k past the IRS limit."
-        //
-        // We still fall back to accounts[0] if there's no taxable account,
-        // preserving the old behavior for edge-case scenarios.
-        const taxableIndex = scenario.accounts.findIndex(
-          (a) => a.type === "taxable",
-        );
-        const flexIndex = taxableIndex >= 0 ? taxableIndex : 0;
+        // See getFlexAccountIndex — prefer taxable so the tax-side doesn't
+        // drift mid-drag (Save slider max depends on take-home).
+        const flexIndex = getFlexAccountIndex(scenario);
 
         const otherContributionTotal = scenario.accounts.reduce(
           (total, account, accountIndex) =>

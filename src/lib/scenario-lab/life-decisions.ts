@@ -1,5 +1,8 @@
 import { calculateQuickFireSummary } from "@/lib/calc";
-import { getHouseholdAnnualIncome } from "@/lib/calc/scenario";
+import {
+  getFlexAccountIndex,
+  getHouseholdAnnualIncome,
+} from "@/lib/calc/scenario";
 import { cloneScenario } from "@/lib/domain";
 import type { Scenario } from "@/lib/domain/types";
 import { estimateScenarioTax } from "@/lib/tax";
@@ -111,9 +114,14 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
         if (v.startAge <= s.profile.age) {
           next.annualIncome = Math.max(next.annualIncome + v.amount, 0);
           next.annualSavings = Math.max(next.annualSavings + afterTaxAmount, 0);
-          if (next.accounts[0]) {
-            next.accounts[0].annualContribution = Math.max(
-              next.accounts[0].annualContribution + afterTaxAmount, 0,
+          // Route the after-tax savings delta to the taxable brokerage
+          // (via getFlexAccountIndex) instead of the first account. See
+          // helper comment — otherwise a raise for a High Earner scales
+          // the 401k past the IRS limit and distorts take-home.
+          const flex = next.accounts[getFlexAccountIndex(next)];
+          if (flex) {
+            flex.annualContribution = Math.max(
+              flex.annualContribution + afterTaxAmount, 0,
             );
           }
         } else {
@@ -154,9 +162,11 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
           next.retirementExpenses = Math.max(next.retirementExpenses + v.amount, 0);
           // Spending change directly affects savings (dollar-for-dollar, no tax)
           next.annualSavings = Math.max(next.annualSavings - v.amount, 0);
-          if (next.accounts[0]) {
-            next.accounts[0].annualContribution = Math.max(
-              next.accounts[0].annualContribution - v.amount, 0,
+          // Route the savings delta via the flex account (taxable).
+          const flex = next.accounts[getFlexAccountIndex(next)];
+          if (flex) {
+            flex.annualContribution = Math.max(
+              flex.annualContribution - v.amount, 0,
             );
           }
         } else {
@@ -218,9 +228,13 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
         // If starting now or soon, reduce current savings
         if (v.startAge <= s.profile.age) {
           next.annualSavings = Math.max(next.annualSavings - v.cost, 0);
-          if (next.accounts[0]) {
-            next.accounts[0].annualContribution = Math.max(
-              next.accounts[0].annualContribution - v.cost, 0,
+          // Draw the new expense from the flex (taxable) account so the
+          // 401k/HSA budget — which users usually set deliberately —
+          // stays intact.
+          const flex = next.accounts[getFlexAccountIndex(next)];
+          if (flex) {
+            flex.annualContribution = Math.max(
+              flex.annualContribution - v.cost, 0,
             );
           }
         }
@@ -246,10 +260,13 @@ export function buildDecisionTemplates(scenario: Scenario): LifeDecisionTemplate
       apply: (s, v) => {
         const next = cloneScenario(s);
         if (v.atAge <= s.profile.age) {
-          // Immediate: directly adjust portfolio
-          if (next.accounts[0]) {
-            next.accounts[0].currentBalance = Math.max(
-              next.accounts[0].currentBalance + v.amount, 0,
+          // Immediate: directly adjust portfolio. Inheritances, gifts,
+          // and home-purchase proceeds all naturally land in taxable —
+          // you can't dump a windfall into a 401k mid-year.
+          const flex = next.accounts[getFlexAccountIndex(next)];
+          if (flex) {
+            flex.currentBalance = Math.max(
+              flex.currentBalance + v.amount, 0,
             );
           }
         } else {

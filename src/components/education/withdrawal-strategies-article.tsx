@@ -21,7 +21,7 @@ import {
   formatPercent,
   getCurrentPortfolioBalance,
 } from "@/lib/calc";
-import { cloneScenario } from "@/lib/domain";
+import { buildScenarioForStartingPortfolio } from "@/lib/scenario-lab/spend-analysis";
 import {
   getEducationReference,
   withdrawalStrategyReferences,
@@ -761,10 +761,15 @@ export function WithdrawalStrategiesArticle() {
       setParamLabStatus("loading");
       setParamLabError(null);
 
-      const nextScenario = cloneScenario(activeScenario);
-      if (nextScenario.accounts.length > 0) {
-        nextScenario.accounts[0].currentBalance = startingPortfolio;
-      }
+      // Rescale all accounts proportionally so the "starting portfolio"
+      // the user sets on this interactive sim actually matches the total
+      // passed into the engine. Writing to accounts[0] alone would leak
+      // other account balances into the sim total for multi-account
+      // scenarios. See getFlexAccountIndex for the broader pattern.
+      const nextScenario = buildScenarioForStartingPortfolio(
+        activeScenario,
+        startingPortfolio,
+      );
       nextScenario.withdrawalStrategy.type = selectedStrategy;
       nextScenario.withdrawalStrategy.capeParams = {
         a: labParams.capeA,

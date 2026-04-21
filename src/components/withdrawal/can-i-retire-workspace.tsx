@@ -10,7 +10,7 @@ import {
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/form/field-label";
-import { cloneScenario } from "@/lib/domain";
+import { buildScenarioForStartingPortfolio } from "@/lib/scenario-lab/spend-analysis";
 import {
   SpendQuickControls,
   type SpendControlFocusArea,
@@ -211,10 +211,16 @@ export function CanIRetireWorkspace() {
 
       void Promise.all(
         heatmapWithdrawalRates.map(async (withdrawalRate) => {
-          const nextScenario = cloneScenario(activeScenario);
-          if (nextScenario.accounts.length > 0) {
-            nextScenario.accounts[0].currentBalance = effectivePortfolio;
-          }
+          // Previously wrote `effectivePortfolio` into `accounts[0].currentBalance`
+          // and left other account balances intact — so for multi-account
+          // users the sim ran against effectivePortfolio + untouched
+          // accounts[1..N], not the "testing with" amount the header
+          // advertised. `buildScenarioForStartingPortfolio` rescales all
+          // accounts proportionally to match the target total.
+          const nextScenario = buildScenarioForStartingPortfolio(
+            activeScenario,
+            effectivePortfolio,
+          );
           const startingBalance = effectivePortfolio;
 
           nextScenario.withdrawalStrategy.type = strategyType;
@@ -278,10 +284,13 @@ export function CanIRetireWorkspace() {
       setMonteCarloStatus("loading");
       setMonteCarloError(null);
 
-      const mcScenario = cloneScenario(activeScenario);
-      if (mcScenario.accounts.length > 0) {
-        mcScenario.accounts[0].currentBalance = effectivePortfolio;
-      }
+      // Same fix as the heatmap above — rescale all accounts
+      // proportionally so the Monte Carlo starting balance actually
+      // equals effectivePortfolio for multi-account personas.
+      const mcScenario = buildScenarioForStartingPortfolio(
+        activeScenario,
+        effectivePortfolio,
+      );
 
       void runSimulation({
         kind: "monte-carlo",
