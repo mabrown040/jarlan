@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import {
   DM_Serif_Display,
   JetBrains_Mono,
@@ -6,8 +5,10 @@ import {
 } from "next/font/google";
 import type { ReactNode } from "react";
 
+import { AnalyticsScripts } from "@/components/layout/analytics";
 import { SiteShell } from "@/components/layout/site-shell";
 import { AppProviders } from "@/components/providers/app-providers";
+import { ROOT_METADATA } from "@/lib/seo/metadata";
 
 import "./globals.css";
 
@@ -27,11 +28,10 @@ const jetBrainsMono = JetBrains_Mono({
   variable: "--font-mono-family",
 });
 
-export const metadata: Metadata = {
-  title: "FIRECALC",
-  description:
-    "A local-first FIRE calculator for quick answers today and deeper simulation later.",
-};
+// Root metadata — individual routes override their own `export const
+// metadata` via `buildMetadata({ title, description, path })`. See
+// `src/lib/seo/metadata.ts` for the helper.
+export const metadata = ROOT_METADATA;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   // `data-scroll-behavior="smooth"` is the Next.js 16 opt-in replacement for
@@ -45,6 +45,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <AppProviders>
           <SiteShell>{children}</SiteShell>
         </AppProviders>
+        {/* Env-gated on NEXT_PUBLIC_PLAUSIBLE_DOMAIN — does nothing if
+            the env var isn't set (local dev, pre-deploy). */}
+        <AnalyticsScripts />
       </body>
     </html>
   );

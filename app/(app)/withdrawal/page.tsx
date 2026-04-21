@@ -1,6 +1,14 @@
 import { Suspense } from "react";
 
 import CanIRetireWorkspace from "@/components/withdrawal/can-i-retire-workspace";
+import { buildMetadata } from "@/lib/seo/metadata";
+
+export const metadata = buildMetadata({
+  title: "Can I Retire?",
+  description:
+    "Stress-test your retirement plan against 150 years of market history and forward-looking Monte Carlo. Four withdrawal strategies, valuation-aware.",
+  path: "/withdrawal",
+});
 
 export default function WithdrawalPage() {
   return (

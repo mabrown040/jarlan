@@ -8,3 +8,12 @@ coverage
 .cache
 .claude
 *.log
+
+# Env secrets — Sentry DSN/token, Plausible config, etc.
+# `.env.example` is committed so contributors know the shape.
+.env
+.env.local
+.env.*.local
+.sentryclirc
+.sentry-build-plugin
+.cursor

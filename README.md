@@ -75,3 +75,32 @@ npm run test:coverage # Coverage report
 ## Data
 
 Historical market data (Shiller dataset, 1871-present) lives in `data/shiller.json`. Tax brackets, state taxes, ACA premiums, and mortality tables are in `data/`.
+
+## Deployment & Observability
+
+Copy `.env.example` to `.env.local` and fill in whichever providers you use. All of these are optional — the app runs locally without any of them.
+
+### Error monitoring (Sentry)
+
+1. Create a project at [sentry.io](https://sentry.io) (or self-host).
+2. Set `NEXT_PUBLIC_SENTRY_DSN` in the deploy environment.
+3. For resolved stack traces, also set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`. Without the auth token, the build skips source-map upload (dryRun) so local builds don't fail.
+4. Configs live in `sentry.{client,server,edge}.config.ts`. They no-op when the DSN is unset.
+
+### Analytics (Plausible)
+
+1. Create a site at [plausible.io](https://plausible.io) (or self-host).
+2. Set `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` to the domain you registered.
+3. The script is injected from `src/components/layout/analytics.tsx`. No cookies, no GDPR banner required.
+
+Custom events can be fired later via `window.plausible?.('EventName', { props: {...} })` — no events currently tracked.
+
+### SEO
+
+- Per-route `metadata` via `buildMetadata()` in `src/lib/seo/metadata.ts` (canonical URLs, OG, Twitter card, robots).
+- `app/sitemap.ts` generates `/sitemap.xml` at build.
+- `app/robots.ts` generates `/robots.txt` (disallows `/account` + `?scenario=` URLs).
+- Set `NEXT_PUBLIC_SITE_URL` so canonicals point at the right origin.
+
+Drop an `/og-image.png` (1200×630) into `public/` for social-share previews. A simple SVG-to-PNG export of the hero works as a v1.
+
