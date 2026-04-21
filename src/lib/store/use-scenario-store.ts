@@ -2,7 +2,15 @@
 
 import { create } from "zustand";
 
-import { loadScenarioDraft, saveScenarioDraft } from "@/lib/db/database";
+import {
+  deleteScenarioRecord,
+  listStoredScenarios,
+  loadScenarioById,
+  loadScenarioDraft,
+  saveScenarioDraft,
+  setActiveDraftId,
+  upsertScenarioRecord,
+} from "@/lib/db/database";
 import {
   cloneScenario,
   createDefaultPartnerProfile,
@@ -83,6 +91,35 @@ interface ScenarioStore {
   updateMonteCarloTrials: (value: number) => void;
   saveDraft: () => Promise<void>;
   resetScenario: () => void;
+
+  /* ── Multi-scenario management ─────────────────────────────── */
+  /**
+   * Summary list of all saved scenarios — light-weight metadata only
+   * (id, name, updatedAt, isActive). Refresh by calling
+   * `refreshScenarioList()` after any mutation. Kept in the store
+   * rather than fetched ad-hoc so the drawer switcher can react to
+   * save/delete without plumbing.
+   */
+  scenarioList: ScenarioSummary[];
+  refreshScenarioList: () => Promise<void>;
+  /** Persist the current active scenario under a new id and switch to it. */
+  duplicateActiveScenario: (name?: string) => Promise<void>;
+  /** Start a fresh blank scenario (demo defaults) under a new id. */
+  createBlankScenario: (name?: string) => Promise<void>;
+  /** Switch the active draft to a different saved scenario. */
+  switchToScenario: (scenarioId: string) => Promise<void>;
+  /** Rename a scenario in-place (live if it's active; else off-screen). */
+  renameScenario: (scenarioId: string, name: string) => Promise<void>;
+  /** Delete a saved scenario. If it was active, falls back to the newest
+   *  remaining scenario or a fresh default. */
+  deleteScenario: (scenarioId: string) => Promise<void>;
+}
+
+export interface ScenarioSummary {
+  id: string;
+  name: string;
+  updatedAt: string;
+  isActive: boolean;
 }
 
 function updatePrimaryAccount(
@@ -145,6 +182,10 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
       status: "ready",
       hydrationWarning: warning,
     });
+    // Populate the scenario-list so the switcher UI has data the
+    // moment the drawer opens. Fire-and-forget; IndexedDB
+    // unavailability is already captured in `hydrationWarning` above.
+    void get().refreshScenarioList();
   },
   replaceScenario: (scenario) =>
     set({
@@ -715,4 +756,129 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
       activeScenario: createDefaultScenario(),
       saveStatus: "idle",
     }),
+
+  /* ── Multi-scenario management ─────────────────────────────── */
+  scenarioList: [],
+  refreshScenarioList: async () => {
+    try {
+      const records = await listStoredScenarios();
+      const activeId = get().activeScenario.id;
+      set({
+        scenarioList: records.map((r) => ({
+          id: r.id,
+          name: r.name,
+          updatedAt: r.updatedAt,
+          isActive: r.id === activeId,
+        })),
+      });
+    } catch {
+      // Storage unavailable — leave the list empty. The hydration
+      // banner has already warned the user.
+    }
+  },
+  duplicateActiveScenario: async (name) => {
+    const current = get().activeScenario;
+    const copy = cloneScenario(current);
+    copy.id = crypto.randomUUID();
+    copy.name = name ?? `${current.name} (copy)`;
+    const now = new Date().toISOString();
+    copy.createdAt = now;
+    copy.updatedAt = now;
+    copy.isPersonalized = true;
+    try {
+      await upsertScenarioRecord(copy);
+      await setActiveDraftId(copy.id);
+      set({ activeScenario: copy, saveStatus: "saved" });
+      await get().refreshScenarioList();
+    } catch {
+      set({ saveStatus: "error" });
+    }
+  },
+  createBlankScenario: async (name) => {
+    const scenario = createDefaultScenario();
+    scenario.id = crypto.randomUUID();
+    scenario.name = name ?? "New plan";
+    const now = new Date().toISOString();
+    scenario.createdAt = now;
+    scenario.updatedAt = now;
+    // Intentionally NOT personalized — lands in the sample-scenario
+    // banner's "explore" state until the user edits something.
+    scenario.isPersonalized = false;
+    try {
+      await upsertScenarioRecord(scenario);
+      await setActiveDraftId(scenario.id);
+      set({ activeScenario: scenario, saveStatus: "saved" });
+      await get().refreshScenarioList();
+    } catch {
+      set({ saveStatus: "error" });
+    }
+  },
+  switchToScenario: async (scenarioId) => {
+    if (scenarioId === get().activeScenario.id) return;
+    try {
+      const scenario = await loadScenarioById(scenarioId);
+      if (!scenario) return;
+      await setActiveDraftId(scenarioId);
+      set({ activeScenario: touchScenario(scenario), saveStatus: "saved" });
+      await get().refreshScenarioList();
+    } catch {
+      set({ saveStatus: "error" });
+    }
+  },
+  renameScenario: async (scenarioId, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const current = get().activeScenario;
+    try {
+      if (scenarioId === current.id) {
+        // Active scenario: update in-memory + persist.
+        const next = touchScenario({ ...current, name: trimmed });
+        await upsertScenarioRecord(next);
+        set({ activeScenario: next, saveStatus: "saved" });
+      } else {
+        // Off-screen scenario: load → mutate → persist without
+        // affecting the active draft.
+        const existing = await loadScenarioById(scenarioId);
+        if (!existing) return;
+        await upsertScenarioRecord(
+          touchScenario({ ...existing, name: trimmed }),
+        );
+      }
+      await get().refreshScenarioList();
+    } catch {
+      set({ saveStatus: "error" });
+    }
+  },
+  deleteScenario: async (scenarioId) => {
+    const current = get().activeScenario;
+    const wasActive = scenarioId === current.id;
+    try {
+      await deleteScenarioRecord(scenarioId);
+
+      if (wasActive) {
+        // Fall back to the most-recently-updated remaining scenario,
+        // or create a fresh default if the user just deleted their
+        // last plan.
+        const remaining = await listStoredScenarios();
+        const fallback = remaining[0]?.scenario;
+        if (fallback) {
+          await setActiveDraftId(fallback.id);
+          set({
+            activeScenario: touchScenario(fallback),
+            saveStatus: "saved",
+          });
+        } else {
+          const fresh = createDefaultScenario();
+          fresh.id = crypto.randomUUID();
+          await upsertScenarioRecord(fresh);
+          await setActiveDraftId(fresh.id);
+          set({ activeScenario: fresh, saveStatus: "saved" });
+        }
+      }
+
+      await get().refreshScenarioList();
+    } catch {
+      set({ saveStatus: "error" });
+    }
+  },
 }));

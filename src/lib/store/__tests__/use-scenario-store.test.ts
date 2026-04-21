@@ -3,10 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDefaultScenario } from "@/lib/domain";
 
 // Mock the Dexie-backed DB module so we can simulate both "healthy IDB"
-// (returns null = no draft) and "blocked IDB" (throws on read).
+// (returns null = no draft) and "blocked IDB" (throws on read). All new
+// multi-scenario helpers are mocked too — each test opts into a shape
+// by overriding the needed mock via mockResolvedValueOnce.
 vi.mock("@/lib/db/database", () => ({
   loadScenarioDraft: vi.fn(),
   saveScenarioDraft: vi.fn(),
+  listStoredScenarios: vi.fn().mockResolvedValue([]),
+  loadScenarioById: vi.fn(),
+  setActiveDraftId: vi.fn(),
+  upsertScenarioRecord: vi.fn(),
+  deleteScenarioRecord: vi.fn(),
 }));
 
 // Mock the product sync helper that the store calls on save.
@@ -183,5 +190,182 @@ describe("useScenarioStore.initialize", () => {
     useScenarioStore.getState().dismissHydrationWarning();
     expect(useScenarioStore.getState().hydrationWarning).toBeNull();
     warnSpy.mockRestore();
+  });
+});
+
+describe("useScenarioStore multi-scenario management", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  /**
+   * Duplicate should clone the active scenario under a fresh id +
+   * name, persist it to IDB, and switch the active-draft pointer to
+   * the new copy so the user sees their new plan immediately.
+   */
+  it("duplicateActiveScenario clones active under new id + switches focus", async () => {
+    const { useScenarioStore } = await import("../use-scenario-store");
+    const db = await import("@/lib/db/database");
+    (db.listStoredScenarios as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    const original = useScenarioStore.getState().activeScenario;
+    await useScenarioStore.getState().duplicateActiveScenario("Plan B");
+
+    const next = useScenarioStore.getState().activeScenario;
+    expect(next.id).not.toBe(original.id);
+    expect(next.name).toBe("Plan B");
+    expect(next.isPersonalized).toBe(true);
+    expect(db.upsertScenarioRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Plan B" }),
+    );
+    expect(db.setActiveDraftId).toHaveBeenCalledWith(next.id);
+  });
+
+  /**
+   * createBlank should give us a fresh default scenario (un-personalized
+   * so the sample-scenario banner still shows) under a new id.
+   */
+  it("createBlankScenario creates a fresh un-personalized scenario", async () => {
+    const { useScenarioStore } = await import("../use-scenario-store");
+    const db = await import("@/lib/db/database");
+    (db.listStoredScenarios as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    const original = useScenarioStore.getState().activeScenario;
+    await useScenarioStore.getState().createBlankScenario("Conservative");
+
+    const next = useScenarioStore.getState().activeScenario;
+    expect(next.id).not.toBe(original.id);
+    expect(next.name).toBe("Conservative");
+    expect(next.isPersonalized).toBe(false);
+  });
+
+  /**
+   * switchToScenario should load a different scenario from IDB and
+   * update the active-draft pointer. If the scenario can't be loaded,
+   * the active scenario stays unchanged (no silent default fallback).
+   */
+  it("switchToScenario loads from IDB and updates active pointer", async () => {
+    const { useScenarioStore } = await import("../use-scenario-store");
+    const db = await import("@/lib/db/database");
+    const target = {
+      ...createDefaultScenario(),
+      id: "target-id",
+      name: "Aggressive",
+    };
+    (db.loadScenarioById as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      target,
+    );
+    (db.listStoredScenarios as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    await useScenarioStore.getState().switchToScenario("target-id");
+
+    expect(useScenarioStore.getState().activeScenario.id).toBe("target-id");
+    expect(useScenarioStore.getState().activeScenario.name).toBe("Aggressive");
+    expect(db.setActiveDraftId).toHaveBeenCalledWith("target-id");
+  });
+
+  /**
+   * Rename-active writes a new updatedAt timestamp + persists so
+   * the cross-device sync (when added) picks up the change.
+   */
+  it("renameScenario on the active scenario updates name + persists", async () => {
+    const { useScenarioStore } = await import("../use-scenario-store");
+    const db = await import("@/lib/db/database");
+
+    const currentId = useScenarioStore.getState().activeScenario.id;
+    await useScenarioStore.getState().renameScenario(currentId, "Plan A");
+
+    expect(useScenarioStore.getState().activeScenario.name).toBe("Plan A");
+    expect(db.upsertScenarioRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ id: currentId, name: "Plan A" }),
+    );
+  });
+
+  it("renameScenario ignores empty/whitespace names", async () => {
+    const { useScenarioStore } = await import("../use-scenario-store");
+    const db = await import("@/lib/db/database");
+
+    const currentId = useScenarioStore.getState().activeScenario.id;
+    const originalName = useScenarioStore.getState().activeScenario.name;
+    await useScenarioStore.getState().renameScenario(currentId, "   ");
+
+    expect(useScenarioStore.getState().activeScenario.name).toBe(originalName);
+    expect(db.upsertScenarioRecord).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Deleting a non-active scenario should not touch the active one.
+   */
+  it("deleteScenario leaves active scenario alone when deleting another", async () => {
+    const { useScenarioStore } = await import("../use-scenario-store");
+    const db = await import("@/lib/db/database");
+    (db.listStoredScenarios as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    const originalId = useScenarioStore.getState().activeScenario.id;
+    await useScenarioStore.getState().deleteScenario("some-other-id");
+
+    expect(useScenarioStore.getState().activeScenario.id).toBe(originalId);
+    expect(db.deleteScenarioRecord).toHaveBeenCalledWith("some-other-id");
+  });
+
+  /**
+   * Deleting the ACTIVE scenario should fall back to the most-recent
+   * remaining scenario. If nothing remains, spin up a fresh default
+   * so the UI is never left without a scenario to render.
+   */
+  it("deleteScenario on active falls back to remaining or fresh default", async () => {
+    const { useScenarioStore } = await import("../use-scenario-store");
+    const db = await import("@/lib/db/database");
+
+    // No scenarios remain after delete → store should spin up a fresh
+    // default with a new UUID (not the original's id).
+    (db.listStoredScenarios as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    const originalId = useScenarioStore.getState().activeScenario.id;
+    await useScenarioStore.getState().deleteScenario(originalId);
+
+    const next = useScenarioStore.getState().activeScenario;
+    expect(next.id).not.toBe(originalId);
+    // setActiveDraftId called twice: once in the delete path (no-op
+    // on success), once when installing the fallback.
+    expect(db.setActiveDraftId).toHaveBeenCalledWith(next.id);
+  });
+
+  /**
+   * refreshScenarioList tags the active scenario via isActive so the
+   * switcher UI can highlight it without pulling the full store state.
+   */
+  it("refreshScenarioList marks the active scenario with isActive=true", async () => {
+    const { useScenarioStore } = await import("../use-scenario-store");
+    const db = await import("@/lib/db/database");
+    const activeId = useScenarioStore.getState().activeScenario.id;
+    const now = new Date().toISOString();
+
+    (db.listStoredScenarios as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        id: activeId,
+        name: "Active one",
+        updatedAt: now,
+        createdAt: now,
+        isDraft: 1,
+        scenario: createDefaultScenario(),
+      },
+      {
+        id: "other-id",
+        name: "Other",
+        updatedAt: now,
+        createdAt: now,
+        isDraft: 1,
+        scenario: createDefaultScenario(),
+      },
+    ]);
+
+    await useScenarioStore.getState().refreshScenarioList();
+
+    const list = useScenarioStore.getState().scenarioList;
+    expect(list).toHaveLength(2);
+    expect(list.find((s) => s.id === activeId)?.isActive).toBe(true);
+    expect(list.find((s) => s.id === "other-id")?.isActive).toBe(false);
   });
 });

@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { PlanDrawerContent } from "@/components/plan-drawer/plan-drawer-content";
+import { ScenarioSwitcher } from "@/components/plan-drawer/scenario-switcher";
 import {
   calculateQuickFireSummary,
   formatCompactCurrency,
@@ -49,6 +50,10 @@ export function PlanDrawer() {
             </button>
           </SheetClose>
         </SheetHeader>
+        {/* Scenario switcher — lets the user pick between saved plans,
+            rename, duplicate, or delete. Docked at the top of the
+            drawer so it's visible without scrolling through inputs. */}
+        <ScenarioSwitcher />
         <div className="flex-1 overflow-y-auto">
           <PlanDrawerContent />
         </div>
