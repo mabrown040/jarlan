@@ -46,6 +46,7 @@ import { useDrawerStore, useScenarioStore } from "@/lib/store";
 import { MoneyFlowSankey } from "@/components/charts/money-flow-sankey";
 import { InlineControls } from "@/components/plan/inline-controls";
 import { SampleScenarioBanner } from "@/components/landing/sample-scenario-banner";
+import { HomePreviewChart } from "@/components/landing/home-preview-chart";
 import { cn } from "@/lib/utils";
 
 export function QuickFireWorkspace({
@@ -342,6 +343,11 @@ export function QuickFireWorkspace({
                 </>
               }
             />
+            {/* Visual proof before the decision. Muted projection chart
+                driven by the default scenario so new visitors can see
+                what the calculator produces without committing to data
+                entry or even a second click. */}
+            <HomePreviewChart />
             <section className="mx-auto max-w-7xl px-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <Link
@@ -379,6 +385,67 @@ export function QuickFireWorkspace({
                     Open the planner →
                   </p>
                 </Link>
+              </div>
+            </section>
+            {/* "Why Calcifer" — positioning-level claims framed against
+                competitor defaults (most FIRE tools assume a single
+                state, offer one withdrawal strategy, use synthetic
+                averages). Each claim links to a proof surface — either
+                a Learn article or a live module that demonstrates the
+                claim in action. */}
+            <section className="mx-auto max-w-7xl px-6">
+              <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
+                Why Calcifer
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Built to be more accurate, more flexible, and more honest than
+                the one-size-fits-all FIRE calculators you&rsquo;ve seen.
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {[
+                  {
+                    claim: "State-aware tax math",
+                    detail:
+                      "Federal + state income tax, FICA, and filing status all flow into your savings rate. Most FIRE calculators ignore state tax entirely — a 6-figure difference over a career in CA or NY.",
+                    proofLabel: "See how savings rate is calculated →",
+                    href: "/education/savings-rate",
+                  },
+                  {
+                    claim: "Four withdrawal strategies",
+                    detail:
+                      "Fixed 4%, Guyton-Klinger guardrails, CAPE-variable, and Floor-Ceiling. The classic 4% rule is one option — not the only one — and each lands differently in bad sequences.",
+                    proofLabel: "Compare withdrawal strategies →",
+                    href: "/education/withdrawal-strategies",
+                  },
+                  {
+                    claim: "Stack life decisions",
+                    detail:
+                      "Career break, lifestyle change, promotion, market downturn, new dependent. Model them individually or composed — and see the interaction effects most calculators can\u2019t express.",
+                    proofLabel: "Try what-if analysis →",
+                    href: "/save-what-if",
+                  },
+                  {
+                    claim: "Research-grade data",
+                    detail:
+                      "150 years of Shiller market data, SSA 2022 period mortality tables, and 2026 IRS brackets — not synthetic averages. Stress tests run against actual history, not just Monte Carlo noise.",
+                    proofLabel: "Browse the methodology →",
+                    href: "/education",
+                  },
+                ].map((item) => (
+                  <Link
+                    key={item.claim}
+                    href={item.href as Route}
+                    className="group rounded-2xl border border-border/40 bg-card/60 p-5 transition-all hover:border-primary/30 hover:bg-card hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]"
+                  >
+                    <p className="font-medium text-foreground">{item.claim}</p>
+                    <p className="mt-1.5 text-sm text-muted-foreground">
+                      {item.detail}
+                    </p>
+                    <p className="mt-3 text-xs font-medium text-primary transition-colors group-hover:text-primary/80">
+                      {item.proofLabel}
+                    </p>
+                  </Link>
+                ))}
               </div>
             </section>
             {/* Feature grid — reordered so Stress-test retirement (flagship)
