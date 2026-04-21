@@ -10,6 +10,7 @@ import {
   withdrawalStrategyTypes,
 } from "@/lib/domain/types";
 import type { Scenario } from "@/lib/domain/types";
+import { runScenarioMigrations } from "@/lib/domain/migrations";
 
 const socialSecuritySchema = z.object({
   monthlyBenefitAt62: z.number().nonnegative(),
@@ -161,9 +162,23 @@ export const scenarioSchema = z.object({
   // serialization so recipients see the same "personalized vs default"
   // state as the sender.
   isPersonalized: z.boolean().optional(),
+  /**
+   * Owner identifier for cloud sync. `null` (or undefined for legacy
+   * v1 data) = local-only. Added in schema v2. The migration ensures
+   * older data always surfaces with ownerId explicitly null.
+   */
+  ownerId: z.string().nullable().optional(),
 });
 
 export function parseScenario(input: unknown): Scenario | null {
-  const result = scenarioSchema.safeParse(input);
+  if (!input || typeof input !== "object") return null;
+
+  // Run the version-migration chain first so older persisted/shared
+  // scenarios upgrade transparently. Returns null on forward-version
+  // refusal (e.g. v3 scenario loaded by v2 app).
+  const migrated = runScenarioMigrations(input as Record<string, unknown>);
+  if (!migrated) return null;
+
+  const result = scenarioSchema.safeParse(migrated);
   return result.success ? result.data : null;
 }

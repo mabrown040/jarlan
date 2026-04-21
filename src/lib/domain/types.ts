@@ -170,6 +170,9 @@ export interface ScenarioAssumptions {
 
 export interface Scenario {
   id: string;
+  /** Schema version. Bump APP_VERSION (in defaults.ts) whenever the
+   *  Scenario shape changes; runScenarioMigrations handles the upgrade
+   *  of older persisted / shared scenarios. */
   version: number;
   name: string;
   createdAt: string;
@@ -188,6 +191,12 @@ export interface Scenario {
   simulationSettings: SimulationSettings;
   socialSecurity: SocialSecurityInput;
   isPersonalized?: boolean;
+  /**
+   * Owner identifier for cloud-synced scenarios. `null` = local-only
+   * (today's default for every user). Set once accounts land. Added in
+   * schema version 2 — existing v1 scenarios get `null` on migration.
+   */
+  ownerId?: string | null;
 }
 
 export interface ProjectionPoint {

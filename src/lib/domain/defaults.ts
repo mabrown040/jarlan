@@ -6,7 +6,17 @@ import type {
   Scenario,
 } from "@/lib/domain/types";
 
-export const APP_VERSION = 1;
+/**
+ * Scenario schema version. Bump whenever the Scenario shape changes
+ * in a way older persisted/shared data can't handle transparently.
+ * See `runScenarioMigrations` in `@/lib/domain/migrations` for the
+ * upgrade path.
+ *
+ * History:
+ *   v1 — initial shape
+ *   v2 — added `ownerId` (nullable) to enable future cloud sync
+ */
+export const APP_VERSION = 2;
 export const DEFAULT_SCENARIO_ID = "default-firecalc-scenario";
 
 export function createDefaultAccount(
@@ -167,6 +177,10 @@ export function createDefaultScenario(): Scenario {
       claimingAge: 67,
     },
     isPersonalized: false,
+    // Local-only by default. Flipped to a server-issued id when the
+    // user opts into cloud sync (future work; `null` preserves the
+    // "never need an account" contract for today's users).
+    ownerId: null,
   };
 }
 
