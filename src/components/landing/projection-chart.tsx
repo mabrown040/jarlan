@@ -16,6 +16,7 @@ import {
 
 import { ChartFrame } from "@/components/charts/chart-frame";
 import { formatCompactCurrency } from "@/lib/calc/format";
+import { useDisplayAmount } from "@/lib/hooks/use-display-amount";
 import type { ProjectionPoint } from "@/lib/domain/types";
 
 /**
@@ -416,11 +417,31 @@ export function ProjectionChart({
   );
   const target = data[0]?.target ?? 0;
   const isCompact = useIsCompactViewport();
+  // Display-mode transform. In nominal mode every dollar value is
+  // inflated by (1+inflation)^yearsFromNow before rendering. Real
+  // mode is a pass-through — yearsFromNow has no effect.
+  //
+  // Applied to: stacked contributions/growth, total line, optimistic/
+  // pessimistic bands, comparison overlay, y-axis tick formatter, goal
+  // reference line, and the tooltip's numeric breakdown via
+  // the chartData payload.
+  const display = useDisplayAmount();
 
   // Merge comparison data into chart points
   const chartData = rawChartData.map((point, i) => ({
     ...point,
-    comparison: comparisonData?.[i]?.balance,
+    contributions: display(point.contributions, point.year),
+    growth: display(point.growth, point.year),
+    total: display(point.total, point.year),
+    target: display(point.target, point.year),
+    pessimistic:
+      point.pessimistic != null ? display(point.pessimistic, point.year) : undefined,
+    optimistic:
+      point.optimistic != null ? display(point.optimistic, point.year) : undefined,
+    comparison:
+      comparisonData?.[i]?.balance != null
+        ? display(comparisonData[i].balance, point.year)
+        : undefined,
   }));
 
   return (
@@ -460,20 +481,40 @@ export function ProjectionChart({
             cursor={showBands || comparisonData ? { stroke: "var(--color-muted-foreground)", strokeOpacity: 0.2 } : { fill: "var(--color-muted-foreground)", opacity: 0.04 }}
           />
 
-          {/* FIRE target horizontal reference */}
-          {target > 0 ? (
-            <ReferenceLine
-              y={target}
-              stroke="var(--ember)"
-              strokeDasharray="6 4"
-              strokeOpacity={0.3}
-              label={{
-                value: `${formatCompactCurrency(target)} target`,
-                position: "right",
-                style: { fontSize: 9, fill: "var(--ember)", fontWeight: 500, opacity: 0.6 },
-              }}
-            />
-          ) : null}
+          {/* FIRE target horizontal reference.
+              In nominal mode the target is inflated to the year the
+              balance crosses it — so both curves (balance + target) are
+              expressed in the same "dollars-at-the-FIRE-year" units and
+              the visual crossing matches the real-mode crossing year.
+              In real mode `display()` is a pass-through, so the target
+              value is identical. */}
+          {(() => {
+            if (target <= 0) return null;
+            const crossingIdx = data.findIndex(
+              (p) => p.balance >= p.target && p.target > 0,
+            );
+            const crossingYear =
+              crossingIdx >= 0 ? data[crossingIdx].year : 0;
+            const displayTarget = display(target, crossingYear);
+            return (
+              <ReferenceLine
+                y={displayTarget}
+                stroke="var(--ember)"
+                strokeDasharray="6 4"
+                strokeOpacity={0.3}
+                label={{
+                  value: `${formatCompactCurrency(displayTarget)} target`,
+                  position: "right",
+                  style: {
+                    fontSize: 9,
+                    fill: "var(--ember)",
+                    fontWeight: 500,
+                    opacity: 0.6,
+                  },
+                }}
+              />
+            );
+          })()}
 
           {/* Milestone reference lines — stagger overlapping labels.
               On mobile, milestone years (e.g. retire 50 / barista 55 / FIRE 58)

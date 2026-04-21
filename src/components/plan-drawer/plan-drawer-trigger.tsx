@@ -10,6 +10,8 @@ import {
   calculateQuickFireSummary,
   formatCompactCurrency,
 } from "@/lib/calc";
+import { transformForDisplay } from "@/lib/calc/display-transform";
+import { useDisplayPreferences } from "@/lib/store/use-display-preferences";
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
 
 /**
@@ -31,6 +33,7 @@ function GearIcon() {
 export function PlanDrawerTrigger() {
   const { activeScenario, status } = useScenarioStore();
   const { open } = useDrawerStore();
+  const displayMode = useDisplayPreferences((s) => s.mode);
 
   const summary = useMemo(
     () => (status === "ready" ? calculateQuickFireSummary(activeScenario) : null),
@@ -74,12 +77,25 @@ export function PlanDrawerTrigger() {
     );
   }
 
+  // In nominal mode, inflate the FIRE number to the target year so the
+  // pill matches the big card on the planner page (both show the nominal
+  // target in future dollars).
+  const pillFireNumber =
+    displayMode === "nominal"
+      ? transformForDisplay({
+          realAmount: summary.fireNumber,
+          yearsFromNow: pillYears ?? 0,
+          mode: displayMode,
+          inflation: activeScenario.assumptions.inflation,
+        })
+      : summary.fireNumber;
+
   return (
     <button type="button" onClick={() => open()} className={PILL_CLASSES}>
       <GearIcon />
       <span className="hidden sm:inline">
         <span className="font-medium text-foreground">
-          {formatCompactCurrency(summary.fireNumber)}
+          {formatCompactCurrency(pillFireNumber)}
         </span>
         <span className="mx-1 text-muted-foreground">·</span>
         <span className="text-muted-foreground">
@@ -89,6 +105,14 @@ export function PlanDrawerTrigger() {
               ? "at FI"
               : `${pillYears} yr${pillYears === 1 ? "" : "s"}`}
         </span>
+        {displayMode === "nominal" ? (
+          // Tiny badge in the pill so users never wonder why the number
+          // got bigger when they flipped the toggle — every dollar in
+          // the UI now agrees it's in future-year purchasing power.
+          <span className="ml-2 rounded-full bg-[var(--ember)]/15 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--ember)]">
+            future $
+          </span>
+        ) : null}
       </span>
       <span className="sm:hidden text-xs font-medium text-foreground">Plan</span>
     </button>

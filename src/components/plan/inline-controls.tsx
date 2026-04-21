@@ -6,6 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { NumberInput } from "@/components/ui/number-input";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
 import { useDrawerStore } from "@/lib/store/use-drawer-store";
+import { useDisplayPreferences } from "@/lib/store/use-display-preferences";
 import { getCurrentPortfolioBalance } from "@/lib/calc";
 import { formatCompactCurrency, formatPercent } from "@/lib/calc/format";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
@@ -77,6 +78,79 @@ function SliderField({
         step={displayStep}
         className={cn("h-7 text-xs", inputWidth)}
       />
+    </div>
+  );
+}
+
+/* ── Display-mode toggle ────────────────────────────────────
+   Occupies the slot the inflation slider used to live in. The
+   inflation slider re-emerges only when nominal mode is active —
+   otherwise inflation is inert (real returns already bake it in).
+   ─────────────────────────────────────────────────────────── */
+function NominalModeControl({
+  inflation,
+  updateInflation,
+}: {
+  inflation: number;
+  updateInflation: (value: number) => void;
+}) {
+  const mode = useDisplayPreferences((s) => s.mode);
+  const setMode = useDisplayPreferences((s) => s.setMode);
+  const isNominal = mode === "nominal";
+
+  return (
+    <div className="space-y-2">
+      <label className="flex cursor-pointer items-center justify-between gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          Show future dollars
+        </span>
+        <span className="relative inline-flex">
+          {/* Keep this visually consistent with the other SliderField
+              headers — same spacing / alignment — so the row doesn't
+              jump when the toggle state changes. */}
+          <input
+            type="checkbox"
+            checked={isNominal}
+            onChange={(e) => setMode(e.target.checked ? "nominal" : "real")}
+            className="peer sr-only"
+            aria-label="Toggle nominal (future-dollar) display mode"
+          />
+          <span
+            aria-hidden="true"
+            className="block h-5 w-9 rounded-full border border-border/60 bg-muted transition-colors peer-checked:border-[var(--ember)]/60 peer-checked:bg-[var(--ember)]/20"
+          />
+          <span
+            aria-hidden="true"
+            className="absolute left-0.5 top-0.5 block h-4 w-4 rounded-full bg-card shadow-sm transition-transform peer-checked:translate-x-4 peer-checked:bg-[var(--ember)]"
+          />
+        </span>
+      </label>
+      {isNominal ? (
+        <>
+          <SliderField
+            label="Inflation"
+            value={inflation}
+            min={0}
+            max={0.08}
+            step={0.005}
+            onValueChange={updateInflation}
+            format={(v) => formatPercent(v)}
+            isPercent
+            inputWidth="w-16"
+          />
+          <p className="text-[10px] leading-snug text-muted-foreground">
+            Projections now show dollar amounts in future purchasing
+            power. Ratios (savings rate, % to FI) and years are
+            unchanged.
+          </p>
+        </>
+      ) : (
+        <p className="text-[10px] leading-snug text-muted-foreground">
+          Tick to see projections in future dollars. Today&rsquo;s-dollar
+          mode keeps every figure in current purchasing power — the
+          FIRE-community default.
+        </p>
+      )}
     </div>
   );
 }
@@ -290,16 +364,16 @@ export function InlineControls() {
                   isPercent
                   inputWidth="w-16"
                 />
-                <SliderField
-                  label="Inflation"
-                  value={inflation}
-                  min={0}
-                  max={0.08}
-                  step={0.005}
-                  onValueChange={updateInflation}
-                  format={(v) => formatPercent(v)}
-                  isPercent
-                  inputWidth="w-16"
+                {/* Display-mode toggle — takes the slot the inflation
+                    slider used to occupy. When real mode (default), the
+                    inflation assumption is inert — returns are already
+                    real, lifestyle creep has its own slider — so showing
+                    it is misleading. When nominal mode is active the
+                    slider unhides and every future-year dollar amount
+                    in the app scales with it live. */}
+                <NominalModeControl
+                  inflation={inflation}
+                  updateInflation={updateInflation}
                 />
                 <SliderField
                   label="Fee drag"

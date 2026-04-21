@@ -14,6 +14,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { useHasExistingDraft } from "@/lib/hooks/use-has-existing-draft";
 import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
+import { useDisplayAmount, useDisplayMode } from "@/lib/hooks/use-display-amount";
 import { ProjectionChart, ChartLegend } from "@/components/landing/projection-chart";
 import { US_BENCHMARKS, estimateNetWorthPercentile, getMedianNetWorthForAge } from "@/lib/data/benchmarks";
 import { buildScenarioProjection } from "@/lib/calc/quick-fire";
@@ -127,6 +128,13 @@ export function QuickFireWorkspace({
     () => estimateScenarioTax(activeScenario),
     [activeScenario],
   );
+  // Display-mode transform — nominal mode inflates future-year dollar
+  // amounts by (1+inflation)^year; real mode is a pass-through. Apply
+  // at every display site that renders a dollar from a future year
+  // (year table, FIRE number card, any stat that references the
+  // retirement year).
+  const display = useDisplayAmount();
+  const { mode: displayMode } = useDisplayMode();
   const projectionWithMilestones = useMemo(() => {
     if (!fireTypes.length) return [];
     const traditionalTarget = fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
@@ -1025,14 +1033,32 @@ export function QuickFireWorkspace({
                     <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">FIRE number</p>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                   </div>
+                  {/* FIRE number: inflated to the target retirement year in
+                      nominal mode so the user sees "what you'll need to hit
+                      on your account statement" vs. the real-dollar
+                      purchasing-power equivalent. Years-to-FI is the
+                      integer horizon from the shared helper so the pill,
+                      card, and What-if panel all agree. */}
                   <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-[var(--ember)]">
-                    {formatCompactCurrency(summary.fireNumber)}
+                    {formatCompactCurrency(
+                      display(summary.fireNumber, displayYearsToFi ?? 0),
+                    )}
                   </p>
                   <div className="mt-3 space-y-1">
                     <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                       <div className="h-full rounded-full bg-gradient-to-r from-[var(--flame)] to-[var(--ember)]" style={{ width: `${Math.min((summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0) * 100, 100)}%` }} />
                     </div>
-                    <p className="text-sm text-muted-foreground">{formatPercent(summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0, 0)} there · {formatCompactCurrency(currentBalance)} saved</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatPercent(summary.fireNumber > 0 ? currentBalance / summary.fireNumber : 0, 0)} there &middot; {formatCompactCurrency(currentBalance)} saved
+                      {displayMode === "nominal" && displayYearsToFi && displayYearsToFi > 0 ? (
+                        <>
+                          {" "}
+                          <span className="ml-1 rounded-full bg-[var(--ember)]/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--ember)]">
+                            target in {new Date().getFullYear() + displayYearsToFi}
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
                   </div>
                   <p className="mt-2 text-[10px] text-muted-foreground">
                     {(() => {
@@ -1308,10 +1334,12 @@ export function QuickFireWorkspace({
                           >
                             <td className="py-2.5 pr-4 tabular-nums">{Math.round(point.age)}</td>
                             <td className="py-2.5 pr-4 tabular-nums font-medium">
-                              {formatCompactCurrency(point.balance)}
+                              {formatCompactCurrency(display(point.balance, point.year))}
                             </td>
                             <td className="py-2.5 pr-4 tabular-nums text-muted-foreground">
-                              {point.year > 0 ? `+${formatCompactCurrency(point.growth)}` : "\u2014"}
+                              {point.year > 0
+                                ? `+${formatCompactCurrency(display(point.growth, point.year))}`
+                                : "\u2014"}
                             </td>
                             <td className="py-2.5 pr-4">
                               <div className="flex items-center gap-2">

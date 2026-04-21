@@ -14,6 +14,7 @@ import { deriveDisplayYearsToFi } from "@/components/landing/fire-display";
 import { computeProjectionMilestones } from "@/lib/calc/milestones";
 import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
 import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
+import { useDisplayAmount } from "@/lib/hooks/use-display-amount";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Slider } from "@/components/ui/slider";
@@ -119,6 +120,10 @@ export default function SaveWhatIfWorkspace() {
     () => calculateQuickFireSummary(activeScenario),
     [activeScenario],
   );
+  // Display-mode transform so FIRE numbers in the base/combined cards
+  // scale with inflation when the user flips to nominal. Horizon for
+  // the transform is each summary's own yearsToFi.
+  const display = useDisplayAmount();
 
   // Integer years + fire age — match Save's stat card so the page header
   // doesn't disagree with it (fractional "11.3 yrs" vs. integer "12 yrs").
@@ -677,7 +682,13 @@ export default function SaveWhatIfWorkspace() {
                   formatter when the projection doesn't reach FI. */}
               <StatCard
                 label="Your plan"
-                value={formatCompactCurrency(baseSummary.fireNumber)}
+                value={formatCompactCurrency(
+                  // Inflate to the retirement year in nominal mode so
+                  // both Your-plan and With-N-changes cards show
+                  // comparable future-dollar targets. yearsFromNow uses
+                  // the integer displayYearsToFi to match the pill.
+                  display(baseSummary.fireNumber, displayYearsToFi ?? 0),
+                )}
                 description={
                   displayYearsToFi !== null
                     ? `${displayYearsToFi} yrs to FI${displayFireAge !== null ? ` (age ${displayFireAge})` : ""}`
@@ -688,7 +699,12 @@ export default function SaveWhatIfWorkspace() {
               {/* Card 2: Combined scenario — same integer-years treatment. */}
               <StatCard
                 label={`With ${selectedIds.size} change${selectedIds.size === 1 ? "" : "s"}`}
-                value={formatCompactCurrency(combinedSummary.fireNumber)}
+                value={formatCompactCurrency(
+                  display(
+                    combinedSummary.fireNumber,
+                    combinedDisplay?.displayYearsToFi ?? displayYearsToFi ?? 0,
+                  ),
+                )}
                 description={
                   combinedDisplay && combinedDisplay.displayYearsToFi !== null
                     ? `${combinedDisplay.displayYearsToFi} yrs to FI${combinedDisplay.displayFireAge !== null ? ` (age ${combinedDisplay.displayFireAge})` : ""}`
