@@ -9,7 +9,9 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ChartShell,
   PageHero,
+  SectionEyebrow,
 } from "@/components/brand";
+import { Card } from "@/components/ui/card";
 import { useHasExistingDraft } from "@/lib/hooks/use-has-existing-draft";
 import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { ProjectionChart, ChartLegend } from "@/components/landing/projection-chart";
@@ -348,60 +350,84 @@ export function QuickFireWorkspace({
                 what the calculator produces without committing to data
                 entry or even a second click. */}
             <HomePreviewChart />
+            {/* Two-card onboarding grid. `feature` tone gives these the
+                richest surface (subtle ember gradient + elevation-3), and
+                `card-hover` gives the lift + glow on pointer-over. Same
+                primitive used by the Why Calcifer and What's Inside
+                grids below, differentiated only by tone. */}
             <section className="mx-auto max-w-7xl px-6">
               <div className="grid gap-4 md:grid-cols-2">
-                <Link
-                  href={"/quiz" as Route}
-                  className="group rounded-2xl bg-card p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                <Card
+                  asChild
+                  tone="feature"
+                  interactive
+                  className="group relative overflow-hidden p-8"
                 >
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">New to FIRE?</p>
-                  <h3 className="mt-2 font-display text-2xl tracking-[-0.03em] text-foreground">
-                    Take the quiz
-                  </h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Answer a few quick questions and get a personalized FIRE type, target number, and a clear next step.
-                  </p>
-                  <p className="mt-4 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                    Start the quiz →
-                  </p>
-                </Link>
+                  <Link href={"/quiz" as Route}>
+                    {/* Corner ember orb — reads as a spark, reinforces
+                        the "FIRE" brand without a literal flame icon. */}
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(255,107,53,0.22)_0%,transparent_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                    />
+                    <SectionEyebrow>New to FIRE?</SectionEyebrow>
+                    <h3 className="mt-3 font-display text-2xl leading-tight tracking-[-0.03em] text-foreground">
+                      Take the quiz
+                    </h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Answer a few quick questions and get a personalized FIRE
+                      type, target number, and a clear next step.
+                    </p>
+                    <p className="mt-4 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                      Start the quiz →
+                    </p>
+                  </Link>
+                </Card>
                 {/* Repurposed from "Open Your Plan" — that framing implied
                     the user had a plan saved. Now offers a sample walk so
                     tentative visitors can explore the planner before
                     committing to data entry. Lands on /accumulation where
                     SampleScenarioBanner makes the demo state explicit. */}
-                <Link
-                  href={"/accumulation" as Route}
-                  className="group rounded-2xl bg-card p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                <Card
+                  asChild
+                  tone="elevated"
+                  interactive
+                  className="group p-8"
                 >
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Prefer to poke around?</p>
-                  <h3 className="mt-2 font-display text-2xl tracking-[-0.03em] text-foreground">
-                    See a sample plan
-                  </h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Explore a demo scenario with every chart, stat, and projection wired up. Edit any field to make it yours.
-                  </p>
-                  <p className="mt-4 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                    Open the planner →
-                  </p>
-                </Link>
+                  <Link href={"/accumulation" as Route}>
+                    <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-muted-foreground">
+                      Prefer to poke around?
+                    </p>
+                    <h3 className="mt-3 font-display text-2xl leading-tight tracking-[-0.03em] text-foreground">
+                      See a sample plan
+                    </h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Explore a demo scenario with every chart, stat, and
+                      projection wired up. Edit any field to make it yours.
+                    </p>
+                    <p className="mt-4 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                      Open the planner →
+                    </p>
+                  </Link>
+                </Card>
               </div>
             </section>
-            {/* "Why Calcifer" — positioning-level claims framed against
-                competitor defaults (most FIRE tools assume a single
-                state, offer one withdrawal strategy, use synthetic
-                averages). Each claim links to a proof surface — either
-                a Learn article or a live module that demonstrates the
-                claim in action. */}
+
+            {/* "Why Calcifer" — positioning claims framed against competitor
+                defaults. Each card uses the gradient-border primitive so
+                the grid reads as a coordinated set rather than four
+                independent tiles. `card-hover` lifts on pointer-over to
+                match the two-card CTA grid above. */}
             <section className="mx-auto max-w-7xl px-6">
-              <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                Why Calcifer
+              <SectionEyebrow>Why Calcifer</SectionEyebrow>
+              <h2 className="mt-3 font-display text-3xl leading-tight tracking-[-0.03em] text-foreground">
+                Built more accurate, more flexible, more honest.
               </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Built to be more accurate, more flexible, and more honest than
-                the one-size-fits-all FIRE calculators you&rsquo;ve seen.
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
+                Designed against the defaults baked into the one-size-fits-all
+                FIRE calculators you&rsquo;ve used before.
               </p>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
                 {[
                   {
                     claim: "State-aware tax math",
@@ -435,28 +461,32 @@ export function QuickFireWorkspace({
                   <Link
                     key={item.claim}
                     href={item.href as Route}
-                    className="group rounded-2xl border border-border/40 bg-card/60 p-5 transition-all hover:border-primary/30 hover:bg-card hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]"
+                    className="gradient-border card-hover group block p-6"
                   >
-                    <p className="font-medium text-foreground">{item.claim}</p>
-                    <p className="mt-1.5 text-sm text-muted-foreground">
+                    <p className="font-display text-lg font-medium tracking-[-0.01em] text-foreground">
+                      {item.claim}
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                       {item.detail}
                     </p>
-                    <p className="mt-3 text-xs font-medium text-primary transition-colors group-hover:text-primary/80">
+                    <p className="mt-4 text-xs font-medium text-primary transition-colors group-hover:text-primary/80">
                       {item.proofLabel}
                     </p>
                   </Link>
                 ))}
               </div>
             </section>
+
             {/* Feature grid — reordered so Stress-test retirement (flagship)
-                leads. Each tile is a Link to the most relevant Learn
-                article or live module so users can drill into the feature
-                before committing to the quiz. */}
+                leads. `soft` tone distinguishes this set visually from the
+                Why-Calcifer cards above (positioning-level) — these are
+                inventory-level, meant to read as a clean list. */}
             <section className="mx-auto max-w-7xl px-6">
-              <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                What&rsquo;s inside
+              <SectionEyebrow>What&rsquo;s inside</SectionEyebrow>
+              <h2 className="mt-3 font-display text-3xl leading-tight tracking-[-0.03em] text-foreground">
+                Every feature, one click away.
               </h2>
-              <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {[
                   {
                     title: "Stress-test retirement",
@@ -483,17 +513,25 @@ export function QuickFireWorkspace({
                     cta: "Try it →",
                   },
                 ].map((feature) => (
-                  <Link
+                  <Card
                     key={feature.title}
-                    href={feature.href as Route}
-                    className="group rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+                    asChild
+                    tone="soft"
+                    interactive
+                    className="group p-6"
                   >
-                    <p className="font-medium text-foreground">{feature.title}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">{feature.desc}</p>
-                    <p className="mt-3 text-xs font-medium text-primary transition-colors group-hover:text-primary/80">
-                      {feature.cta}
-                    </p>
-                  </Link>
+                    <Link href={feature.href as Route}>
+                      <p className="font-medium text-foreground">
+                        {feature.title}
+                      </p>
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                        {feature.desc}
+                      </p>
+                      <p className="mt-3 text-xs font-medium text-primary transition-colors group-hover:text-primary/80">
+                        {feature.cta}
+                      </p>
+                    </Link>
+                  </Card>
                 ))}
               </div>
             </section>

@@ -29,11 +29,7 @@ export function SectionHeading({
       )}
     >
       <div className="max-w-3xl space-y-2">
-        {eyebrow ? (
-          <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[var(--ember)]">
-            {eyebrow}
-          </p>
-        ) : null}
+        {eyebrow ? <SectionEyebrow>{eyebrow}</SectionEyebrow> : null}
         <Title
           className={cn(
             "font-display text-3xl leading-[1.05] tracking-[-0.03em] text-balance",
@@ -56,5 +52,39 @@ export function SectionHeading({
 
       {actions ? <div className="shrink-0">{actions}</div> : null}
     </div>
+  );
+}
+
+/**
+ * Standalone eyebrow — small mono-cased label preceded by a 1.5rem
+ * ember-gradient rule. Two uses:
+ *
+ * 1. Inside SectionHeading, for section titles (see above).
+ * 2. Standalone between major sections to give the page vertical
+ *    rhythm without introducing a full heading block.
+ *
+ * Kept monochromatic ember so it reads as a chapter marker, not a
+ * decorative flourish.
+ */
+export function SectionEyebrow({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <p
+      className={cn(
+        "flex items-center gap-2 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[var(--ember)]",
+        className,
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className="inline-block h-px w-6 bg-[var(--gradient-ember-line)]"
+      />
+      {children}
+    </p>
   );
 }

@@ -52,6 +52,61 @@
   --shadow-soft: 0 8px 24px rgba(26, 17, 24, 0.06);
   --shadow-glow: 0 10px 30px rgba(255, 107, 53, 0.18);
   --shadow-focus: 0 0 0 4px rgba(255, 107, 53, 0.16);
+
+  /* Elevation tiers — use these instead of inline shadow strings. Each
+     layer uses two shadows: a crisp close-range shadow + a soft diffuse
+     one. Multiplies well on both light + dark backgrounds. */
+  --elevation-1:
+    0 1px 2px rgba(26, 17, 24, 0.04),
+    0 2px 4px rgba(26, 17, 24, 0.03);
+  --elevation-2:
+    0 1px 3px rgba(26, 17, 24, 0.05),
+    0 8px 20px rgba(26, 17, 24, 0.05);
+  --elevation-3:
+    0 2px 6px rgba(26, 17, 24, 0.06),
+    0 18px 42px rgba(26, 17, 24, 0.08);
+  --elevation-glow:
+    0 2px 6px rgba(26, 17, 24, 0.06),
+    0 18px 42px rgba(26, 17, 24, 0.08),
+    0 0 0 1px rgba(255, 107, 53, 0.08),
+    0 10px 40px rgba(255, 107, 53, 0.12);
+
+  /* Reusable gradient tokens — single source of truth for the ember/flame
+     signature, plus subtler variants for section accents and dividers. */
+  --gradient-ember:
+    linear-gradient(135deg, var(--flame) 0%, var(--ember) 55%, var(--glow) 100%);
+  --gradient-ember-subtle:
+    linear-gradient(
+      135deg,
+      rgba(247, 201, 72, 0.18) 0%,
+      rgba(255, 107, 53, 0.12) 55%,
+      rgba(255, 68, 68, 0.08) 100%
+    );
+  --gradient-ember-line:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 107, 53, 0.4) 30%,
+      rgba(247, 201, 72, 0.4) 70%,
+      transparent 100%
+    );
+  --gradient-card-surface:
+    linear-gradient(180deg, var(--surface-highlight), var(--card));
+  --gradient-card-feature:
+    linear-gradient(
+      140deg,
+      rgba(255, 107, 53, 0.04) 0%,
+      var(--card) 38%,
+      rgba(247, 201, 72, 0.03) 100%
+    );
+
+  /* Motion tokens — expo ease reads as "confident & crafted" in small
+     hover moves; standard eases feel mechanical by comparison. */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
+  --duration-fast: 150ms;
+  --duration-standard: 240ms;
+  --duration-slow: 420ms;
 }
 
 .dark {
@@ -85,6 +140,31 @@
   --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.24);
   --shadow-glow: 0 10px 30px rgba(255, 107, 53, 0.28);
   --shadow-focus: 0 0 0 4px rgba(255, 107, 53, 0.18);
+
+  /* Dark-mode elevation uses heavier diffusion — light-mode values get
+     lost against a near-black background. */
+  --elevation-1:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.15);
+  --elevation-2:
+    0 1px 3px rgba(0, 0, 0, 0.25),
+    0 12px 28px rgba(0, 0, 0, 0.28);
+  --elevation-3:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 22px 56px rgba(0, 0, 0, 0.4);
+  --elevation-glow:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 22px 56px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 107, 53, 0.15),
+    0 10px 40px rgba(255, 107, 53, 0.18);
+
+  --gradient-card-feature:
+    linear-gradient(
+      140deg,
+      rgba(255, 107, 53, 0.06) 0%,
+      var(--card) 38%,
+      rgba(247, 201, 72, 0.04) 100%
+    );
 }
 
 @theme inline {
@@ -135,14 +215,19 @@ body {
 body {
   background:
     radial-gradient(
-      ellipse at 50% 0%,
-      rgba(255, 107, 53, 0.14) 0%,
-      transparent 38%
+      ellipse 80% 50% at 50% 0%,
+      rgba(255, 107, 53, 0.12) 0%,
+      transparent 55%
     ),
     radial-gradient(
-      ellipse at 50% 100%,
+      ellipse 60% 40% at 85% 20%,
       rgba(247, 201, 72, 0.08) 0%,
-      transparent 34%
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 15% 80%,
+      rgba(59, 130, 196, 0.04) 0%,
+      transparent 60%
     ),
     var(--background);
   color: var(--foreground);
@@ -150,6 +235,89 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
   line-height: 1.6;
   text-rendering: optimizeLegibility;
+  position: relative;
+}
+
+/* Subtle grain overlay — breaks up flat gradient fills so the background
+   feels tactile rather than computer-clean. Fixed-position so it shows
+   through every page without re-rendering on scroll. pointer-events:none
+   so it never intercepts clicks; no z-index bump needed because content
+   elements are already in the normal flow above this fixed ::before. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.32;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.6  0 0 0 0 0.4  0 0 0 0 0.5  0 0 0 0.35 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+.dark body::before {
+  opacity: 0.2;
+  mix-blend-mode: soft-light;
+}
+
+/* Shared card hover motion — used by the .card-hover utility below and
+   by any custom card that wants the same signature micro-interaction.
+   Lifts 2px with a glow that mirrors the ember palette, on an expo ease
+   that reads as crafted rather than "button bouncing." */
+@keyframes subtle-rise {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-2px);
+  }
+}
+
+/* Utility: apply to any interactive card for the standard hover feel.
+   Keeps the animation contract consistent across Home tiles, decision
+   cards in Save What-if, persona buttons, etc. */
+.card-hover {
+  transition: transform var(--duration-standard) var(--ease-out-expo),
+    box-shadow var(--duration-standard) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo);
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-3);
+}
+
+/* Horizontal ember rule — section-divider primitive used between major
+   sections to give the landing page rhythm. See SectionEyebrow. */
+.ember-rule {
+  height: 1px;
+  background: var(--gradient-ember-line);
+}
+
+/* Gradient border primitive — wraps children in a 1px ember→flame frame
+   that intensifies on hover. Used by feature cards on the landing page.
+   Implemented as a pseudo-element so the inner card keeps its own
+   background / shadow without having to render two boxes. */
+.gradient-border {
+  position: relative;
+  background: var(--card);
+  border-radius: var(--radius-xl);
+}
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--gradient-ember-subtle);
+  -webkit-mask:
+    linear-gradient(#000, #000) content-box,
+    linear-gradient(#000, #000);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  transition: opacity var(--duration-standard) var(--ease-out-expo);
+  opacity: 0.7;
+}
+.gradient-border:hover::before {
+  opacity: 1;
 }
 
 ::selection {

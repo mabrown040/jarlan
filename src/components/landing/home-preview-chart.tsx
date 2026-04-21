@@ -67,13 +67,29 @@ export function HomePreviewChart() {
 
   return (
     <section className="mx-auto max-w-7xl px-6">
-      <div className="rounded-3xl border border-border/60 bg-card/80 p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] sm:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="relative overflow-hidden rounded-[28px] border border-[color:var(--surface-border)] bg-[var(--gradient-card-feature)] p-6 shadow-[var(--elevation-3)] sm:p-8">
+        {/* Decorative ember orbs — blurred radial gradients anchored to the
+            corners give the card atmospheric depth without visible shapes.
+            Match the PageHero vocabulary so the two surfaces feel related. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(255,107,53,0.14)_0%,transparent_70%)] blur-2xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-[radial-gradient(circle,rgba(247,201,72,0.08)_0%,transparent_72%)] blur-2xl"
+        />
+
+        <div className="relative flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
+            <p className="flex items-center gap-2 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[var(--ember)]">
+              <span
+                aria-hidden="true"
+                className="inline-block h-px w-6 bg-[var(--gradient-ember-line)]"
+              />
               Sample projection
             </p>
-            <p className="mt-1 font-display text-xl tracking-[-0.03em] text-foreground">
+            <p className="mt-2 font-display text-xl leading-tight tracking-[-0.03em] text-foreground">
               Here&rsquo;s what a plan looks like
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -90,16 +106,26 @@ export function HomePreviewChart() {
           </Link>
         </div>
 
-        <div className="mt-4 h-48 w-full sm:h-56">
+        <div className="relative mt-4 h-48 w-full sm:h-56">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={data}
               margin={{ top: 8, right: 12, bottom: 4, left: 0 }}
             >
               <defs>
+                {/* Multi-stop fill — flame highlight at the top transitions
+                    through ember to a near-transparent base. Reads richer
+                    than a single-stop fade without being loud. */}
                 <linearGradient id="home-preview-fill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--ember)" stopOpacity={0.38} />
-                  <stop offset="100%" stopColor="var(--ember)" stopOpacity={0.02} />
+                  <stop offset="0%" stopColor="var(--flame)" stopOpacity={0.28} />
+                  <stop offset="40%" stopColor="var(--ember)" stopOpacity={0.22} />
+                  <stop offset="100%" stopColor="var(--ember)" stopOpacity={0} />
+                </linearGradient>
+                {/* Stroke gradient so the line itself reads warmer toward
+                    the top where the balance crosses FIRE. */}
+                <linearGradient id="home-preview-stroke" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="var(--ember)" />
+                  <stop offset="100%" stopColor="var(--flame)" />
                 </linearGradient>
               </defs>
               <XAxis
@@ -112,13 +138,23 @@ export function HomePreviewChart() {
                   data.at(-1)?.age ?? startAge,
                 ]}
                 tickFormatter={(v) => `Age ${v}`}
-                tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                tick={{
+                  fill: "var(--muted-foreground)",
+                  fontSize: 10,
+                  fontFamily: "var(--font-mono-family)",
+                  letterSpacing: "0.08em",
+                }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 tickFormatter={(v: number) => formatCompactCurrency(v)}
-                tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                tick={{
+                  fill: "var(--muted-foreground)",
+                  fontSize: 10,
+                  fontFamily: "var(--font-mono-family)",
+                  letterSpacing: "0.08em",
+                }}
                 axisLine={false}
                 tickLine={false}
                 width={48}
@@ -127,20 +163,22 @@ export function HomePreviewChart() {
                 y={fireNumber}
                 stroke="var(--ember)"
                 strokeDasharray="4 4"
-                strokeOpacity={0.55}
+                strokeOpacity={0.5}
                 label={{
                   value: `FIRE ${formatCompactCurrency(fireNumber)}`,
                   position: "insideTopRight",
                   fill: "var(--ember)",
                   fontSize: 10,
                   fontWeight: 600,
+                  fontFamily: "var(--font-mono-family)",
+                  letterSpacing: "0.08em",
                 }}
               />
               <Area
                 type="monotone"
                 dataKey="balance"
-                stroke="var(--ember)"
-                strokeWidth={2}
+                stroke="url(#home-preview-stroke)"
+                strokeWidth={2.5}
                 fill="url(#home-preview-fill)"
                 isAnimationActive={false}
               />
