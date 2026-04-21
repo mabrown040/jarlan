@@ -199,29 +199,56 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
     })),
   updateAnnualSavings: (value) =>
     set((state) => ({
-      activeScenario: updatePrimaryAccount(state.activeScenario, (scenario) => ({
-        ...scenario,
-        isPersonalized: true,
-        annualSavings: Math.max(value, 0),
-        accounts: scenario.accounts.map((account, index) => {
-          if (index !== 0) {
-            return account;
-          }
+      activeScenario: updatePrimaryAccount(state.activeScenario, (scenario) => {
+        const nextSavings = Math.max(value, 0);
 
-          const otherContributionTotal = scenario.accounts
-            .filter((_, accountIndex) => accountIndex !== 0)
-            .reduce(
-              (total, currentAccount) =>
-                total + currentAccount.annualContribution,
-              0,
-            );
+        // Route the savings delta to the TAXABLE account by type rather
+        // than blindly to accounts[0]. Two reasons this matters:
+        //
+        // 1. Correctness: if accounts[0] is a `traditional_401k` (e.g. the
+        //    High Earner persona), bumping its contribution changes pre-tax
+        //    contributions → AGI → federal tax → take-home. The linked
+        //    spend↔save slider uses take-home as its `max`, so the track
+        //    scale shifts mid-drag and the thumb visually drifts away from
+        //    its labeled value. Taxable contributions don't affect taxes,
+        //    so routing here keeps the slider invariant stable.
+        //
+        // 2. Intent: bumping the "Save per year" slider should read as
+        //    "I have more cash to invest," which most users map to their
+        //    brokerage — not "increase my 401k past the IRS limit."
+        //
+        // We still fall back to accounts[0] if there's no taxable account,
+        // preserving the old behavior for edge-case scenarios.
+        const taxableIndex = scenario.accounts.findIndex(
+          (a) => a.type === "taxable",
+        );
+        const flexIndex = taxableIndex >= 0 ? taxableIndex : 0;
 
-          return {
-            ...account,
-            annualContribution: Math.max(value - otherContributionTotal, 0),
-          };
-        }),
-      })),
+        const otherContributionTotal = scenario.accounts.reduce(
+          (total, account, accountIndex) =>
+            accountIndex === flexIndex
+              ? total
+              : total + account.annualContribution,
+          0,
+        );
+
+        return {
+          ...scenario,
+          isPersonalized: true,
+          annualSavings: nextSavings,
+          accounts: scenario.accounts.map((account, index) =>
+            index === flexIndex
+              ? {
+                  ...account,
+                  annualContribution: Math.max(
+                    nextSavings - otherContributionTotal,
+                    0,
+                  ),
+                }
+              : account,
+          ),
+        };
+      }),
       saveStatus: "idle",
     })),
   updateCurrentBalance: (value) =>

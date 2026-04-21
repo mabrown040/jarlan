@@ -242,14 +242,29 @@ export function buildScenarioFromQuizAnswers(
   );
   const totalContributions = accounts.reduce((sum, a) => sum + a.annualContribution, 0);
 
-  // If no contributions were allocated (user skipped the step), put all savings
-  // into the taxable account as a fallback
-  if (totalContributions === 0 && taxAwareSavings > 0) {
+  // Reconciliation: the quiz asks about explicit account contributions AND
+  // total spending separately. If take-home − spending > sum of contributions,
+  // there's leftover money (sitting in cash, a savings account, or just
+  // unaccounted). Previously we set `annualSavings = totalContributions` and
+  // silently dropped the gap, which made the slider show "$80K save" when
+  // the cashflow implied $109K — a confusing mismatch as soon as the user
+  // moved the slider and the linked formula snapped to take-home.
+  //
+  // Fix: route the leftover into the taxable account (matches the Sankey's
+  // default-brokerage behavior) and set annualSavings to the full taxAwareSavings
+  // so the slider and the cashflow invariant agree from the first render.
+  const leftover = taxAwareSavings - totalContributions;
+  if (leftover > 1) {
     const taxable = accounts.find((a) => a.type === "taxable");
-    if (taxable) taxable.annualContribution = taxAwareSavings;
+    if (taxable) {
+      taxable.annualContribution += leftover;
+    }
   }
 
-  scenario.annualSavings = totalContributions > 0 ? totalContributions : taxAwareSavings;
+  // After any top-up, use the reconciled total. When the user entered no
+  // contributions at all, taxAwareSavings is what we just wrote to taxable.
+  scenario.annualSavings =
+    taxAwareSavings > 0 ? taxAwareSavings : totalContributions;
 
   // Post-FIRE income (from conditional follow-up or legacy fallback)
   scenario.assumptions.partTimeIncome = answers.postFireIncome > 0
