@@ -1,4 +1,5 @@
 import { calculateFireTypeSummaries } from "@/lib/calc";
+import { capRetirementDurationToAge100 } from "@/lib/calc/scenario";
 import { cloneScenario, createDefaultScenario, createDefaultAccount } from "@/lib/domain";
 import type { Account, EmploymentType, FilingStatus, FireTypeSummary, Scenario } from "@/lib/domain/types";
 import { getContributionLimits as getContributionLimitsFromTax } from "@/lib/tax/limits";
@@ -323,7 +324,10 @@ export function buildScenarioFromQuizAnswers(
   // Dependents → household size
   scenario.profile.householdSize = answers.dependents === "yes" ? 3 : 1;
 
-  return scenario;
+  // Cap the simulation horizon to age ~100 so late retirees don't
+  // inherit the default-scenario's 54-year horizon and end up
+  // simulated to age 119 (which breaks the Longevity tab).
+  return capRetirementDurationToAge100(scenario);
 }
 
 function pickRecommendationId(

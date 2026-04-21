@@ -1,3 +1,4 @@
+import { formatCompactCurrency } from "@/lib/calc/format";
 import type { HistoricalBacktestResult } from "@/lib/sim/contracts";
 import { HistogramChart } from "@/components/charts/histogram-chart";
 
@@ -18,8 +19,14 @@ export function DistributionsTab({ result }: DistributionsTabProps) {
               Historical terminal value histogram
             </p>
             <HistogramChart
+              // Reformat bin labels from the engine (raw
+              // "3896708.51-7793417.01 ending value") to compact
+              // currency ("$3.9M–$7.8M") so the x-axis is human-
+              // readable. Engine keeps numeric `start`/`end` for
+              // downstream consumers; only the display layer
+              // reformats here.
               data={result.terminalValueHistogram.map((bin) => ({
-                label: bin.label,
+                label: `${formatCompactCurrency(bin.start)}–${formatCompactCurrency(bin.end)}`,
                 count: bin.count,
               }))}
               ariaLabel="Histogram showing how often each historical terminal portfolio value bucket occurs."
@@ -31,8 +38,12 @@ export function DistributionsTab({ result }: DistributionsTabProps) {
             </p>
             {result.failureYearHistogram.length > 0 ? (
               <HistogramChart
+                // Years-to-failure: round the bin ends to whole
+                // years — fractional years (e.g. "25.25–28.84 yrs")
+                // imply precision the underlying Shiller month
+                // resolution doesn't support.
                 data={result.failureYearHistogram.map((bin) => ({
-                  label: bin.label,
+                  label: `${Math.round(bin.start)}–${Math.round(bin.end)} yrs`,
                   count: bin.count,
                 }))}
                 barColor="var(--glow-soft)"

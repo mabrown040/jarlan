@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { cloneScenario, createDefaultScenario } from "@/lib/domain";
+import { capRetirementDurationToAge100 } from "@/lib/calc/scenario";
 import { clearScenarioDraft, saveScenarioDraft } from "@/lib/db/database";
 import type { Scenario } from "@/lib/domain/types";
 
@@ -496,7 +497,10 @@ export function QADevModal() {
           <button
             key={persona.id}
             onClick={async () => {
-              const scenario = persona.create();
+              // Apply the same horizon-cap that the quiz applies, so
+              // QA personas don't get simulated to age 119. See
+              // capRetirementDurationToAge100 for rationale.
+              const scenario = capRetirementDurationToAge100(persona.create());
               scenario.isPersonalized = true;
               // Compute taxable brokerage contribution as remainder
               const totalContribs = scenario.accounts

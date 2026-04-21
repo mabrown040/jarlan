@@ -232,6 +232,31 @@ export function syncScenarioRollups(scenario: Scenario): Scenario {
   return next;
 }
 
+/**
+ * Normalize the retirement simulation horizon to end at age ~100. The
+ * default scenario hardcodes a 54-year duration, which is correct for
+ * the built-in retireAt=46 but pathological for any persona or
+ * user-entered scenario that retires later. Example failure:
+ * the "Already Retired" persona retires at 65 but inherited duration
+ * 54 → simulated to age 119 → Longevity tab reads 0% alive at horizon.
+ *
+ * Applied by the quiz builder and QA persona constructors. Minimum
+ * 25-year window so very-late retirees (e.g. age 78) still get a
+ * meaningful simulation.
+ */
+export function capRetirementDurationToAge100(scenario: Scenario): Scenario {
+  const retirementAge =
+    scenario.profile.retirementAge ?? scenario.profile.age;
+  const duration = Math.max(100 - retirementAge, 25);
+  return {
+    ...scenario,
+    simulationSettings: {
+      ...scenario.simulationSettings,
+      retirementDuration: duration,
+    },
+  };
+}
+
 export function getSavingsRate(scenario: Scenario) {
   const householdAnnualIncome = getHouseholdAnnualIncome(scenario);
 

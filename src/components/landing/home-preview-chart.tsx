@@ -107,7 +107,15 @@ export function HomePreviewChart() {
         </div>
 
         <div className="relative mt-4 h-48 w-full sm:h-56">
-          <ResponsiveContainer width="100%" height="100%">
+          {/* initialDimension silences the Recharts width(-1) height(-1)
+              warning that fires on first render when the container has
+              no intrinsic size yet. Every other chart in the app does
+              the same — shared pattern. */}
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            initialDimension={{ width: 1, height: 1 }}
+          >
             <AreaChart
               data={data}
               margin={{ top: 8, right: 12, bottom: 4, left: 0 }}
