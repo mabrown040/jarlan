@@ -45,6 +45,7 @@ import {
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
 import { MoneyFlowSankey } from "@/components/charts/money-flow-sankey";
 import { InlineControls } from "@/components/plan/inline-controls";
+import { SampleScenarioBanner } from "@/components/landing/sample-scenario-banner";
 import { cn } from "@/lib/utils";
 
 export function QuickFireWorkspace({
@@ -285,6 +286,11 @@ export function QuickFireWorkspace({
 
   return (
     <div className="space-y-10 pb-12">
+      {/* Sample-mode banner only renders on the module variant (/accumulation).
+          On the landing variant, the wizard gating already tells new users
+          they haven't personalized, and a shared-scenario landing gets its
+          own banner below. */}
+      {variant === "module" ? <SampleScenarioBanner /> : null}
       {variant === "landing" && sharedScenarioParam ? (
         <section className="mx-auto max-w-7xl px-6 pt-6">
           <div className="rounded-3xl border border-[rgba(255,107,53,0.22)] bg-card/70 p-6 shadow-[var(--shadow-soft)]">
@@ -321,11 +327,19 @@ export function QuickFireWorkspace({
           <>
             <PageHero
               title="Know your number. Plan your freedom."
-              description="A research-backed FIRE calculator that stays private, shows its math, and meets you where you are."
+              description="A research-backed FIRE calculator that shows its math."
               actions={
-                <Button asChild>
-                  <Link href={"/quiz" as Route}>Take the FIRE quiz</Link>
-                </Button>
+                <>
+                  <Button asChild>
+                    <Link href={"/quiz" as Route}>Take the FIRE quiz</Link>
+                  </Button>
+                  {/* Secondary CTA for visitors who aren't ready to input
+                      numbers — drops them into /accumulation with the
+                      sample-scenario banner so the state is explicit. */}
+                  <Button asChild variant="outline">
+                    <Link href={"/accumulation" as Route}>See a sample plan</Link>
+                  </Button>
+                </>
               }
             />
             <section className="mx-auto max-w-7xl px-6">
@@ -345,41 +359,74 @@ export function QuickFireWorkspace({
                     Start the quiz →
                   </p>
                 </Link>
+                {/* Repurposed from "Open Your Plan" — that framing implied
+                    the user had a plan saved. Now offers a sample walk so
+                    tentative visitors can explore the planner before
+                    committing to data entry. Lands on /accumulation where
+                    SampleScenarioBanner makes the demo state explicit. */}
                 <Link
                   href={"/accumulation" as Route}
                   className="group rounded-2xl bg-card p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
                 >
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Know your numbers?</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Prefer to poke around?</p>
                   <h3 className="mt-2 font-display text-2xl tracking-[-0.03em] text-foreground">
-                    Open Your Plan
+                    See a sample plan
                   </h3>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Jump straight into tax-aware projections, year-by-year milestones, and what-if analysis.
+                    Explore a demo scenario with every chart, stat, and projection wired up. Edit any field to make it yours.
                   </p>
                   <p className="mt-4 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                    Go to planner →
+                    Open the planner →
                   </p>
                 </Link>
               </div>
             </section>
+            {/* Feature grid — reordered so Stress-test retirement (flagship)
+                leads. Each tile is a Link to the most relevant Learn
+                article or live module so users can drill into the feature
+                before committing to the quiz. */}
             <section className="mx-auto max-w-7xl px-6">
               <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                What you can do here
+                What&rsquo;s inside
               </h2>
               <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {[
-                  { title: "Tax-aware projections", desc: "See your after-tax savings rate, estimated taxes, and real take-home pay." },
-                  { title: "Year-by-year milestones", desc: "Watch your portfolio grow with Coast FIRE, Barista FIRE, and full FIRE marked on the timeline." },
-                  { title: "What-if analysis", desc: "See how changes to savings, returns, or lifestyle creep shift your timeline." },
-                  { title: "Stress-test retirement", desc: "Run historical backtests and Monte Carlo simulations against 150+ years of market data." },
+                  {
+                    title: "Stress-test retirement",
+                    desc: "150 years of Shiller market data, four withdrawal strategies (Fixed, Guyton-Klinger, CAPE, Floor-Ceiling), and Monte Carlo simulation.",
+                    href: "/education/withdrawal-strategies",
+                    cta: "How withdrawal strategies work →",
+                  },
+                  {
+                    title: "Tax-aware projections",
+                    desc: "State, filing status, and 2026 brackets feed into after-tax savings rate, estimated taxes, and real take-home.",
+                    href: "/education/savings-rate",
+                    cta: "Why savings rate matters →",
+                  },
+                  {
+                    title: "Year-by-year milestones",
+                    desc: "Watch your portfolio cross Coast FIRE, Barista FIRE, and full FIRE — each with a real-dollar target and date.",
+                    href: "/education/coast-fire",
+                    cta: "Coast FIRE explained →",
+                  },
+                  {
+                    title: "What-if analysis",
+                    desc: "Stack life decisions — career break, lifestyle change, market downturn — and see how they shift your timeline.",
+                    href: "/save-what-if",
+                    cta: "Try it →",
+                  },
                 ].map((feature) => (
-                  <div
+                  <Link
                     key={feature.title}
-                    className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]"
+                    href={feature.href as Route}
+                    className="group rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
                   >
                     <p className="font-medium text-foreground">{feature.title}</p>
                     <p className="mt-2 text-sm text-muted-foreground">{feature.desc}</p>
-                  </div>
+                    <p className="mt-3 text-xs font-medium text-primary transition-colors group-hover:text-primary/80">
+                      {feature.cta}
+                    </p>
+                  </Link>
                 ))}
               </div>
             </section>

@@ -17,6 +17,7 @@ import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Slider } from "@/components/ui/slider";
+import { SampleScenarioBanner } from "@/components/landing/sample-scenario-banner";
 import { clamp } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -270,6 +271,7 @@ export default function SaveWhatIfWorkspace() {
 
   return (
     <div className="space-y-8 pb-12">
+      <SampleScenarioBanner />
       {/* ---- Header ---- */}
       <CompactPageHeader
         title="How real choices change your timeline"

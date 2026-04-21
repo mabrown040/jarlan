@@ -383,6 +383,30 @@ export function SiteShell({ children }: { children: ReactNode }) {
       </main>
       <PlanDrawer />
       <footer className="border-t border-border/70 bg-card/35">
+        {/* Data-provenance strip — signals active maintenance and cites
+            the sources behind the numbers. Tax brackets cite the active
+            year; keep in sync with the tax-strategy module when brackets
+            are updated. */}
+        <div className="mx-auto max-w-7xl border-b border-border/40 px-4 py-3 text-[11px] text-muted-foreground/80 sm:px-6">
+          <p className="flex flex-wrap gap-x-4 gap-y-1">
+            <span>
+              <span className="font-medium text-muted-foreground">Tax brackets:</span>{" "}
+              2026 IRS
+            </span>
+            <span>
+              <span className="font-medium text-muted-foreground">Mortality:</span>{" "}
+              SSA 2022 period tables
+            </span>
+            <span>
+              <span className="font-medium text-muted-foreground">Market data:</span>{" "}
+              Shiller 1871&ndash;present
+            </span>
+            <span>
+              <span className="font-medium text-muted-foreground">Last reviewed:</span>{" "}
+              April 2026
+            </span>
+          </p>
+        </div>
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 text-xs text-muted-foreground sm:px-6">
           <p>For educational purposes only. Not financial advice.</p>
           <div className="flex items-center gap-1.5">
