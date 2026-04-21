@@ -603,9 +603,186 @@ export function FireTypeQuiz() {
                   }}
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Includes backdoor Roth. If your employer offers mega backdoor Roth, you can add up to ~${(limits.megaBackdoorRoth / 1000).toFixed(0)}K more — adjust in All Settings.
+                  Includes backdoor Roth. Mega backdoor Roth (if your plan
+                  offers it) is a separate question below.
                 </p>
               </div>
+              {/* Mega Backdoor Roth — ask explicitly. Most plans don't
+                  offer it; those that do let the user funnel another
+                  ~$46K/yr ($92K for a two-earner couple) into Roth via
+                  after-tax contributions + in-plan conversion. Reshuffles
+                  the same totalSavings ceiling — no new money — so the
+                  taxable remainder shrinks when the user puts dollars here. */}
+              {(() => {
+                const isMarriedCouple =
+                  answers.filingStatus === "married_joint" ||
+                  answers.filingStatus === "married_separate";
+                const showPartnerMega =
+                  isMarriedCouple && answers.partnerHas401k;
+                const perPersonCap = limits.megaBackdoorRoth /
+                  (limits.partnerHas401k ? 2 : 1);
+                return (
+                  <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                    <label className="flex cursor-pointer items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={answers.megaBackdoorRothAvailable}
+                        onChange={(e) => {
+                          const available = e.target.checked;
+                          setAnswer("megaBackdoorRothAvailable", available);
+                          if (!available) {
+                            // Reclaim the mega contribution back into taxable
+                            // so the total invariant stays $totalSavings.
+                            const reclaimed = answers.megaBackdoorRothContribution;
+                            setAnswer("megaBackdoorRothContribution", 0);
+                            setAnswer(
+                              "taxableContribution",
+                              Math.max(answers.taxableContribution + reclaimed, 0),
+                            );
+                          }
+                        }}
+                        className="mt-0.5 size-4 rounded border-border/60 text-[var(--ember)] focus:ring-1 focus:ring-[var(--ember)]"
+                      />
+                      <span className="text-xs">
+                        <span className="font-medium text-foreground">
+                          My 401(k) offers mega backdoor Roth
+                        </span>
+                        <span className="ml-1 text-muted-foreground">
+                          (after-tax contributions + in-plan conversion)
+                        </span>
+                      </span>
+                    </label>
+                    {answers.megaBackdoorRothAvailable ? (
+                      <div className="mt-3 space-y-3">
+                        <div>
+                          <FieldLabel
+                            htmlFor="quiz-mega-cont"
+                            label={`Your mega backdoor contribution — up to $${(perPersonCap / 1000).toFixed(0)}K/yr`}
+                          />
+                          <NumberInput
+                            id="quiz-mega-cont"
+                            min={0}
+                            max={Math.min(
+                              perPersonCap,
+                              // Don't let the user allocate more than the
+                              // remaining taxable + current mega value
+                              // (i.e. cap at what's left in the budget).
+                              answers.taxableContribution +
+                                answers.megaBackdoorRothContribution,
+                            )}
+                            step={500}
+                            value={answers.megaBackdoorRothContribution}
+                            onValueChange={(v) => {
+                              const prev = answers.megaBackdoorRothContribution;
+                              const clampedCap = Math.min(v, perPersonCap);
+                              const maxByBudget =
+                                answers.taxableContribution + prev;
+                              const next = Math.max(
+                                Math.min(clampedCap, maxByBudget),
+                                0,
+                              );
+                              const delta = next - prev;
+                              setAnswer("megaBackdoorRothContribution", next);
+                              setAnswer(
+                                "taxableContribution",
+                                Math.max(
+                                  answers.taxableContribution - delta,
+                                  0,
+                                ),
+                              );
+                            }}
+                          />
+                        </div>
+                        {showPartnerMega ? (
+                          <div>
+                            <label className="flex cursor-pointer items-start gap-2">
+                              <input
+                                type="checkbox"
+                                checked={answers.partnerMegaBackdoorRothAvailable}
+                                onChange={(e) => {
+                                  const available = e.target.checked;
+                                  setAnswer(
+                                    "partnerMegaBackdoorRothAvailable",
+                                    available,
+                                  );
+                                  if (!available) {
+                                    const reclaimed =
+                                      answers.partnerMegaBackdoorRothContribution;
+                                    setAnswer(
+                                      "partnerMegaBackdoorRothContribution",
+                                      0,
+                                    );
+                                    setAnswer(
+                                      "taxableContribution",
+                                      Math.max(
+                                        answers.taxableContribution + reclaimed,
+                                        0,
+                                      ),
+                                    );
+                                  }
+                                }}
+                                className="mt-0.5 size-4 rounded border-border/60 text-[var(--ember)] focus:ring-1 focus:ring-[var(--ember)]"
+                              />
+                              <span className="text-xs font-medium text-foreground">
+                                Partner&rsquo;s 401(k) offers it too
+                              </span>
+                            </label>
+                            {answers.partnerMegaBackdoorRothAvailable ? (
+                              <div className="mt-2">
+                                <FieldLabel
+                                  htmlFor="quiz-partner-mega-cont"
+                                  label={`Partner mega backdoor contribution — up to $${(perPersonCap / 1000).toFixed(0)}K/yr`}
+                                />
+                                <NumberInput
+                                  id="quiz-partner-mega-cont"
+                                  min={0}
+                                  max={Math.min(
+                                    perPersonCap,
+                                    answers.taxableContribution +
+                                      answers.partnerMegaBackdoorRothContribution,
+                                  )}
+                                  step={500}
+                                  value={
+                                    answers.partnerMegaBackdoorRothContribution
+                                  }
+                                  onValueChange={(v) => {
+                                    const prev =
+                                      answers.partnerMegaBackdoorRothContribution;
+                                    const clampedCap = Math.min(v, perPersonCap);
+                                    const maxByBudget =
+                                      answers.taxableContribution + prev;
+                                    const next = Math.max(
+                                      Math.min(clampedCap, maxByBudget),
+                                      0,
+                                    );
+                                    const delta = next - prev;
+                                    setAnswer(
+                                      "partnerMegaBackdoorRothContribution",
+                                      next,
+                                    );
+                                    setAnswer(
+                                      "taxableContribution",
+                                      Math.max(
+                                        answers.taxableContribution - delta,
+                                        0,
+                                      ),
+                                    );
+                                  }}
+                                />
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        <p className="text-[10px] text-muted-foreground">
+                          Lands in your Roth (401k) bucket — tax-free growth
+                          and tax-free withdrawal. Moves dollars from taxable
+                          into Roth; total savings unchanged.
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()}
               <div>
                 <FieldLabel htmlFor="quiz-hsa-cont" label={`HSA — limit $${(limits.hsa / 1000).toFixed(1)}K/yr${answers.currentAge >= 55 ? " (includes catch-up)" : ""}`} />
                 <NumberInput
@@ -642,11 +819,38 @@ export function FireTypeQuiz() {
                 <span className="text-muted-foreground">Total contributions</span>
                 <span className={cn(
                   "font-mono font-bold tabular-nums",
-                  Math.abs(answers.traditionalContribution + answers.rothContribution + answers.hsaContribution + answers.taxableContribution - totalSavings) < 100
+                  // Include the mega backdoor legs so the tally reflects
+                  // the same dollars the scenario will see. Mega backdoor
+                  // reshuffles from taxable rather than adding on top, so
+                  // the total still matches totalSavings.
+                  Math.abs(
+                    answers.traditionalContribution +
+                      answers.rothContribution +
+                      answers.hsaContribution +
+                      answers.taxableContribution +
+                      (answers.megaBackdoorRothAvailable
+                        ? answers.megaBackdoorRothContribution
+                        : 0) +
+                      (answers.partnerMegaBackdoorRothAvailable
+                        ? answers.partnerMegaBackdoorRothContribution
+                        : 0) -
+                      totalSavings,
+                  ) < 100
                     ? "text-emerald-600"
                     : "text-red-500",
                 )}>
-                  {formatCompactCurrency(answers.traditionalContribution + answers.rothContribution + answers.hsaContribution + answers.taxableContribution)}/yr
+                  {formatCompactCurrency(
+                    answers.traditionalContribution +
+                      answers.rothContribution +
+                      answers.hsaContribution +
+                      answers.taxableContribution +
+                      (answers.megaBackdoorRothAvailable
+                        ? answers.megaBackdoorRothContribution
+                        : 0) +
+                      (answers.partnerMegaBackdoorRothAvailable
+                        ? answers.partnerMegaBackdoorRothContribution
+                        : 0),
+                  )}/yr
                 </span>
               </div>
             </div>
@@ -904,7 +1108,22 @@ export function FireTypeQuiz() {
             </div>
           </button>
         ) : (
-          <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
+          <form
+            className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]"
+            onSubmit={async (event) => {
+              // Pressing Enter inside any input submits the form; this
+              // handler mirrors the Next / See-my-result button's click.
+              // Native form submission would navigate, so always prevent
+              // default first.
+              event.preventDefault();
+              if (isLastStep) {
+                await persistQuizToStore();
+                setQuizComplete(true);
+              } else {
+                setStepIndex((v) => Math.min(v + 1, steps.length - 1));
+              }
+            }}
+          >
             {/* Question header */}
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -945,29 +1164,20 @@ export function FireTypeQuiz() {
                 Back
               </Button>
               {isLastStep ? (
-                <Button
-                  type="button"
-                  onClick={async () => {
-                    // Persist quiz answers to the scenario store BEFORE showing the result,
-                    // so the header pill + navigation anywhere reflects the quiz immediately.
-                    await persistQuizToStore();
-                    setQuizComplete(true);
-                  }}
-                >
+                // `type="submit"` so the form's onSubmit fires from both
+                // button click and Enter keypress — single code path.
+                <Button type="submit">
                   <Sparkles className="size-4" />
                   See my result
                 </Button>
               ) : (
-                <Button
-                  type="button"
-                  onClick={() => setStepIndex((v) => Math.min(v + 1, steps.length - 1))}
-                >
+                <Button type="submit">
                   Next
                   <ArrowRight className="size-4" />
                 </Button>
               )}
             </div>
-          </div>
+          </form>
         )}
 
         {/* Results — only show after completion */}

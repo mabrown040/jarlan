@@ -35,6 +35,29 @@ export interface FireTypeQuizAnswers {
   rothContribution: number;
   hsaContribution: number;
   taxableContribution: number;
+  /**
+   * Does the primary earner's 401(k) plan support the "mega backdoor Roth"
+   * path — after-tax contributions + in-plan Roth conversion or in-service
+   * rollover? Only a subset of plans offer it, and it's worth asking
+   * explicitly because the IRS limit is ~$46K/yr ON TOP of the regular
+   * $23.5K employee deferral — materially changes the savings ceiling
+   * for high earners.
+   */
+  megaBackdoorRothAvailable: boolean;
+  /**
+   * Annual contribution the user routes through the mega backdoor path.
+   * Displayed and stored separately from `rothContribution` because the
+   * contribution channel is different (after-tax → in-plan conversion)
+   * even though the destination account type (roth_401k) is the same.
+   */
+  megaBackdoorRothContribution: number;
+  /**
+   * Does the partner's plan also offer the mega backdoor Roth path?
+   * Only asked when filingStatus is married_joint/married_separate AND
+   * `partnerHas401k` is true.
+   */
+  partnerMegaBackdoorRothAvailable: boolean;
+  partnerMegaBackdoorRothContribution: number;
   partTimePreference: PartTimePreference;
   postFireIncome: number;
   postFireIncomeDuration: number | null;
@@ -99,6 +122,10 @@ export const DEFAULT_FIRE_TYPE_QUIZ_ANSWERS: FireTypeQuizAnswers = {
   rothContribution: 0,
   hsaContribution: 0,
   taxableContribution: 0,
+  megaBackdoorRothAvailable: false,
+  megaBackdoorRothContribution: 0,
+  partnerMegaBackdoorRothAvailable: false,
+  partnerMegaBackdoorRothContribution: 0,
   partTimePreference: "maybe",
   postFireIncome: 0,
   postFireIncomeDuration: null,
@@ -200,10 +227,21 @@ export function buildScenarioFromQuizAnswers(
     acct.annualContribution = answers.traditionalContribution;
     accounts.push(acct);
   }
-  if (answers.rothBalance > 0 || answers.rothContribution > 0) {
+  // Roth (401k/IRA) + Mega Backdoor Roth. The mega backdoor contribution
+  // lands on the same account type (roth_401k) because that's where the
+  // in-plan conversion deposits it. Summing keeps the downstream account
+  // model simple; the quiz answers retain the breakdown for display and
+  // for the summary step to explain which dollars came from where.
+  const megaBackdoorTotal =
+    (answers.megaBackdoorRothAvailable ? answers.megaBackdoorRothContribution : 0) +
+    (answers.partnerMegaBackdoorRothAvailable
+      ? answers.partnerMegaBackdoorRothContribution
+      : 0);
+  const totalRothContribution = answers.rothContribution + megaBackdoorTotal;
+  if (answers.rothBalance > 0 || totalRothContribution > 0) {
     const acct = createDefaultAccount("roth_401k", "Roth (401k/IRA)");
     acct.currentBalance = answers.rothBalance;
-    acct.annualContribution = answers.rothContribution;
+    acct.annualContribution = totalRothContribution;
     accounts.push(acct);
   }
   if (answers.hsaBalance > 0 || answers.hsaContribution > 0) {
