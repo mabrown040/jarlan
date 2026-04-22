@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
 import { cn } from "@/lib/utils";
@@ -30,11 +30,35 @@ export function ScenarioSwitcher() {
   const createBlank = useScenarioStore((s) => s.createBlankScenario);
   const renameScenario = useScenarioStore((s) => s.renameScenario);
   const deleteScenario = useScenarioStore((s) => s.deleteScenario);
+  const exportScenarios = useScenarioStore((s) => s.exportScenarios);
+  const importScenarios = useScenarioStore((s) => s.importScenarios);
 
   const [expanded, setExpanded] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // Import result flash — shows "Imported N" or "That file didn't
+  // look like a Calcifer export" briefly after import attempts.
+  const [importFlash, setImportFlash] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFilePick(file: File) {
+    const raw = await file.text();
+    const result = await importScenarios(raw);
+    if (!result) {
+      setImportFlash("Couldn't read that file — not a Calcifer export.");
+    } else if (result.imported === 0) {
+      setImportFlash("No valid scenarios found in that file.");
+    } else {
+      const dropped = result.dropped
+        ? ` (${result.dropped} skipped)`
+        : "";
+      setImportFlash(
+        `Imported ${result.imported} scenario${result.imported === 1 ? "" : "s"}${dropped}.`,
+      );
+    }
+    setTimeout(() => setImportFlash(null), 4500);
+  }
 
   // Refresh the list every time the drawer mounts — cheap IDB read,
   // covers the case where the user seeded personas or edited in
@@ -213,6 +237,55 @@ export function ScenarioSwitcher() {
               New blank plan
             </button>
           </div>
+
+          {/* Import / Export — smaller secondary actions. Lets users
+              take their data elsewhere or bring in a backup. Hidden
+              file input is triggered by the Import button so we get
+              a real file picker without styling a raw <input>. */}
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                // Reset so the same file can be re-picked (otherwise
+                // the change event won't fire the second time).
+                e.target.value = "";
+                if (file) void handleFilePick(file);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              title="Import scenarios from a previously-exported JSON file"
+            >
+              Import JSON
+            </button>
+            <button
+              type="button"
+              onClick={() => void exportScenarios()}
+              className="flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              title="Download the current plan as a JSON file"
+            >
+              Export current
+            </button>
+            <button
+              type="button"
+              onClick={() => void exportScenarios({ includeAll: true })}
+              className="flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              title="Download every saved plan in one file"
+            >
+              Export all
+            </button>
+          </div>
+          {importFlash ? (
+            <p className="mt-1 rounded-md bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground">
+              {importFlash}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

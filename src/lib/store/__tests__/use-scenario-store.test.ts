@@ -333,6 +333,50 @@ describe("useScenarioStore multi-scenario management", () => {
   });
 
   /**
+   * Import should give each incoming scenario a fresh UUID, flag it
+   * as personalized, and NOT take over focus. Gracefully ignores
+   * malformed JSON.
+   */
+  it("importScenarios adds each scenario under a new UUID without switching focus", async () => {
+    const { useScenarioStore } = await import("../use-scenario-store");
+    const db = await import("@/lib/db/database");
+    (db.listStoredScenarios as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    const originalId = useScenarioStore.getState().activeScenario.id;
+    const payload = JSON.stringify({
+      source: "calcifer",
+      formatVersion: 1,
+      exportedBy: { appVersion: 2, exportedAt: new Date().toISOString() },
+      scenarios: [
+        { ...createDefaultScenario(), id: "would-collide", name: "Incoming" },
+      ],
+    });
+
+    const result = await useScenarioStore.getState().importScenarios(payload);
+    expect(result).toEqual({ imported: 1, dropped: 0 });
+    // Active stays put — user picks from the switcher.
+    expect(useScenarioStore.getState().activeScenario.id).toBe(originalId);
+    // Imported scenario was written under a fresh UUID (not "would-collide").
+    expect(db.upsertScenarioRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Incoming",
+        isPersonalized: true,
+      }),
+    );
+    const written = (db.upsertScenarioRecord as ReturnType<typeof vi.fn>).mock
+      .calls[0][0];
+    expect(written.id).not.toBe("would-collide");
+  });
+
+  it("importScenarios returns null on malformed JSON", async () => {
+    const { useScenarioStore } = await import("../use-scenario-store");
+    const result = await useScenarioStore
+      .getState()
+      .importScenarios("not json");
+    expect(result).toBeNull();
+  });
+
+  /**
    * refreshScenarioList tags the active scenario via isActive so the
    * switcher UI can highlight it without pulling the full store state.
    */

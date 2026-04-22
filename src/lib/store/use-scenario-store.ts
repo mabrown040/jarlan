@@ -19,6 +19,11 @@ import {
   type Scenario,
 } from "@/lib/domain";
 import { getFlexAccountIndex } from "@/lib/calc/scenario";
+import {
+  buildExportEnvelope,
+  downloadScenarioExport,
+  parseImportPayload,
+} from "@/lib/domain/portability";
 import { syncScenarioForActiveAccount } from "@/lib/product";
 import { clamp, roundTo } from "@/lib/utils";
 
@@ -113,6 +118,27 @@ interface ScenarioStore {
   /** Delete a saved scenario. If it was active, falls back to the newest
    *  remaining scenario or a fresh default. */
   deleteScenario: (scenarioId: string) => Promise<void>;
+
+  /**
+   * Download the current active scenario as a JSON file. If
+   *`includeAll` is true, exports every saved scenario in one file.
+   * Surfaces as "take my data with me" button in the drawer.
+   */
+  exportScenarios: (options?: { includeAll?: boolean }) => Promise<void>;
+
+  /**
+   * Import scenarios from a JSON envelope (see `lib/domain/portability`).
+   * Each imported scenario gets a fresh UUID so it never collides with
+   * an existing one, and is appended to the saved list (does NOT
+   * auto-switch — user picks from the switcher after import).
+   *
+   * Returns the number of scenarios successfully imported, or null
+   * if the file couldn't be parsed.
+   */
+  importScenarios: (raw: string) => Promise<{
+    imported: number;
+    dropped: number;
+  } | null>;
 }
 
 export interface ScenarioSummary {
@@ -880,5 +906,52 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
     } catch {
       set({ saveStatus: "error" });
     }
+  },
+  exportScenarios: async (options) => {
+    const includeAll = options?.includeAll ?? false;
+    try {
+      let scenarios: Scenario[];
+      if (includeAll) {
+        const records = await listStoredScenarios();
+        // Dedupe against the in-memory active scenario — it may have
+        // unsaved edits that haven't hit IDB yet (auto-save is
+        // debounced). Prefer the in-memory copy when ids collide.
+        const active = get().activeScenario;
+        const map = new Map<string, Scenario>();
+        for (const record of records) map.set(record.id, record.scenario);
+        map.set(active.id, active);
+        scenarios = [...map.values()];
+      } else {
+        scenarios = [get().activeScenario];
+      }
+      downloadScenarioExport(buildExportEnvelope(scenarios));
+    } catch {
+      // Download can only fail in weird SSR / blob-blocked contexts.
+      // Leave saveStatus alone — this isn't a save failure.
+    }
+  },
+  importScenarios: async (raw) => {
+    const parsed = parseImportPayload(raw);
+    if (!parsed) return null;
+
+    let imported = 0;
+    for (const scenario of parsed.scenarios) {
+      // Fresh UUID so imports never collide with existing scenarios;
+      // original id may have been from another device/install.
+      const localCopy: Scenario = {
+        ...cloneScenario(scenario),
+        id: crypto.randomUUID(),
+        isPersonalized: true,
+      };
+      try {
+        await upsertScenarioRecord(touchScenario(localCopy));
+        imported += 1;
+      } catch {
+        // IDB write failed for this scenario — skip and continue.
+      }
+    }
+
+    await get().refreshScenarioList();
+    return { imported, dropped: parsed.droppedCount };
   },
 }));
