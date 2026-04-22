@@ -32,6 +32,10 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/accumulation", label: "Your plan", tier: "free" },
       { href: "/save-what-if", label: "What if?", tier: "free" },
+      // Compare mode — visible once the user has multiple saved
+      // scenarios. Lives under Save because Plan A vs Plan B is
+      // primarily an accumulation-side comparison.
+      { href: "/compare", label: "Compare", tier: "free" },
     ],
   },
   {

@@ -26,6 +26,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/quiz", priority: 0.9, changeFrequency: "monthly" },
     { path: "/accumulation", priority: 0.8, changeFrequency: "monthly" },
     { path: "/save-what-if", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/compare", priority: 0.5, changeFrequency: "monthly" },
     { path: "/withdrawal", priority: 0.8, changeFrequency: "monthly" },
     { path: "/scenario-lab", priority: 0.6, changeFrequency: "monthly" },
     { path: "/tax-strategy", priority: 0.7, changeFrequency: "monthly" },
