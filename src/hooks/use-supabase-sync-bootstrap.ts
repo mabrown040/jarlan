@@ -56,13 +56,18 @@ export function useSupabaseSyncBootstrap() {
         await pushLocalScenariosToCloud(localScenarios);
 
         // Step 2: pull cloud scenarios and merge newer ones into Dexie.
-        // Track the most-recently-updated *personalized* remote so we
-        // can use it for the auto-switch decision below.
+        // Track the most-recently-updated remote so we can use it for
+        // the auto-switch decision below. We deliberately don't filter
+        // by `isPersonalized` here — every row in the user's cloud
+        // table is user-written by RLS construction, so the flag isn't
+        // a reliable proxy for "is this real data?". Earlier code
+        // paths could leave it as `false` even on rows the user
+        // clearly owns.
         const remote = await pullScenariosFromCloud();
         const localById = new Map(localScenarios.map((s) => [s.id, s]));
 
-        let bestPersonalizedRemoteId: string | null = null;
-        let bestPersonalizedRemoteUpdated = 0;
+        let bestRemoteId: string | null = null;
+        let bestRemoteUpdated = 0;
 
         for (const remoteScenario of remote) {
           const localScenario = localById.get(remoteScenario.id);
@@ -76,12 +81,9 @@ export function useSupabaseSyncBootstrap() {
             await upsertScenarioRecord(remoteScenario);
           }
 
-          if (
-            remoteScenario.isPersonalized !== false &&
-            remoteUpdated > bestPersonalizedRemoteUpdated
-          ) {
-            bestPersonalizedRemoteUpdated = remoteUpdated;
-            bestPersonalizedRemoteId = remoteScenario.id;
+          if (remoteUpdated > bestRemoteUpdated) {
+            bestRemoteUpdated = remoteUpdated;
+            bestRemoteId = remoteScenario.id;
           }
         }
 
@@ -89,19 +91,17 @@ export function useSupabaseSyncBootstrap() {
         await refreshScenarioList();
 
         // Step 4: if we sat down with the default scenario but the
-        // cloud has the user's actual plan, switch to it. Without
-        // this, the cloud download lands in Dexie + the switcher
-        // dropdown but the home page keeps rendering the marketing
-        // hero — exactly the "why isn't it loading my plan?" bug.
+        // cloud has anything for this user, switch to the most
+        // recently updated cloud row. Without this, the cloud
+        // download lands in Dexie + the switcher dropdown but the
+        // home page keeps rendering the marketing hero — exactly the
+        // "why isn't it loading my plan?" bug.
         const currentActive = useScenarioStore.getState().activeScenario;
         if (
           currentActive.isPersonalized === false &&
-          bestPersonalizedRemoteId !== null &&
-          bestPersonalizedRemoteId !== currentActive.id
+          bestRemoteId !== null
         ) {
-          await useScenarioStore
-            .getState()
-            .switchToScenario(bestPersonalizedRemoteId);
+          await useScenarioStore.getState().switchToScenario(bestRemoteId);
         }
       } catch (error) {
         console.warn("[cloud-sync] bootstrap failed:", error);
