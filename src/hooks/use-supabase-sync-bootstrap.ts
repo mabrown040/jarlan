@@ -14,10 +14,17 @@ import { useScenarioStore } from "@/lib/store/use-scenario-store";
  * Bootstraps cloud sync when a user signs in.
  *
  * Behavior:
- * - On first sign-in: push all local scenarios to Supabase (stamping
- *   owner_id), then pull any remote scenarios not yet in Dexie.
+ * - On first sign-in: push all local *personalized* scenarios to
+ *   Supabase (stamping owner_id), then pull any remote scenarios not
+ *   yet in Dexie. We deliberately don't push the default seed so the
+ *   user's cloud doesn't fill up with empty "Base case" copies that
+ *   never represented real data.
  * - On subsequent app loads while signed in: pull remote changes that
- *   are newer than local, write them to Dexie, refresh the scenario list.
+ *   are newer than local, write them to Dexie, refresh the scenario
+ *   list, and — if the user is currently sitting on the unpersonalized
+ *   default — promote their most-recently-updated personalized cloud
+ *   scenario to active so they don't have to manually click their
+ *   plan from the switcher.
  * - Silent on sign-out — local Dexie data stays untouched, so the user
  *   can keep working offline.
  *
@@ -37,14 +44,25 @@ export function useSupabaseSyncBootstrap() {
       hasBootstrapped.current = true;
 
       try {
-        // Step 1: push local scenarios to cloud. Safe no-op if no user.
+        // Step 1: push local *personalized* scenarios to cloud. The
+        // default seed scenario gets created in Dexie by various code
+        // paths even when the user hasn't done anything; pushing it
+        // would add a meaningless "Base case" row to their cloud
+        // plans every time they sign in on a fresh browser.
         const local = await listStoredScenarios();
-        const localScenarios = local.map((row) => row.scenario);
+        const localScenarios = local
+          .map((row) => row.scenario)
+          .filter((s) => s.isPersonalized !== false);
         await pushLocalScenariosToCloud(localScenarios);
 
         // Step 2: pull cloud scenarios and merge newer ones into Dexie.
+        // Track the most-recently-updated *personalized* remote so we
+        // can use it for the auto-switch decision below.
         const remote = await pullScenariosFromCloud();
         const localById = new Map(localScenarios.map((s) => [s.id, s]));
+
+        let bestPersonalizedRemoteId: string | null = null;
+        let bestPersonalizedRemoteUpdated = 0;
 
         for (const remoteScenario of remote) {
           const localScenario = localById.get(remoteScenario.id);
@@ -57,10 +75,34 @@ export function useSupabaseSyncBootstrap() {
           if (!localScenario || remoteUpdated > localUpdated) {
             await upsertScenarioRecord(remoteScenario);
           }
+
+          if (
+            remoteScenario.isPersonalized !== false &&
+            remoteUpdated > bestPersonalizedRemoteUpdated
+          ) {
+            bestPersonalizedRemoteUpdated = remoteUpdated;
+            bestPersonalizedRemoteId = remoteScenario.id;
+          }
         }
 
         // Step 3: refresh the scenario list in the UI.
         await refreshScenarioList();
+
+        // Step 4: if we sat down with the default scenario but the
+        // cloud has the user's actual plan, switch to it. Without
+        // this, the cloud download lands in Dexie + the switcher
+        // dropdown but the home page keeps rendering the marketing
+        // hero — exactly the "why isn't it loading my plan?" bug.
+        const currentActive = useScenarioStore.getState().activeScenario;
+        if (
+          currentActive.isPersonalized === false &&
+          bestPersonalizedRemoteId !== null &&
+          bestPersonalizedRemoteId !== currentActive.id
+        ) {
+          await useScenarioStore
+            .getState()
+            .switchToScenario(bestPersonalizedRemoteId);
+        }
       } catch (error) {
         console.warn("[cloud-sync] bootstrap failed:", error);
       }

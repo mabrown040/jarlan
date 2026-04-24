@@ -876,7 +876,13 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
     }
   },
   switchToScenario: async (scenarioId) => {
-    if (scenarioId === get().activeScenario.id) return;
+    // No early-return on `scenarioId === activeScenario.id`. Looks
+    // like a free optimization but it broke the cloud-sync bootstrap
+    // case: the bootstrap pulls a newer cloud copy into Dexie under
+    // the same id as the in-memory default, then asks the store to
+    // pick up the now-fresh row. Re-reading from Dexie when the id
+    // matches is at most one extra DB hit and keeps the activeScenario
+    // honest with whatever's actually persisted.
     try {
       const scenario = await loadScenarioById(scenarioId);
       if (!scenario) return;
