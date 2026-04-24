@@ -933,11 +933,14 @@ export function FireTypeQuiz() {
               value={answers.partTimePreference}
               onChange={(value) => {
                 setAnswer("partTimePreference", value);
-                // Reset post-FIRE income when switching to "no"
+                // Reset post-FIRE income when switching to "no"; leave
+                // the field untouched otherwise. Silently seeding a
+                // default for "yes"/"maybe" was presumptuous — users
+                // would miss the pre-filled number and then be
+                // surprised when it showed up in their plan. The
+                // visible input below lets them type whatever they
+                // actually expect.
                 if (value === "no") setAnswer("postFireIncome", 0);
-                // Set sensible default when switching to yes/maybe
-                if (value === "yes" && answers.postFireIncome === 0) setAnswer("postFireIncome", 20_000);
-                if (value === "maybe" && answers.postFireIncome === 0) setAnswer("postFireIncome", 10_000);
               }}
               options={[
                 {
