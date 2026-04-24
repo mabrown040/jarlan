@@ -1,15 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 
 import type { Scenario } from "@/lib/domain/types";
+import { suggestUniqueScenarioName } from "@/lib/scenario/naming";
 import { useScenarioStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+
+import { NamePlanDialog } from "./name-plan-dialog";
 
 interface SaveAsNewPlanButtonProps {
   /** The scenario to save (e.g. the comparison/combined scenario from a what-if workspace). */
   scenario: Scenario;
-  /** Suggested name pre-filled in the dialog. */
+  /** Suggested name pre-filled in the dialog. Will be auto-incremented if it collides with an existing plan name. */
   defaultName?: string;
   /** Hide the button entirely (e.g. when no decisions are selected). */
   hidden?: boolean;
@@ -26,10 +29,12 @@ interface SaveAsNewPlanButtonProps {
  * decisions applied) and persists it as a new entry in the saved-plans
  * list. The new plan becomes active. Original plan stays untouched.
  *
- * Naming uses an inline modal rather than `window.prompt` —
- * `window.prompt` is blocked or unreliable in some browsers / iframe
- * contexts (we hit one in QA), and a real input field also lets us
- * style the suggested name and validate inline.
+ * Naming UX:
+ * - Default name auto-increments to avoid collisions ("My plan
+ *   (variant)" → "My plan (variant) (2)" if the first is already
+ *   taken). Users can still type a duplicate if they want to.
+ * - Uses the shared `<NamePlanDialog />` so the dialog chrome matches
+ *   every other place we ask for a plan name.
  */
 export function SaveAsNewPlanButton({
   scenario,
@@ -40,39 +45,22 @@ export function SaveAsNewPlanButton({
   children,
 }: SaveAsNewPlanButtonProps) {
   const saveAsNew = useScenarioStore((s) => s.saveAsNewScenario);
+  const scenarioList = useScenarioStore((s) => s.scenarioList);
   const [busy, setBusy] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftName, setDraftName] = useState("");
-  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const suggestedName =
-    defaultName ?? `${scenario.name ?? "My plan"} (variant)`;
+  const baseName = defaultName ?? `${scenario.name ?? "My plan"} (variant)`;
 
   const openDialog = useCallback(() => {
-    setDraftName(suggestedName);
+    setDraftName(
+      suggestUniqueScenarioName(
+        baseName,
+        scenarioList.map((s) => s.name),
+      ),
+    );
     setDialogOpen(true);
-  }, [suggestedName]);
-
-  // Focus + select the suggested name when the dialog opens, so the
-  // user can hit Enter to accept the default or just type to replace.
-  useEffect(() => {
-    if (!dialogOpen) return;
-    const id = window.requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    });
-    return () => window.cancelAnimationFrame(id);
-  }, [dialogOpen]);
-
-  // Escape closes the dialog without saving.
-  useEffect(() => {
-    if (!dialogOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setDialogOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [dialogOpen]);
+  }, [baseName, scenarioList]);
 
   const submit = useCallback(async () => {
     const trimmed = draftName.trim();
@@ -104,68 +92,16 @@ export function SaveAsNewPlanButton({
         {children ?? (busy ? "Saving…" : "Save as new plan")}
       </button>
 
-      {dialogOpen ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="save-as-plan-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={(e) => {
-            // Click outside the card dismisses (without saving).
-            if (e.target === e.currentTarget) setDialogOpen(false);
-          }}
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void submit();
-            }}
-            className="w-full max-w-md rounded-2xl border border-border/60 bg-card p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
-          >
-            <h3
-              id="save-as-plan-title"
-              className="font-display text-lg tracking-[-0.02em] text-foreground"
-            >
-              Save this as a new plan
-            </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Your current plan stays put. The new plan becomes active so you
-              can keep iterating on this variant.
-            </p>
-            <label className="mt-4 block text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              Plan name
-            </label>
-            <input
-              ref={inputRef}
-              type="text"
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              placeholder="e.g. Aggressive savings"
-              className="mt-1 w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/20"
-              autoComplete="off"
-              maxLength={80}
-            />
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setDialogOpen(false)}
-                disabled={busy}
-                className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={busy || !draftName.trim()}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[var(--ember)] to-[var(--flame)] px-4 py-2 text-sm font-semibold text-white shadow-[0_2px_12px_rgba(255,107,53,0.35)] transition-all hover:shadow-[0_4px_18px_rgba(255,107,53,0.5)] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <SaveIcon className="size-3.5 text-white" />
-                {busy ? "Saving…" : "Save plan"}
-              </button>
-            </div>
-          </form>
-        </div>
-      ) : null}
+      <NamePlanDialog
+        open={dialogOpen}
+        title="Save this as a new plan"
+        description="Your current plan stays put. The new plan becomes active so you can keep iterating on this variant."
+        value={draftName}
+        onChange={setDraftName}
+        onSubmit={submit}
+        onCancel={() => setDialogOpen(false)}
+        busy={busy}
+      />
     </>
   );
 }

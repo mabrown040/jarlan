@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { suggestUniqueScenarioName } from "@/lib/scenario/naming";
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+
+import { NamePlanDialog } from "./name-plan-dialog";
+
+type PendingAction = "duplicate" | "blank" | null;
 
 /**
  * Header plan-name trigger.
@@ -38,6 +43,13 @@ export function PlanNameTrigger() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  // Naming dialog state. We funnel both "Save a copy" and "Start a
+  // blank plan" through one dialog (cleaner than juggling two), with
+  // a `pendingAction` discriminator so submit knows which store
+  // method to call.
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [draftName, setDraftName] = useState("");
+  const [dialogBusy, setDialogBusy] = useState(false);
 
   // Refresh the list any time the menu opens — covers the case where
   // a plan was added/renamed in another tab or via the drawer.
@@ -65,24 +77,48 @@ export function PlanNameTrigger() {
     };
   }, [menuOpen]);
 
-  const handleSaveCopy = useCallback(async () => {
+  const handleSaveCopy = useCallback(() => {
     setMenuOpen(false);
-    const suggested = `Copy of ${activeScenario.name ?? "My plan"}`;
-    const name = window.prompt("Name for the new plan:", suggested);
-    if (name === null) return; // user cancelled
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    await duplicateActive(trimmed);
-  }, [activeScenario.name, duplicateActive]);
+    const base = `Copy of ${activeScenario.name ?? "My plan"}`;
+    setDraftName(
+      suggestUniqueScenarioName(
+        base,
+        scenarioList.map((s) => s.name),
+      ),
+    );
+    setPendingAction("duplicate");
+  }, [activeScenario.name, scenarioList]);
 
-  const handleNewBlank = useCallback(async () => {
+  const handleNewBlank = useCallback(() => {
     setMenuOpen(false);
-    const name = window.prompt("Name for the new plan:", "New plan");
-    if (name === null) return;
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    await createBlank(trimmed);
-  }, [createBlank]);
+    setDraftName(
+      suggestUniqueScenarioName(
+        "New plan",
+        scenarioList.map((s) => s.name),
+      ),
+    );
+    setPendingAction("blank");
+  }, [scenarioList]);
+
+  const handleDialogSubmit = useCallback(async () => {
+    const trimmed = draftName.trim();
+    if (!trimmed || pendingAction === null) return;
+    setDialogBusy(true);
+    try {
+      if (pendingAction === "duplicate") {
+        await duplicateActive(trimmed);
+      } else if (pendingAction === "blank") {
+        await createBlank(trimmed);
+      }
+      setPendingAction(null);
+    } finally {
+      setDialogBusy(false);
+    }
+  }, [draftName, pendingAction, duplicateActive, createBlank]);
+
+  const handleDialogCancel = useCallback(() => {
+    setPendingAction(null);
+  }, []);
 
   const handleSwitch = useCallback(
     async (id: string) => {
@@ -207,6 +243,31 @@ export function PlanNameTrigger() {
           </div>
         </div>
       ) : null}
+
+      {/* Shared inline dialog for both "Save a copy" and "Start a
+          blank plan" — replaces the previous `window.prompt` flow
+          which is blocked or unreliable in some browser contexts. */}
+      <NamePlanDialog
+        open={pendingAction !== null}
+        title={
+          pendingAction === "duplicate"
+            ? "Save a copy of this plan"
+            : "Start a blank plan"
+        }
+        description={
+          pendingAction === "duplicate"
+            ? "We'll duplicate your current plan under this name and switch to it. The original stays put."
+            : "A fresh plan with the demo defaults — start editing or run the quiz against it."
+        }
+        value={draftName}
+        onChange={setDraftName}
+        onSubmit={handleDialogSubmit}
+        onCancel={handleDialogCancel}
+        busy={dialogBusy}
+        submitLabel={
+          pendingAction === "duplicate" ? "Save copy" : "Start plan"
+        }
+      />
     </div>
   );
 }
