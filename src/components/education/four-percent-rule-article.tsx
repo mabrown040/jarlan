@@ -189,6 +189,21 @@ export function FourPercentRuleArticle() {
           Approximate historical success rates from the Trinity Study (Cooley, Hubbard, Walz
           1998), 100% equity portfolio. Green = 95%+, black = 80–94%, red = below 80%.
         </p>
+        <div className="mt-4 rounded-xl border border-border/60 bg-muted/30 p-4 text-xs leading-relaxed text-muted-foreground">
+          <p className="font-medium text-foreground">Data vintage</p>
+          <p className="mt-1">
+            The table above reflects the original 1998 Trinity Study. Since then, multiple
+            authors — including Cooley, Hubbard, and Walz themselves (2011), Wade Pfau, and
+            the Early Retirement Now &quot;Safe Withdrawal Series&quot; — have re-run the same
+            analysis with longer datasets and found broadly similar results, with modest
+            downward revisions at higher withdrawal rates. For your own scenario, use the{" "}
+            <Link href="/withdrawal" className="underline">
+              Spend page
+            </Link>{" "}
+            — it backtests against Shiller&apos;s full 1871-present dataset rather than
+            Trinity&apos;s 1926-1995 window.
+          </p>
+        </div>
 
         <div className="mt-6 rounded-xl border border-border/60 bg-card/40 p-4">
           <p className="mb-3 text-sm font-medium text-foreground">

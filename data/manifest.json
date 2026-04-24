@@ -1,13 +1,18 @@
 {
-  "generatedAt": "2026-03-23T04:45:45.713Z",
+  "generatedAt": "2026-04-24T05:37:28.012Z",
+  "notes": {
+    "shillerUpstream": "Re-running `npm run data:fetch:shiller` on 2026-04-24 fetched a fresh XLS from Yale, but the upstream workbook still ends at 2023-09. Robert Shiller updates manually; the dataset will refresh automatically when he next publishes. If staleness becomes a problem, swap in a secondary source (FRED CPI + S&P 500 total return + GS10) via a new fetcher."
+  },
   "datasets": [
     {
       "id": "shiller-monthly",
       "version": "v1",
       "source": "Robert Shiller data library",
+      "sourceUrl": "http://www.econ.yale.edu/~shiller/data/ie_data.xls",
       "cadence": "monthly",
       "path": "data/shiller.json",
       "status": "ready",
+      "upstreamFrozenSince": "2023-09",
       "startDate": "1871-01",
       "endDate": "2023-09",
       "recordCount": 1833

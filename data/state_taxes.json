@@ -1,5 +1,20 @@
 {
   "version": "v2",
+  "status": "ready",
+  "year": 2024,
+  "source": {
+    "description": "Effective ordinary-income state tax rates, approximated for a representative middle-to-upper-middle earner. Derived from the Tax Foundation's annual state income tax summary and cross-checked against each state's top-bracket filings. These are intentionally simplified single-rate proxies, not brackets — precise liability for a given household differs, especially in high-bracket states.",
+    "url": "https://taxfoundation.org/data/all/state/state-income-tax-rates/",
+    "lastReviewed": "2026-03-24"
+  },
+  "methodology": {
+    "description": "For no-income-tax states the rate is 0. For flat-rate states the rate is the statutory flat rate. For graduated-rate states the rate is an approximate effective rate for a household around the 80th-90th income percentile — a reasonable anchor for early-retirement planning. NIIT (3.8% federal on investment income above thresholds) is NOT included here; it lives in the federal bracket logic.",
+    "refreshCadence": "manual",
+    "caveats": [
+      "High earners in CA, NY, NJ, HI face top marginal rates well above the effective rate shown (up to 13.3% in CA before local surtaxes).",
+      "Local / city income taxes (NYC, SF, etc.) are not modeled."
+    ]
+  },
   "states": [
     { "code": "AL", "label": "Alabama", "effectiveOrdinaryRate": 0.0400 },
     { "code": "AK", "label": "Alaska", "effectiveOrdinaryRate": 0.0 },

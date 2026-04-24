@@ -1,5 +1,16 @@
 {
   "version": "v1",
+  "status": "ready",
+  "year": 2024,
+  "source": {
+    "description": "Starter benchmark silver premium table by state and age band. Approximate national + six-state sample, sourced from Kaiser Family Foundation benchmark silver premium reports (healthinsurance.org) as a defensible order-of-magnitude for ACA subsidy estimation.",
+    "url": "https://www.kff.org/health-reform/state-indicator/marketplace-plan-type-by-state/",
+    "lastReviewed": "2025-03-21"
+  },
+  "methodology": {
+    "description": "Benchmark silver premiums vary by rating area; this table uses a representative urban area per state as the anchor. Values are pre-subsidy annual premiums for a single enrollee at the given age. Refresh annually when HHS updates the benchmark plans (typically Q4 each year).",
+    "refreshCadence": "annual"
+  },
   "defaultState": "national",
   "stateBenchmarks": {
     "national": {
