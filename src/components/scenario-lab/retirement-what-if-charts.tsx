@@ -60,7 +60,7 @@ export function HistoricalScenarioComparisonChart({
   return (
     <ChartFrame
       ariaLabel="Historical comparison chart showing the current plan and selected path median retirement outcomes, plus the selected path outcome band."
-      className="h-[25rem] w-full"
+      className="h-[16rem] w-full sm:h-[20rem] md:h-[25rem]"
     >
       <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
         <AreaChart data={data} margin={{ top: 12, right: 18, left: 6, bottom: 8 }}>
@@ -192,7 +192,7 @@ export function WorstCaseScenarioComparisonChart({
   return (
     <ChartFrame
       ariaLabel="Worst-case comparison chart showing the annual withdrawal path for the current plan and selected path in their hardest historical cohorts."
-      className="h-[25rem] w-full"
+      className="h-[16rem] w-full sm:h-[20rem] md:h-[25rem]"
     >
       <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
         <LineChart data={data} margin={{ top: 12, right: 18, left: 6, bottom: 8 }}>
@@ -307,7 +307,7 @@ export function FailureRateScenarioComparisonChart({
   return (
     <ChartFrame
       ariaLabel="Failure-rate comparison chart showing cumulative probability of failure for the current plan and selected path."
-      className="h-[22rem] w-full"
+      className="h-[14rem] w-full sm:h-[18rem] md:h-[22rem]"
     >
       <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
         <LineChart data={data} margin={{ top: 12, right: 18, left: 6, bottom: 8 }}>

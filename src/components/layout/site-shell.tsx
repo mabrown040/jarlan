@@ -89,7 +89,7 @@ function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+      className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:bg-muted/70 focus-visible:text-foreground active:bg-muted"
       title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
     >
       {theme === "dark" ? (
@@ -266,7 +266,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => setMobileNavOpen((prev) => !prev)}
-                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:bg-muted/70 focus-visible:text-foreground active:bg-muted"
                 aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
                 aria-expanded={mobileNavOpen}
               >

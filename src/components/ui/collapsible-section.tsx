@@ -23,7 +23,7 @@ export function CollapsibleSection({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-muted/30"
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-muted/30 focus-visible:bg-muted/30 active:bg-muted/50"
       >
         <div className="min-w-0">
           <p className="font-medium text-foreground">{title}</p>

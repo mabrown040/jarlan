@@ -255,7 +255,7 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
                     <div className="space-y-6">
                       <HistoricalBacktestChart
                         data={props.backtestResult.percentileBand}
-                        className="h-[26rem] w-full"
+                        className="h-[16rem] w-full sm:h-[20rem] md:h-[26rem]"
                         ariaLabel="Historical percentile fan chart showing the 10th to 90th percentile range and median portfolio outcomes across retirement years."
                       />
                       <div className="grid gap-4 md:grid-cols-3">
@@ -370,7 +370,7 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
                       <div className="space-y-6">
                         <HistoricalBacktestChart
                           data={props.monteCarloResult.percentileBand}
-                          className="h-[24rem] w-full"
+                          className="h-[16rem] w-full sm:h-[20rem] md:h-[24rem]"
                           ariaLabel="Monte Carlo percentile chart showing the 10th to 90th percentile range and median portfolio outcomes across retirement years."
                         />
                         <div className="grid gap-4 md:grid-cols-2">
@@ -486,7 +486,7 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
                       <WorstCaseSpendingChart
                         data={props.backtestResult.worstCasePath}
                         initialWithdrawal={props.backtestResult.initialWithdrawal}
-                        className="h-[24rem] w-full"
+                        className="h-[16rem] w-full sm:h-[20rem] md:h-[24rem]"
                       />
                       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <StatCard

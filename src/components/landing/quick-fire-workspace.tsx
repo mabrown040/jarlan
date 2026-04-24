@@ -1,6 +1,7 @@
 "use client";
 
 import type { Route } from "next";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Copy, RotateCcw } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -15,7 +16,50 @@ import { Card } from "@/components/ui/card";
 import { useHasExistingDraft } from "@/lib/hooks/use-has-existing-draft";
 import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useDisplayAmount, useDisplayMode } from "@/lib/hooks/use-display-amount";
-import { ProjectionChart, ChartLegend } from "@/components/landing/projection-chart";
+
+// Charts defer recharts (~120KB) out of the initial bundle. Each loader
+// returns a transparent placeholder sized to the final chart so layout
+// doesn't shift when the real component hydrates.
+const ProjectionChart = dynamic(
+  () =>
+    import("@/components/landing/projection-chart").then((m) => ({
+      default: m.ProjectionChart,
+    })),
+  { loading: () => <ChartSkeleton className="h-[20rem] sm:h-[24rem] md:h-[28rem]" /> },
+);
+const ChartLegend = dynamic(
+  () =>
+    import("@/components/landing/projection-chart").then((m) => ({
+      default: m.ChartLegend,
+    })),
+  { loading: () => null },
+);
+const MoneyFlowSankey = dynamic(
+  () =>
+    import("@/components/charts/money-flow-sankey").then((m) => ({
+      default: m.MoneyFlowSankey,
+    })),
+  { loading: () => <ChartSkeleton className="h-64 sm:h-80" /> },
+);
+const HomePreviewChart = dynamic(
+  () =>
+    import("@/components/landing/home-preview-chart").then((m) => ({
+      default: m.HomePreviewChart,
+    })),
+  { loading: () => <ChartSkeleton className="h-48 sm:h-64" /> },
+);
+
+function ChartSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "w-full animate-pulse rounded-xl bg-muted/30",
+        className,
+      )}
+    />
+  );
+}
 import { US_BENCHMARKS, estimateNetWorthPercentile, getMedianNetWorthForAge } from "@/lib/data/benchmarks";
 import { buildScenarioProjection } from "@/lib/calc/quick-fire";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
@@ -44,10 +88,8 @@ import {
   buildScenarioShareUrl,
 } from "@/lib/share";
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
-import { MoneyFlowSankey } from "@/components/charts/money-flow-sankey";
 import { InlineControls } from "@/components/plan/inline-controls";
 import { SampleScenarioBanner } from "@/components/landing/sample-scenario-banner";
-import { HomePreviewChart } from "@/components/landing/home-preview-chart";
 import { cn } from "@/lib/utils";
 
 export function QuickFireWorkspace({

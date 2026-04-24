@@ -279,9 +279,18 @@ body::before {
     box-shadow var(--duration-standard) var(--ease-out-expo),
     border-color var(--duration-fast) var(--ease-out-expo);
 }
-.card-hover:hover {
+.card-hover:hover,
+.card-hover:focus-visible {
   transform: translateY(-2px);
   box-shadow: var(--elevation-3);
+}
+/* Touch devices (no hover) get a subtle press-down on tap so the user
+   sees the interaction register. */
+@media (hover: none) {
+  .card-hover:active {
+    transform: translateY(-1px);
+    box-shadow: var(--elevation-2);
+  }
 }
 
 /* Horizontal ember rule — section-divider primitive used between major
