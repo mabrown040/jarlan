@@ -40,6 +40,68 @@ const noIncomeTaxCodes = new Set(["AK", "FL", "NV", "NH", "SD", "TN", "TX", "WA"
 const noTaxStates = stateTaxPresets.filter((s) => noIncomeTaxCodes.has(s.code));
 const taxStates = stateTaxPresets.filter((s) => !noIncomeTaxCodes.has(s.code)).sort((a, b) => a.label.localeCompare(b.label));
 
+/**
+ * Budget math for the contributionSplit step. Shared between the step
+ * render (for display) and the parent's over-budget modal guard so
+ * the two can't disagree about whether the user is over budget.
+ *
+ * Which buckets reduce taxable income?
+ *   - Trad 401(k): YES (pre-tax payroll deduction)
+ *   - HSA: YES (pre-tax payroll deduction, plus FICA savings we don't
+ *     model here)
+ *   - Roth IRA / backdoor: NO (post-tax contribution)
+ *   - Mega backdoor Roth: NO (after-tax 401(k) contribution + in-plan
+ *     conversion; not a pre-tax deduction)
+ *   - Partner mega backdoor: NO (same)
+ * Matching that to the scenario, `preTaxDeductions = trad + hsa`.
+ *
+ * The "rough tax" heuristic here is deliberately coarse — the real tax
+ * engine runs after the quiz commits to a scenario. We just need
+ * enough signal for sensible defaults, the budget breakdown display,
+ * and the over-budget guard.
+ */
+function computeContributionBudget(answers: FireTypeQuizAnswers) {
+  const grossIncome = answers.annualIncome;
+  const preTaxDeductions =
+    answers.traditionalContribution + answers.hsaContribution;
+  const roughTaxableIncome = Math.max(grossIncome - preTaxDeductions, 0);
+  const roughFederalRate = roughTaxableIncome > 243_725 ? 0.32
+    : roughTaxableIncome > 191_950 ? 0.24
+    : roughTaxableIncome > 100_525 ? 0.22
+    : roughTaxableIncome > 47_150 ? 0.12
+    : 0.10;
+  const roughTax = roughTaxableIncome * (roughFederalRate * 0.85 + 0.05);
+  const estimatedTakeHome = Math.max(grossIncome - roughTax, 0);
+  const totalSavings = Math.max(estimatedTakeHome - answers.annualSpending, 0);
+
+  const activeMega = answers.megaBackdoorRothAvailable
+    ? answers.megaBackdoorRothContribution
+    : 0;
+  const activePartnerMega = answers.partnerMegaBackdoorRothAvailable
+    ? answers.partnerMegaBackdoorRothContribution
+    : 0;
+  const preTaxableAllocated =
+    answers.traditionalContribution +
+    answers.rothContribution +
+    answers.hsaContribution +
+    activeMega +
+    activePartnerMega;
+  const derivedTaxable = Math.max(totalSavings - preTaxableAllocated, 0);
+  const overBudgetBy = Math.max(preTaxableAllocated - totalSavings, 0);
+
+  return {
+    grossIncome,
+    estimatedTax: roughTax,
+    estimatedTakeHome,
+    annualSpending: answers.annualSpending,
+    totalSavings,
+    preTaxableAllocated,
+    derivedTaxable,
+    overBudgetBy,
+    isOverBudget: overBudgetBy > 0,
+  };
+}
+
 /** Virtual step keys that don't map 1:1 to a single answer field */
 type VirtualStepKey = "accountSplit" | "contributionSplit";
 
@@ -156,6 +218,10 @@ export function FireTypeQuiz() {
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState(DEFAULT_FIRE_TYPE_QUIZ_ANSWERS);
   const [quizComplete, setQuizComplete] = useState(false);
+  // Surfaced when the user tries to advance from contributionSplit
+  // while allocations exceed their after-tax budget. Offers two paths:
+  // trim a bucket (dismiss) or revisit the spending step.
+  const [showOverBudgetPrompt, setShowOverBudgetPrompt] = useState(false);
   const hasSyncedFromStore = useRef(false);
 
   useInitializeStore();
@@ -532,18 +598,21 @@ export function FireTypeQuiz() {
           filingStatus: answers.filingStatus,
           partnerHas401k: answers.partnerHas401k,
         });
-        // Estimate take-home using current traditional contribution for pre-tax deduction
-        const grossIncome = answers.annualIncome;
-        const tradContrib = answers.traditionalContribution;
-        const roughTaxableIncome = Math.max(grossIncome - tradContrib, 0);
-        const roughFederalRate = roughTaxableIncome > 243_725 ? 0.32
-          : roughTaxableIncome > 191_950 ? 0.24
-          : roughTaxableIncome > 100_525 ? 0.22
-          : roughTaxableIncome > 47_150 ? 0.12
-          : 0.10;
-        const roughTax = roughTaxableIncome * (roughFederalRate * 0.85 + 0.05); // federal + ~5% state
-        const estimatedTakeHome = Math.max(grossIncome - roughTax, 0);
-        const totalSavings = Math.max(estimatedTakeHome - answers.annualSpending, 0);
+        // Budget math lives in a module-level helper so the over-budget
+        // modal guard can use the same numbers.
+        const budget = computeContributionBudget(answers);
+        const {
+          grossIncome,
+          estimatedTax,
+          estimatedTakeHome,
+          annualSpending,
+          totalSavings,
+          preTaxableAllocated,
+          derivedTaxable,
+          overBudgetBy,
+          isOverBudget,
+        } = budget;
+        const totalAllocated = preTaxableAllocated + derivedTaxable;
 
         const defaultTrad = Math.min(limits.traditional401k, totalSavings);
         const defaultRoth = Math.min(limits.rothIra, Math.max(totalSavings - defaultTrad, 0));
@@ -552,18 +621,75 @@ export function FireTypeQuiz() {
         const catchUpNote = answers.currentAge >= 50
           ? ` (includes ${answers.currentAge >= 60 && answers.currentAge <= 63 ? "super " : ""}catch-up)`
           : "";
-        // Auto-set defaults on first render if all zero
-        if (answers.traditionalContribution === 0 && answers.rothContribution === 0 && answers.hsaContribution === 0 && answers.taxableContribution === 0 && totalSavings > 0) {
+
+        // First-render seed: if every bucket is still zero, fill in
+        // smart defaults so the user sees a sensible starting point.
+        // AND keep `taxableContribution` in state in sync with the
+        // derived value so downstream scenario-building sees the
+        // right number even though the field isn't user-editable.
+        if (
+          answers.traditionalContribution === 0 &&
+          answers.rothContribution === 0 &&
+          answers.hsaContribution === 0 &&
+          answers.taxableContribution === 0 &&
+          totalSavings > 0
+        ) {
           setAnswer("traditionalContribution", defaultTrad);
           setAnswer("rothContribution", defaultRoth);
           setAnswer("hsaContribution", defaultHsa);
           setAnswer("taxableContribution", defaultTaxable);
+        } else if (answers.taxableContribution !== derivedTaxable) {
+          setAnswer("taxableContribution", derivedTaxable);
         }
+
         return (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Your ~{formatCompactCurrency(totalSavings)}/yr after-tax savings goes to:
-            </p>
+            {/* Budget breakdown — make it visible how the ~$X/yr
+                after-tax savings number was computed. Because trad
+                401(k) and HSA are pre-tax, raising them shrinks the
+                estimated tax and grows this number. That feedback
+                loop is real US tax law, but it's surprising, so we
+                show the chain. */}
+            <details className="group rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                <span className="font-medium text-foreground">
+                  Your budget: ~{formatCompactCurrency(totalSavings)}/yr to save
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground group-open:hidden">
+                  How we got this
+                </span>
+                <span className="hidden text-[10px] uppercase tracking-[0.08em] text-muted-foreground group-open:inline">
+                  Hide
+                </span>
+              </summary>
+              <div className="mt-3 space-y-1 font-mono tabular-nums text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Gross income</span>
+                  <span>{formatCompactCurrency(grossIncome)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>− Estimated tax</span>
+                  <span>−{formatCompactCurrency(estimatedTax)}</span>
+                </div>
+                <div className="flex justify-between border-t border-border/40 pt-1 text-foreground">
+                  <span>= Take-home</span>
+                  <span>{formatCompactCurrency(estimatedTakeHome)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>− Annual spending</span>
+                  <span>−{formatCompactCurrency(annualSpending)}</span>
+                </div>
+                <div className="flex justify-between border-t border-border/40 pt-1 font-semibold text-foreground">
+                  <span>= Available to save</span>
+                  <span>{formatCompactCurrency(totalSavings)}</span>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                Trad 401(k) and HSA are pre-tax — raising them lowers
+                the tax estimate above and grows this budget. Roth and
+                mega backdoor are post-tax, so they don&rsquo;t.
+              </p>
+            </details>
             <div className="space-y-3">
               <div>
                 <FieldLabel htmlFor="quiz-trad-cont" label={`Tax-deferred 401(k)${limits.partnerHas401k ? " (household)" : ""} — limit $${(limits.traditional401k / 1000).toFixed(1)}K/yr${catchUpNote}`} />
@@ -574,14 +700,10 @@ export function FireTypeQuiz() {
                   step={500}
                   value={answers.traditionalContribution}
                   onValueChange={(v) => {
-                    const trad = Math.min(v, limits.traditional401k);
-                    const roth = Math.min(answers.rothContribution, totalSavings - trad);
-                    const hsa = Math.min(answers.hsaContribution, totalSavings - trad - roth);
-                    const taxable = Math.max(totalSavings - trad - roth - hsa, 0);
-                    setAnswer("traditionalContribution", trad);
-                    setAnswer("rothContribution", Math.max(roth, 0));
-                    setAnswer("hsaContribution", Math.max(hsa, 0));
-                    setAnswer("taxableContribution", taxable);
+                    setAnswer(
+                      "traditionalContribution",
+                      Math.min(Math.max(v, 0), limits.traditional401k),
+                    );
                   }}
                 />
               </div>
@@ -590,16 +712,14 @@ export function FireTypeQuiz() {
                 <NumberInput
                   id="quiz-roth-cont"
                   min={0}
-                  max={totalSavings - answers.traditionalContribution}
+                  max={limits.rothIra}
                   step={500}
                   value={answers.rothContribution}
                   onValueChange={(v) => {
-                    const roth = Math.min(v, totalSavings - answers.traditionalContribution);
-                    const hsa = Math.min(answers.hsaContribution, totalSavings - answers.traditionalContribution - roth);
-                    const taxable = Math.max(totalSavings - answers.traditionalContribution - roth - hsa, 0);
-                    setAnswer("rothContribution", roth);
-                    setAnswer("hsaContribution", Math.max(hsa, 0));
-                    setAnswer("taxableContribution", taxable);
+                    setAnswer(
+                      "rothContribution",
+                      Math.min(Math.max(v, 0), limits.rothIra),
+                    );
                   }}
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">
@@ -628,18 +748,10 @@ export function FireTypeQuiz() {
                         type="checkbox"
                         checked={answers.megaBackdoorRothAvailable}
                         onChange={(e) => {
-                          const available = e.target.checked;
-                          setAnswer("megaBackdoorRothAvailable", available);
-                          if (!available) {
-                            // Reclaim the mega contribution back into taxable
-                            // so the total invariant stays $totalSavings.
-                            const reclaimed = answers.megaBackdoorRothContribution;
-                            setAnswer("megaBackdoorRothContribution", 0);
-                            setAnswer(
-                              "taxableContribution",
-                              Math.max(answers.taxableContribution + reclaimed, 0),
-                            );
-                          }
+                          setAnswer(
+                            "megaBackdoorRothAvailable",
+                            e.target.checked,
+                          );
                         }}
                         className="mt-0.5 size-4 rounded border-border/60 text-[var(--ember)] focus:ring-1 focus:ring-[var(--ember)]"
                       />
@@ -662,33 +774,13 @@ export function FireTypeQuiz() {
                           <NumberInput
                             id="quiz-mega-cont"
                             min={0}
-                            max={Math.min(
-                              perPersonCap,
-                              // Don't let the user allocate more than the
-                              // remaining taxable + current mega value
-                              // (i.e. cap at what's left in the budget).
-                              answers.taxableContribution +
-                                answers.megaBackdoorRothContribution,
-                            )}
+                            max={perPersonCap}
                             step={500}
                             value={answers.megaBackdoorRothContribution}
                             onValueChange={(v) => {
-                              const prev = answers.megaBackdoorRothContribution;
-                              const clampedCap = Math.min(v, perPersonCap);
-                              const maxByBudget =
-                                answers.taxableContribution + prev;
-                              const next = Math.max(
-                                Math.min(clampedCap, maxByBudget),
-                                0,
-                              );
-                              const delta = next - prev;
-                              setAnswer("megaBackdoorRothContribution", next);
                               setAnswer(
-                                "taxableContribution",
-                                Math.max(
-                                  answers.taxableContribution - delta,
-                                  0,
-                                ),
+                                "megaBackdoorRothContribution",
+                                Math.min(Math.max(v, 0), perPersonCap),
                               );
                             }}
                           />
@@ -700,26 +792,10 @@ export function FireTypeQuiz() {
                                 type="checkbox"
                                 checked={answers.partnerMegaBackdoorRothAvailable}
                                 onChange={(e) => {
-                                  const available = e.target.checked;
                                   setAnswer(
                                     "partnerMegaBackdoorRothAvailable",
-                                    available,
+                                    e.target.checked,
                                   );
-                                  if (!available) {
-                                    const reclaimed =
-                                      answers.partnerMegaBackdoorRothContribution;
-                                    setAnswer(
-                                      "partnerMegaBackdoorRothContribution",
-                                      0,
-                                    );
-                                    setAnswer(
-                                      "taxableContribution",
-                                      Math.max(
-                                        answers.taxableContribution + reclaimed,
-                                        0,
-                                      ),
-                                    );
-                                  }
                                 }}
                                 className="mt-0.5 size-4 rounded border-border/60 text-[var(--ember)] focus:ring-1 focus:ring-[var(--ember)]"
                               />
@@ -736,36 +812,15 @@ export function FireTypeQuiz() {
                                 <NumberInput
                                   id="quiz-partner-mega-cont"
                                   min={0}
-                                  max={Math.min(
-                                    perPersonCap,
-                                    answers.taxableContribution +
-                                      answers.partnerMegaBackdoorRothContribution,
-                                  )}
+                                  max={perPersonCap}
                                   step={500}
                                   value={
                                     answers.partnerMegaBackdoorRothContribution
                                   }
                                   onValueChange={(v) => {
-                                    const prev =
-                                      answers.partnerMegaBackdoorRothContribution;
-                                    const clampedCap = Math.min(v, perPersonCap);
-                                    const maxByBudget =
-                                      answers.taxableContribution + prev;
-                                    const next = Math.max(
-                                      Math.min(clampedCap, maxByBudget),
-                                      0,
-                                    );
-                                    const delta = next - prev;
                                     setAnswer(
                                       "partnerMegaBackdoorRothContribution",
-                                      next,
-                                    );
-                                    setAnswer(
-                                      "taxableContribution",
-                                      Math.max(
-                                        answers.taxableContribution - delta,
-                                        0,
-                                      ),
+                                      Math.min(Math.max(v, 0), perPersonCap),
                                     );
                                   }}
                                 />
@@ -792,65 +847,63 @@ export function FireTypeQuiz() {
                   step={100}
                   value={answers.hsaContribution}
                   onValueChange={(v) => {
-                    const hsa = Math.min(v, limits.hsa);
-                    const taxable = Math.max(totalSavings - answers.traditionalContribution - answers.rothContribution - hsa, 0);
-                    setAnswer("hsaContribution", hsa);
-                    setAnswer("taxableContribution", taxable);
+                    setAnswer(
+                      "hsaContribution",
+                      Math.min(Math.max(v, 0), limits.hsa),
+                    );
                   }}
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   Triple tax advantage: pre-tax in, tax-free growth, tax-free withdrawal for medical expenses.
                 </p>
               </div>
+              {/* Taxable brokerage is a READ-ONLY remainder — derived
+                  every render from totalSavings minus the allocated
+                  buckets above. This is why the inputs above don't
+                  need cross-field clamping: the remainder flexes. */}
               <div>
-                <FieldLabel htmlFor="quiz-taxable-cont" label="Taxable brokerage (remainder)" />
-                <NumberInput
-                  id="quiz-taxable-cont"
-                  min={0}
-                  max={totalSavings}
-                  step={500}
-                  value={answers.taxableContribution}
-                  onValueChange={(v) => {
-                    setAnswer("taxableContribution", Math.min(v, totalSavings));
-                  }}
+                <FieldLabel
+                  htmlFor="quiz-taxable-cont"
+                  label="Taxable brokerage (remainder)"
                 />
+                <div
+                  id="quiz-taxable-cont"
+                  aria-live="polite"
+                  className={cn(
+                    "flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 font-mono text-sm tabular-nums",
+                    isOverBudget ? "text-muted-foreground opacity-60" : "text-foreground",
+                  )}
+                >
+                  <span>{formatCompactCurrency(derivedTaxable)}/yr</span>
+                  <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                    auto
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  What&rsquo;s left after the buckets above. Adjusts
+                  automatically as you change the others.
+                </p>
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-xs">
-                <span className="text-muted-foreground">Total contributions</span>
-                <span className={cn(
-                  "font-mono font-bold tabular-nums",
-                  // Include the mega backdoor legs so the tally reflects
-                  // the same dollars the scenario will see. Mega backdoor
-                  // reshuffles from taxable rather than adding on top, so
-                  // the total still matches totalSavings.
-                  Math.abs(
-                    answers.traditionalContribution +
-                      answers.rothContribution +
-                      answers.hsaContribution +
-                      answers.taxableContribution +
-                      (answers.megaBackdoorRothAvailable
-                        ? answers.megaBackdoorRothContribution
-                        : 0) +
-                      (answers.partnerMegaBackdoorRothAvailable
-                        ? answers.partnerMegaBackdoorRothContribution
-                        : 0) -
-                      totalSavings,
-                  ) < 100
-                    ? "text-emerald-600"
-                    : "text-red-500",
-                )}>
+              <div
+                className={cn(
+                  "flex items-center justify-between rounded-lg px-3 py-2 text-xs",
+                  isOverBudget
+                    ? "bg-red-500/10 text-red-500"
+                    : "bg-muted/50 text-muted-foreground",
+                )}
+              >
+                <span>
+                  {isOverBudget
+                    ? `Over budget by ${formatCompactCurrency(overBudgetBy)} — trim a bucket above`
+                    : derivedTaxable > 0
+                      ? "Remainder going to taxable brokerage"
+                      : "Fully allocated"}
+                </span>
+                <span className="font-mono font-bold tabular-nums">
                   {formatCompactCurrency(
-                    answers.traditionalContribution +
-                      answers.rothContribution +
-                      answers.hsaContribution +
-                      answers.taxableContribution +
-                      (answers.megaBackdoorRothAvailable
-                        ? answers.megaBackdoorRothContribution
-                        : 0) +
-                      (answers.partnerMegaBackdoorRothAvailable
-                        ? answers.partnerMegaBackdoorRothContribution
-                        : 0),
-                  )}/yr
+                    isOverBudget ? preTaxableAllocated : totalAllocated,
+                  )}
+                  /yr
                 </span>
               </div>
             </div>
@@ -861,6 +914,10 @@ export function FireTypeQuiz() {
                 setAnswer("rothContribution", defaultRoth);
                 setAnswer("hsaContribution", defaultHsa);
                 setAnswer("taxableContribution", defaultTaxable);
+                setAnswer("megaBackdoorRothAvailable", false);
+                setAnswer("megaBackdoorRothContribution", 0);
+                setAnswer("partnerMegaBackdoorRothAvailable", false);
+                setAnswer("partnerMegaBackdoorRothContribution", 0);
               }}
               className="text-xs text-[var(--ember)] hover:underline"
             >
@@ -1116,6 +1173,18 @@ export function FireTypeQuiz() {
               // Native form submission would navigate, so always prevent
               // default first.
               event.preventDefault();
+              // Over-budget guard: if the user tries to advance from
+              // the contribution-split step while their buckets exceed
+              // take-home, don't block hard — surface a prompt so they
+              // can choose to trim a bucket or revisit the spending
+              // step. Hard-disabling Next felt like a dead end.
+              if (
+                currentStep.key === "contributionSplit" &&
+                computeContributionBudget(answers).isOverBudget
+              ) {
+                setShowOverBudgetPrompt(true);
+                return;
+              }
               if (isLastStep) {
                 await persistQuizToStore();
                 setQuizComplete(true);
@@ -1164,8 +1233,10 @@ export function FireTypeQuiz() {
                 Back
               </Button>
               {isLastStep ? (
-                // `type="submit"` so the form's onSubmit fires from both
-                // button click and Enter keypress — single code path.
+                // `type="submit"` so the form's onSubmit fires from
+                // both button click and Enter keypress — single code
+                // path. The form's onSubmit intercepts over-budget
+                // cases and shows a prompt instead of advancing.
                 <Button type="submit">
                   <Sparkles className="size-4" />
                   See my result
@@ -1179,6 +1250,117 @@ export function FireTypeQuiz() {
             </div>
           </form>
         )}
+
+        {/* Over-budget prompt for contributionSplit. Not a hard block —
+            we offer whichever honest path actually resolves the gap. */}
+        {showOverBudgetPrompt ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="over-budget-title"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            onClick={(e) => {
+              // Click outside card dismisses.
+              if (e.target === e.currentTarget) setShowOverBudgetPrompt(false);
+            }}
+          >
+            <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+              {(() => {
+                const budget = computeContributionBudget(answers);
+                const { overBudgetBy, totalSavings, estimatedTakeHome, preTaxableAllocated } =
+                  budget;
+                // Spending needed so takeHome − spending == preTaxableAllocated.
+                // If this is negative, contributions exceed take-home
+                // entirely — can't fix by trimming spending alone.
+                const proposedSpending = estimatedTakeHome - preTaxableAllocated;
+                const canFixBySpending = proposedSpending >= 0;
+                const spendingStepIndex = steps.findIndex(
+                  (s) => s.key === "annualSpending",
+                );
+                return (
+                  <>
+                    <h3
+                      id="over-budget-title"
+                      className="font-display text-lg tracking-[-0.02em] text-foreground"
+                    >
+                      Your contributions exceed your budget
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      The buckets above add up to{" "}
+                      <strong className="font-mono text-foreground">
+                        {formatCompactCurrency(overBudgetBy)}
+                      </strong>{" "}
+                      more than your estimated after-tax savings of{" "}
+                      <strong className="font-mono text-foreground">
+                        {formatCompactCurrency(totalSavings)}/yr
+                      </strong>
+                      .
+                      {canFixBySpending ? (
+                        <>
+                          {" "}
+                          You can either trim a contribution bucket, or
+                          lower your spending target to make room.
+                        </>
+                      ) : (
+                        <>
+                          {" "}
+                          Even with zero spending, your contributions
+                          would exceed your estimated take-home of{" "}
+                          <strong className="font-mono text-foreground">
+                            {formatCompactCurrency(estimatedTakeHome)}/yr
+                          </strong>
+                          . You&rsquo;ll need to trim a bucket, or
+                          revisit your income / spending on an earlier
+                          step.
+                        </>
+                      )}
+                    </p>
+                    <div className="mt-5 flex flex-col gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => setShowOverBudgetPrompt(false)}
+                      >
+                        Let me trim a bucket
+                      </Button>
+                      {canFixBySpending ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => {
+                            // Lower spending to exactly the amount that
+                            // makes the budget absorb all contributions,
+                            // then advance to the next step.
+                            setAnswer("annualSpending", proposedSpending);
+                            setShowOverBudgetPrompt(false);
+                            setStepIndex((v) =>
+                              Math.min(v + 1, steps.length - 1),
+                            );
+                          }}
+                        >
+                          Lower spending to {formatCompactCurrency(proposedSpending)}/yr
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => {
+                            setShowOverBudgetPrompt(false);
+                            if (spendingStepIndex >= 0) {
+                              setStepIndex(spendingStepIndex);
+                            }
+                          }}
+                        >
+                          <ArrowLeft className="size-4" />
+                          Revisit my spending step
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        ) : null}
 
         {/* Results — only show after completion */}
         {quizComplete ? (
