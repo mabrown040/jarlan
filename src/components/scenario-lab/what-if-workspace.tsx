@@ -13,6 +13,7 @@ import {
   supportedStrategyTypes,
   type SupportedStrategyType,
 } from "@/components/withdrawal/use-withdrawal-strategy-comparison";
+import { SaveAsNewPlanButton } from "@/components/plan-drawer";
 import { SpendWhatIfAdvancedDetail } from "@/components/scenario-lab/spend-what-if-advanced-detail";
 import {
   FailureRateScenarioComparisonChart,
@@ -822,6 +823,22 @@ export default function WhatIfWorkspace() {
                 Clear all
               </button>
             </div>
+
+            {/* Persist the comparison scenario as a new saved plan.
+                Clearing the selection on success makes the UI honest:
+                the decisions are now part of the active plan, not
+                still-applied overlays. */}
+            {hasComparison ? (
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <SaveAsNewPlanButton
+                  scenario={comparisonScenario}
+                  defaultName={`${activeScenario.name ?? "My plan"} + ${selectedDecisions.length} change${selectedDecisions.length === 1 ? "" : "s"}`}
+                  onSaved={() => clearAll()}
+                >
+                  Save these {selectedDecisions.length} change{selectedDecisions.length === 1 ? "" : "s"} as a new plan
+                </SaveAsNewPlanButton>
+              </div>
+            ) : null}
 
             {selectedDecisions.length > 1 ? (
               <p className="text-center text-[11px] text-muted-foreground/60">

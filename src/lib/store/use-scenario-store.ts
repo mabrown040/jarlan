@@ -110,6 +110,14 @@ interface ScenarioStore {
   refreshScenarioList: () => Promise<void>;
   /** Persist the current active scenario under a new id and switch to it. */
   duplicateActiveScenario: (name?: string) => Promise<void>;
+  /**
+   * Persist an arbitrary scenario as a new saved plan and switch the
+   * active draft to it. Used by the what-if workspaces ("Save this
+   * variant as a new plan") where the scenario being saved isn't the
+   * current `activeScenario` but a derived/modified one. The provided
+   * scenario gets a fresh id, name, and timestamps before persisting.
+   */
+  saveAsNewScenario: (scenario: Scenario, name: string) => Promise<void>;
   /** Start a fresh blank scenario (demo defaults) under a new id. */
   createBlankScenario: (name?: string) => Promise<void>;
   /** Switch the active draft to a different saved scenario. */
@@ -820,6 +828,29 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
       await upsertScenarioRecord(copy);
       await setActiveDraftId(copy.id);
       set({ activeScenario: copy, saveStatus: "saved" });
+      await get().refreshScenarioList();
+    } catch {
+      set({ saveStatus: "error" });
+    }
+  },
+  saveAsNewScenario: async (scenario, name) => {
+    // Same persistence shape as duplicateActiveScenario, but takes the
+    // scenario as input rather than reading from state. Used when the
+    // what-if workspace wants to commit a derived scenario (current
+    // plan + selected decisions applied) without first replacing the
+    // active scenario — that would race with auto-save and overwrite
+    // the original.
+    const next = cloneScenario(scenario);
+    next.id = crypto.randomUUID();
+    next.name = name;
+    const now = new Date().toISOString();
+    next.createdAt = now;
+    next.updatedAt = now;
+    next.isPersonalized = true;
+    try {
+      await upsertScenarioRecord(next);
+      await setActiveDraftId(next.id);
+      set({ activeScenario: next, saveStatus: "saved" });
       await get().refreshScenarioList();
     } catch {
       set({ saveStatus: "error" });

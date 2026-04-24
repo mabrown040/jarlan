@@ -10,6 +10,7 @@ import {
   ChartLegend,
   type MilestoneMarker,
 } from "@/components/landing/projection-chart";
+import { SaveAsNewPlanButton } from "@/components/plan-drawer";
 import { deriveDisplayYearsToFi } from "@/components/landing/fire-display";
 import { computeProjectionMilestones } from "@/lib/calc/milestones";
 import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
@@ -168,14 +169,22 @@ export default function SaveWhatIfWorkspace() {
     [resolvedDecisions, selectedIds],
   );
 
-  const combinedSummary = useMemo(() => {
+  // Lifted out of the summary/display memos so the same combined
+  // Scenario object can be passed to the "Save as new plan" button
+  // without re-computing apply() three times.
+  const combinedScenario = useMemo(() => {
     if (selectedIds.size === 0) return null;
     let combined = activeScenario;
     for (const d of selectedDecisions) {
       combined = d.apply(combined);
     }
-    return calculateQuickFireSummary(combined);
+    return combined;
   }, [selectedDecisions, selectedIds, activeScenario]);
+
+  const combinedSummary = useMemo(
+    () => (combinedScenario ? calculateQuickFireSummary(combinedScenario) : null),
+    [combinedScenario],
+  );
 
   // Round 4 finding R4-2: the "Your plan" / "With N changes" stat cards
   // in the impact summary were rendering fractional years (e.g. "8.1 yrs")
@@ -183,21 +192,17 @@ export default function SaveWhatIfWorkspace() {
   // `deriveDisplayYearsToFi`. Compute the integer-years projection for
   // the combined scenario too so the cards agree with the header.
   const combinedDisplay = useMemo(() => {
-    if (selectedIds.size === 0 || !combinedSummary) return null;
-    let combined = activeScenario;
-    for (const d of selectedDecisions) {
-      combined = d.apply(combined);
-    }
-    const fireTypes = calculateFireTypeSummaries(combined);
+    if (!combinedScenario || !combinedSummary) return null;
+    const fireTypes = calculateFireTypeSummaries(combinedScenario);
     const traditionalTarget =
       fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
     return deriveDisplayYearsToFi({
-      scenario: combined,
+      scenario: combinedScenario,
       traditionalTarget,
       projection: combinedSummary.projection,
       analyticalYearsToFi: combinedSummary.yearsToFi,
     });
-  }, [selectedDecisions, selectedIds, activeScenario, combinedSummary]);
+  }, [combinedScenario, combinedSummary]);
 
   const combinedDelta = useMemo(() => {
     if (!combinedSummary) return null;
@@ -780,6 +785,22 @@ export default function SaveWhatIfWorkspace() {
                 Clear all
               </button>
             </div>
+
+            {/* Save the combined scenario as a new named plan. Clears
+                the selection on success — the decisions are now baked
+                into the active plan, so showing them as still-applied
+                overlays would be a lie. */}
+            {combinedScenario ? (
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <SaveAsNewPlanButton
+                  scenario={combinedScenario}
+                  defaultName={`${activeScenario.name ?? "My plan"} + ${selectedIds.size} change${selectedIds.size === 1 ? "" : "s"}`}
+                  onSaved={() => clearAll()}
+                >
+                  Save these {selectedIds.size} change{selectedIds.size === 1 ? "" : "s"} as a new plan
+                </SaveAsNewPlanButton>
+              </div>
+            ) : null}
 
             {/* Note about interaction effects */}
             {selectedIds.size > 1 ? (
