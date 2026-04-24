@@ -87,13 +87,12 @@ Copy `.env.example` to `.env.local` and fill in whichever providers you use. All
 3. For resolved stack traces, also set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`. Without the auth token, the build skips source-map upload (dryRun) so local builds don't fail.
 4. Configs live in `sentry.{client,server,edge}.config.ts`. They no-op when the DSN is unset.
 
-### Analytics (Plausible)
+### Analytics (Vercel Web Analytics + Speed Insights)
 
-1. Create a site at [plausible.io](https://plausible.io) (or self-host).
-2. Set `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` to the domain you registered.
-3. The script is injected from `src/components/layout/analytics.tsx`. No cookies, no GDPR banner required.
-
-Custom events can be fired later via `window.plausible?.('EventName', { props: {...} })` — no events currently tracked.
+Automatic on Vercel deployments — no env vars, no setup. Page views and
+Core Web Vitals start flowing to the Vercel dashboard as soon as the
+site receives traffic. Cookieless. Scenario data never leaves the
+browser; only anonymized page-view beacons go to Vercel.
 
 ### SEO
 

@@ -46,8 +46,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <AppProviders>
           <SiteShell>{children}</SiteShell>
         </AppProviders>
-        {/* Env-gated on NEXT_PUBLIC_PLAUSIBLE_DOMAIN — does nothing if
-            the env var isn't set (local dev, pre-deploy). */}
+        {/* Vercel Web Analytics (page views) + Speed Insights (Core
+            Web Vitals RUM). Both are no-ops outside Vercel deployments. */}
         <AnalyticsScripts />
         <SpeedInsights />
       </body>
