@@ -13,6 +13,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import {
+  clientIpFromHeaders,
+  rateLimit,
+  rateLimitResponseHeaders,
+} from "@/lib/rate-limit";
 import { getStripeServer, isStripeConfigured } from "@/lib/stripe/server";
 import {
   getSupabaseServerClient,
@@ -25,7 +30,28 @@ const BodySchema = z.object({
   cycle: z.enum(["monthly", "yearly"]),
 });
 
+// 10 checkout sessions per IP per minute. A legitimate user won't need
+// more than one or two in a sitting; anything higher is probe traffic.
+const CHECKOUT_RATE_LIMIT = 10;
+const CHECKOUT_RATE_WINDOW_MS = 60_000;
+
 export async function POST(request: Request) {
+  const ip = clientIpFromHeaders(request.headers);
+  const limitResult = rateLimit(
+    `stripe:checkout:${ip}`,
+    CHECKOUT_RATE_LIMIT,
+    CHECKOUT_RATE_WINDOW_MS,
+  );
+  if (!limitResult.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: rateLimitResponseHeaders(limitResult, CHECKOUT_RATE_LIMIT),
+      },
+    );
+  }
+
   if (!isStripeConfigured()) {
     return NextResponse.json(
       { error: "Billing not configured" },

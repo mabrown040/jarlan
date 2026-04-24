@@ -61,6 +61,31 @@ export async function POST(request: Request) {
     );
   }
 
+  // Idempotency: record the event id before doing work. If the insert
+  // conflicts, this event has already been processed — ack and exit so
+  // Stripe retries don't reapply side effects.
+  const { error: insertError, count } = await serviceClient
+    .from("stripe_webhook_events")
+    .insert(
+      { event_id: event.id, event_type: event.type },
+      { count: "exact" },
+    );
+
+  if (insertError) {
+    // Unique-violation (23505) means we've seen this event — ack.
+    if (insertError.code === "23505") {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    return NextResponse.json(
+      { error: `Idempotency insert failed: ${insertError.message}` },
+      { status: 500 },
+    );
+  }
+
+  if (count === 0) {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+
   try {
     switch (event.type) {
       case "checkout.session.completed": {

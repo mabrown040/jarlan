@@ -14,12 +14,36 @@
  */
 import { NextResponse } from "next/server";
 
+import {
+  clientIpFromHeaders,
+  rateLimit,
+  rateLimitResponseHeaders,
+} from "@/lib/rate-limit";
 import { getStripeServer } from "@/lib/stripe/server";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+const PORTAL_RATE_LIMIT = 10;
+const PORTAL_RATE_WINDOW_MS = 60_000;
+
+export async function POST(request: Request) {
+  const ip = clientIpFromHeaders(request.headers);
+  const limitResult = rateLimit(
+    `stripe:portal:${ip}`,
+    PORTAL_RATE_LIMIT,
+    PORTAL_RATE_WINDOW_MS,
+  );
+  if (!limitResult.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: rateLimitResponseHeaders(limitResult, PORTAL_RATE_LIMIT),
+      },
+    );
+  }
+
   const stripe = getStripeServer();
   if (!stripe) {
     return NextResponse.json({ error: "Billing not configured" }, { status: 503 });

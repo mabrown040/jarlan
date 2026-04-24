@@ -81,6 +81,24 @@ export interface Database {
         };
         Relationships: [];
       };
+      stripe_webhook_events: {
+        Row: {
+          event_id: string;
+          event_type: string;
+          received_at: string;
+        };
+        Insert: {
+          event_id: string;
+          event_type: string;
+          received_at?: string;
+        };
+        Update: {
+          event_id?: string;
+          event_type?: string;
+          received_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
