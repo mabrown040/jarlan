@@ -8,7 +8,11 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { UserMenu } from "@/components/auth/user-menu";
 import { useSupabaseSyncBootstrap } from "@/hooks/use-supabase-sync-bootstrap";
-import { PlanDrawer, PlanDrawerTrigger } from "@/components/plan-drawer";
+import {
+  PlanDrawer,
+  PlanDrawerTrigger,
+  PlanNameTrigger,
+} from "@/components/plan-drawer";
 import { QADevModal } from "@/components/dev/qa-personas";
 import { HydrationWarningBanner } from "@/components/layout/hydration-warning-banner";
 
@@ -255,12 +259,16 @@ export function SiteShell({ children }: { children: ReactNode }) {
                   ),
                 )}
               </nav>
+              <PlanNameTrigger />
               <PlanDrawerTrigger />
               <UserMenu />
               <ThemeToggle />
             </div>
 
-            {/* Mobile right: drawer pill + hamburger */}
+            {/* Mobile right: drawer pill + hamburger.
+                PlanNameTrigger is desktop-only on purpose — phones
+                are already crowded; users still get the full switcher
+                inside the drawer. */}
             <div className="flex items-center gap-2 sm:hidden">
               <PlanDrawerTrigger />
               <button

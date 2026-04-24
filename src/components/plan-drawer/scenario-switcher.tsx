@@ -32,7 +32,16 @@ export function ScenarioSwitcher() {
   const exportScenarios = useScenarioStore((s) => s.exportScenarios);
   const importScenarios = useScenarioStore((s) => s.importScenarios);
 
-  const [expanded, setExpanded] = useState(false);
+  // Default-expanded once the user actually has multiple plans —
+  // there's something to do with the list. Stays collapsed for
+  // single-plan users so the drawer chrome doesn't feel busy.
+  const scenarioCount = scenarioList.length;
+  const [expanded, setExpanded] = useState(scenarioCount > 1);
+  // Auto-expand if a second plan appears while the drawer is open.
+  // Avoids the "I duplicated my plan but the list didn't open" gotcha.
+  useEffect(() => {
+    if (scenarioCount > 1) setExpanded(true);
+  }, [scenarioCount]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
