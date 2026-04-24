@@ -192,6 +192,45 @@ describe("Accumulation Engine — Golden Tests", () => {
   });
 
   /**
+   * @golden Coast formula invariance across calc modules
+   * @methodology The Coast "need today" number is produced in two places:
+   *   calculateQuickFireSummary (via coastAge / coastGap display) and
+   *   calculateFireTypeSummaries (via the Coast card's .target). Both MUST
+   *   call through calculateCoastTarget so they agree exactly — this test
+   *   locks that contract. If the assertion fails, one module drifted and
+   *   the Home page's Coast card will disagree with the What-if screen.
+   */
+  it("coast target from quick-fire summary matches coast target from fire types", () => {
+    const scenario = createCoastAccumulatorScenario();
+    const summary = calculateQuickFireSummary(scenario);
+    const summaries = calculateFireTypeSummaries(scenario);
+    const coastCard = summaries.find((s) => s.id === "coast");
+
+    expect(coastCard).toBeDefined();
+    if (!coastCard) return;
+
+    // coastGap = coastFiTarget - currentPortfolio. Solve back for the
+    // coastFiTarget the summary used.
+    const currentPortfolio = scenario.accounts.reduce(
+      (sum, a) => sum + a.currentBalance,
+      0,
+    );
+    const summaryCoastTarget = summary.coastGap + currentPortfolio;
+
+    golden("accumulation.coast-formula-dedup", {
+      input: {
+        fromSummary: summaryCoastTarget,
+        fromFireTypes: coastCard.target,
+      },
+      expected: coastCard.target,
+      actual: summaryCoastTarget,
+      tolerance: 0,
+      methodology:
+        "Both call sites route through calculateCoastTarget; values must be identical.",
+    });
+  });
+
+  /**
    * @golden FIRE type: Barista = (expenses - postFireIncome) / WR
    * @methodology Portfolio only needs to cover the gap after part-time income
    */

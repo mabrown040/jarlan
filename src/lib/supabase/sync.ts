@@ -10,6 +10,7 @@
  * - Last-write-wins by updatedAt. No CRDT, no three-way merge.
  */
 
+import { parseScenario } from "@/lib/domain/schema";
 import type { Scenario } from "@/lib/domain/types";
 
 import { getSupabaseBrowserClient } from "./client";
@@ -116,9 +117,24 @@ export async function pullScenariosFromCloud(): Promise<Scenario[]> {
       return [];
     }
 
-    return (data ?? []).map(
-      (row) => row.data as unknown as Scenario,
-    );
+    // Re-validate cloud rows through parseScenario before they hit local
+    // state. A corrupt or stale schema row would otherwise silently
+    // poison the client and produce wrong numbers in the UI. Rows that
+    // fail validation are dropped with a warning — better to lose a
+    // scenario than to display incorrect math.
+    const scenarios: Scenario[] = [];
+    for (const row of data ?? []) {
+      const parsed = parseScenario(row.data);
+      if (parsed) {
+        scenarios.push(parsed);
+      } else {
+        console.warn(
+          "[cloud-sync] dropping unparseable scenario row:",
+          row.id,
+        );
+      }
+    }
+    return scenarios;
   } catch (error) {
     console.warn("[cloud-sync] pull threw:", error);
     return [];

@@ -26,6 +26,44 @@ export function calculateFireNumber(
   return annualExpenses / withdrawalRate;
 }
 
+/**
+ * The "effective" real return used for Coast FIRE math and the
+ * accumulation projection's compounding rate. It's the scenario's
+ * expected real return minus the fee drag (so a 5% real return with
+ * 0.1% fees effectively compounds at 4.9%).
+ *
+ * Co-located here because Coast FIRE and the accumulation projection
+ * both rely on the same effective rate — keeping them in one place
+ * prevents silent drift if the fee-drag accounting ever changes.
+ */
+export function getEffectiveRealReturn(scenario: Scenario): number {
+  return (
+    scenario.assumptions.expectedRealReturn -
+    (scenario.simulationSettings?.feeDrag ?? 0)
+  );
+}
+
+/**
+ * Coast FIRE "need today" amount: the present value of the FIRE number,
+ * discounted back to today at the effective real return. If the user
+ * already has this much, they can stop contributing — compounding alone
+ * carries them to the FIRE number by retirement.
+ *
+ * Returns `fireNumber` as a safe fallback when there's no time to
+ * compound (already at/past retirement age) or when the effective
+ * return is non-positive.
+ */
+export function calculateCoastTarget(
+  fireNumber: number,
+  yearsUntilRetirement: number,
+  effectiveRealReturn: number,
+): number {
+  if (yearsUntilRetirement <= 0 || effectiveRealReturn <= 0) {
+    return fireNumber;
+  }
+  return fireNumber / (1 + effectiveRealReturn) ** yearsUntilRetirement;
+}
+
 export function calculateYearsToTarget({
   currentBalance,
   annualContribution,
@@ -315,13 +353,13 @@ export function calculateQuickFireSummary(scenario: Scenario): QuickFireSummary 
   );
 
   // Coast FIRE target: the amount you need TODAY so that compounding alone
-  // reaches the FIRE number by your target retirement age.
-  const effectiveReturn =
-    scenario.assumptions.expectedRealReturn - scenario.simulationSettings.feeDrag;
-  const coastFiTarget =
-    yearsToRetirement > 0 && effectiveReturn > 0
-      ? fireNumber / (1 + effectiveReturn) ** yearsToRetirement
-      : fireNumber;
+  // reaches the FIRE number by your target retirement age. Formula lives
+  // in calculateCoastTarget so fire-types.ts and this module can't drift.
+  const coastFiTarget = calculateCoastTarget(
+    fireNumber,
+    yearsToRetirement,
+    getEffectiveRealReturn(scenario),
+  );
 
   // Coast age: when does your accumulating portfolio reach the coastFiTarget?
   // Once it does, you can stop saving — compounding alone finishes the job by retirement.

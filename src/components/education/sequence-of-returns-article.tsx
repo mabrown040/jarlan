@@ -17,7 +17,7 @@ import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
 import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
 import { calculateQuickFireSummary, getCurrentPortfolioBalance } from "@/lib/calc";
-import { formatCompactCurrency, formatPercent } from "@/lib/calc/format";
+import { formatCompactCurrency, formatPercent, formatYearsToFi } from "@/lib/calc/format";
 
 const BAD_FIRST_RETURNS = [
   -0.15, -0.10, -0.20, -0.05, 0.05,
@@ -271,7 +271,7 @@ export function SequenceOfReturnsArticle() {
                 <>
                   {" "}
                   You have approximately{" "}
-                  <strong>{Math.round(summary.yearsToFi)} years</strong> until your target
+                  <strong>{formatYearsToFi(summary.yearsToFi)}</strong> until your target
                   retirement age.
                 </>
               )}

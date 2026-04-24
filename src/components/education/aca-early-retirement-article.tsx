@@ -19,7 +19,7 @@ import { useAutoSaveScenario } from "@/lib/hooks/use-auto-save-scenario";
 import { useInitializeStore } from "@/lib/hooks/use-initialize-store";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
 import { calculateQuickFireSummary } from "@/lib/calc";
-import { formatCompactCurrency } from "@/lib/calc/format";
+import { formatCompactCurrency, formatYearsToFi } from "@/lib/calc/format";
 
 const subsidyData = [
   { magi: "~$23K (150%)", subsidy: 7800 },
@@ -113,7 +113,7 @@ export function AcaEarlyRetirementArticle() {
               <p className="text-muted-foreground">
                 Calcifer projects you&apos;re{" "}
                 <strong className="text-foreground">
-                  {summary.yearsToFi.toFixed(1)} years
+                  {formatYearsToFi(summary.yearsToFi)}
                 </strong>{" "}
                 from FI. Start modeling your ACA strategy now so the income sequencing is already
                 figured out by the time you retire.

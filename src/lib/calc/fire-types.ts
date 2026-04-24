@@ -1,5 +1,9 @@
 import { formatCompactCurrency, formatCurrency } from "@/lib/calc/format";
-import { calculateFireNumber } from "@/lib/calc/quick-fire";
+import {
+  calculateCoastTarget,
+  calculateFireNumber,
+  getEffectiveRealReturn,
+} from "@/lib/calc/quick-fire";
 import { getCurrentPortfolioBalance, getYearsUntilRetirement } from "@/lib/calc/scenario";
 import type { FireTypeSummary, Scenario } from "@/lib/domain/types";
 import { clamp } from "@/lib/utils";
@@ -51,16 +55,14 @@ export function calculateFireTypeSummaries(scenario: Scenario): FireTypeSummary[
   //   - coastBalance: what the user's CURRENT portfolio would grow to by
   //     retirement if they stopped contributing now. Used for the status
   //     message ("compounding alone reaches $Y by retirement").
-  // Matches the effectiveReturn convention in quick-fire.ts's coastFiTarget
-  // (real return minus fee drag) so the two coast calculations agree.
+  // Shared formula lives in quick-fire.ts so this module and
+  // calculateQuickFireSummary can't drift.
   const yearsUntilRetirement = getYearsUntilRetirement(scenario) ?? 0;
-  const effectiveReturn =
-    scenario.assumptions.expectedRealReturn -
-    (scenario.simulationSettings?.feeDrag ?? 0);
-  const coastTarget =
-    yearsUntilRetirement > 0 && effectiveReturn > 0
-      ? traditionalTarget / (1 + effectiveReturn) ** yearsUntilRetirement
-      : traditionalTarget;
+  const coastTarget = calculateCoastTarget(
+    traditionalTarget,
+    yearsUntilRetirement,
+    getEffectiveRealReturn(scenario),
+  );
   const coastBalance =
     currentPortfolio *
     (1 + scenario.assumptions.expectedRealReturn) ** yearsUntilRetirement;
