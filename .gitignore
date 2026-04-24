@@ -17,3 +17,7 @@ coverage
 .sentryclirc
 .sentry-build-plugin
 .cursor
+
+# Incremental compile cache — regenerated on every `tsc` run. Not
+# meaningful history and it keeps dirtying unrelated PRs.
+tsconfig.tsbuildinfo
