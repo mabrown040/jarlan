@@ -19,6 +19,18 @@ import { useAuth } from "@/hooks/use-auth";
 import { useProPlan } from "@/hooks/use-pro-plan";
 import { useScenarioStore } from "@/lib/store";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
+
+const PRO_FEATURES = [
+  "Tax strategy workspace (Roth ladder, ACA, drawdown sequencing)",
+  "Scenario Lab (multi-scenario what-if, sensitivity analysis)",
+  "Compare mode (side-by-side plan comparison)",
+  "Printable decision reports",
+  "Priority email support",
+];
+
+const UPGRADE_GRADIENT_CLASSES =
+  "bg-gradient-to-r from-[var(--ember)] to-[var(--flame)] text-white shadow-[0_2px_12px_rgba(255,107,53,0.35)] hover:shadow-[0_4px_18px_rgba(255,107,53,0.5)]";
 
 function relativeTime(isoDate: string) {
   const diff = Date.now() - new Date(isoDate).getTime();
@@ -48,6 +60,7 @@ export function AccountWorkspace() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
+  const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly");
 
   const checkoutFlag = searchParams.get("checkout");
 
@@ -241,15 +254,14 @@ export function AccountWorkspace() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* ── Plan card ─────────────────────────────────────────── */}
         <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            Plan
-          </p>
-          <h2 className="mt-2 font-display text-2xl tracking-[-0.02em] text-foreground">
-            {isPro ? "Pro" : "Free"}
-          </h2>
-
           {isPro ? (
             <>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Plan
+              </p>
+              <h2 className="mt-2 font-display text-2xl tracking-[-0.02em] text-foreground">
+                Pro
+              </h2>
               <p className="mt-4 text-sm text-muted-foreground">
                 You&apos;re on Pro. Thanks for supporting Calcifer.
               </p>
@@ -282,16 +294,100 @@ export function AccountWorkspace() {
             </>
           ) : (
             <>
-              <p className="mt-4 text-sm text-muted-foreground">
-                Use the full calculator forever, for free.
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
+                Plan
               </p>
-              <UpgradeButton cycle="monthly" className="mt-4 w-full">
+              <h2 className="mt-2 font-display text-2xl tracking-[-0.02em] text-foreground">
+                Upgrade to Pro
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Advanced decision tools for when you&apos;re actively planning.
+              </p>
+
+              <div className="mt-5">
+                <div
+                  role="tablist"
+                  aria-label="Billing cycle"
+                  className="inline-flex items-center gap-1 rounded-full bg-muted p-1"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={cycle === "monthly"}
+                    onClick={() => setCycle("monthly")}
+                    className={cn(
+                      "rounded-full px-4 py-1.5 text-xs font-medium transition-all",
+                      cycle === "monthly"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={cycle === "yearly"}
+                    onClick={() => setCycle("yearly")}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium transition-all",
+                      cycle === "yearly"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Yearly
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]",
+                        cycle === "yearly"
+                          ? "bg-[rgba(255,107,53,0.12)] text-[var(--ember)]"
+                          : "bg-background/60 text-muted-foreground",
+                      )}
+                    >
+                      Save $48
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-baseline gap-1">
+                <span className="font-display text-4xl tracking-[-0.03em] text-foreground">
+                  ${cycle === "yearly" ? "8" : "12"}
+                </span>
+                <span className="text-sm text-muted-foreground">/mo</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {cycle === "yearly"
+                  ? "$96 billed annually"
+                  : "Billed monthly"}
+              </p>
+
+              <ul className="mt-5 space-y-2.5">
+                {PRO_FEATURES.map((feature) => (
+                  <li
+                    key={feature}
+                    className="flex items-start gap-2 text-xs text-muted-foreground"
+                  >
+                    <Check
+                      className="mt-0.5 size-3.5 shrink-0 text-[var(--ember)]"
+                      aria-hidden="true"
+                    />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <UpgradeButton
+                cycle={cycle}
+                className={cn("mt-5 w-full", UPGRADE_GRADIENT_CLASSES)}
+              >
                 <Sparkles className="size-4" />
                 Upgrade to Pro
               </UpgradeButton>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Cloud sync across devices, priority support, future Pro
-                features.
+
+              <p className="mt-3 text-center text-[11px] text-muted-foreground">
+                Cancel anytime &middot; Secure payment via Stripe
               </p>
             </>
           )}

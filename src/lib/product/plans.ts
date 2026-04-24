@@ -46,10 +46,10 @@ export const productFeatures: ProductFeature[] = [
   },
   {
     id: "cloud_sync",
-    label: "Account-backed cloud sync",
+    label: "Cloud sync across devices",
     description:
-      "Signed-in Pro accounts can queue scenarios for remote sync while the local-first browser draft continues to work offline.",
-    tier: "pro",
+      "Sign in once — scenarios auto-sync to your account so a plan started on your laptop is ready on your phone. Included in the free tier.",
+    tier: "free",
   },
   {
     id: "print_reports",
@@ -75,7 +75,7 @@ export const planSummaries = {
     priceMonthly: 12,
     priceYearly: 96,
     description:
-      "Advanced decision support, scenario comparisons, and cloud-backed scenario continuity for people actively making retirement calls.",
+      "Advanced decision support and scenario comparisons for people actively making retirement calls.",
   },
 } as const;
 
@@ -89,6 +89,7 @@ export const routePlanBoundaries: Record<string, SubscriptionPlan> = {
   "/account": "free",
   "/tax-strategy": "pro",
   "/scenario-lab": "pro",
+  "/compare": "pro",
 };
 
 export function getRoutePlanBoundary(route: string) {

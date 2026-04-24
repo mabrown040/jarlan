@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+import { ProGate } from "@/components/billing/pro-gate";
 import IncomePlanWorkspace from "@/components/tax/income-plan-workspace";
 import { buildMetadata } from "@/lib/seo/metadata";
 
@@ -12,8 +13,13 @@ export const metadata = buildMetadata({
 
 export default function TaxStrategyPage() {
   return (
-    <Suspense fallback={<div className="mx-auto max-w-7xl px-6 py-12">Loading income plan...</div>}>
-      <IncomePlanWorkspace />
-    </Suspense>
+    <ProGate
+      featureName="Tax Strategy Workspace"
+      pitch="Roth conversion ladders, Social Security claiming, drawdown sequencing, and ACA subsidy coordination — the tools that turn a good plan into a tax-efficient one."
+    >
+      <Suspense fallback={<div className="mx-auto max-w-7xl px-6 py-12">Loading income plan...</div>}>
+        <IncomePlanWorkspace />
+      </Suspense>
+    </ProGate>
   );
 }

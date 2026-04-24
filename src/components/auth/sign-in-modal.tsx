@@ -106,6 +106,7 @@ export function SignInModal() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   // Reset form when the modal opens — users don't expect yesterday's
   // typo to still be in the field a week later.
@@ -114,6 +115,7 @@ export function SignInModal() {
       setEmail("");
       setStatus({ kind: "idle" });
       setGoogleLoading(false);
+      setEmailOpen(false);
     }
   }, [open]);
 
@@ -209,7 +211,7 @@ export function SignInModal() {
                 Save your plan
               </Drawer.Title>
               <Drawer.Description className="mt-1 text-sm text-muted-foreground">
-                Free to sign up. Sync your scenarios across devices &mdash; no password to remember.
+                Sign in or create an account &mdash; free, takes 10 seconds.
               </Drawer.Description>
             </div>
             <button
@@ -280,54 +282,82 @@ export function SignInModal() {
               </div>
             ) : (
               <>
-                <form
-                  onSubmit={onSubmitMagicLink}
-                  className="flex flex-col gap-3"
+                <Button
+                  type="button"
+                  onClick={onGoogle}
+                  disabled={googleLoading}
+                  className="h-auto w-full gap-2.5 bg-gradient-to-b from-[var(--ember)] to-[#e85d2a] py-3 text-base font-semibold text-white shadow-[0_2px_12px_rgba(255,107,53,0.25)] transition-all hover:brightness-110 hover:shadow-[0_2px_16px_rgba(255,107,53,0.35)]"
                 >
-                  <label
-                    htmlFor="auth-email"
-                    className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground"
-                  >
-                    Email
-                  </label>
-                  <Input
-                    id="auth-email"
-                    type="email"
-                    autoComplete="email"
-                    inputMode="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    disabled={sending}
-                    required
-                  />
-                  <Button
-                    type="submit"
-                    disabled={sending}
-                    className="w-full"
-                  >
-                    {sending ? "Sending link…" : "Send magic link"}
-                  </Button>
-                </form>
+                  <GoogleIcon />
+                  {googleLoading ? "Redirecting…" : "Continue with Google"}
+                </Button>
 
-                <div className="relative my-6 flex items-center">
+                <div className="relative my-5 flex items-center" aria-hidden="true">
                   <div className="flex-1 border-t border-border/60" />
-                  <span className="px-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  <span className="px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
                     or
                   </span>
                   <div className="flex-1 border-t border-border/60" />
                 </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onGoogle}
-                  disabled={googleLoading}
-                  className="w-full"
-                >
-                  <GoogleIcon />
-                  {googleLoading ? "Redirecting…" : "Continue with Google"}
-                </Button>
+                {emailOpen ? (
+                  <form
+                    id="auth-email-section"
+                    onSubmit={onSubmitMagicLink}
+                    className="flex flex-col gap-3"
+                  >
+                    <label
+                      htmlFor="auth-email"
+                      className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground"
+                    >
+                      Email
+                    </label>
+                    <Input
+                      id="auth-email"
+                      type="email"
+                      autoComplete="email"
+                      inputMode="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      disabled={sending}
+                      required
+                      autoFocus
+                    />
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      disabled={sending}
+                      className="w-full"
+                    >
+                      {sending ? "Sending link…" : "Send sign-in link"}
+                    </Button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEmailOpen(true)}
+                    aria-expanded={false}
+                    aria-controls="auth-email-section"
+                    className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-border/70 bg-card/50 px-5 py-3 text-sm font-medium text-foreground transition-all hover:border-border hover:bg-card/90 hover:shadow-sm"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="size-4 text-muted-foreground transition-colors group-hover:text-foreground"
+                      aria-hidden="true"
+                    >
+                      <rect x="3" y="5" width="18" height="14" rx="2" />
+                      <path d="m3 7 9 6 9-6" />
+                    </svg>
+                    Continue with email
+                  </button>
+                )}
 
                 {errorMessage ? (
                   <p
@@ -338,9 +368,14 @@ export function SignInModal() {
                   </p>
                 ) : null}
 
-                <p className="mt-6 text-center text-[11px] text-muted-foreground/80">
-                  No password. We&apos;ll email you a one-time sign-in link.
-                </p>
+                <div className="mt-6 rounded-lg border border-border/60 bg-muted/30 p-3">
+                  <p className="text-xs font-semibold text-foreground">
+                    Why no password?
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Passwords get stolen and forgotten. We use one-time sign-in links instead &mdash; they expire in 15 minutes and can only be used once.
+                  </p>
+                </div>
               </>
             )}
           </div>

@@ -42,9 +42,9 @@ export function PricingWorkspace() {
           Free forever. Pro when you&apos;re ready.
         </h1>
         <p className="mx-auto max-w-xl text-base text-muted-foreground">
-          The full calculator is free &mdash; run scenarios, compare strategies,
-          read the research. Pro adds cloud sync across devices and advanced
-          decision tools when you&apos;re making a real retirement call.
+          The full calculator is free &mdash; including cloud sync across
+          devices the moment you sign in. Pro adds advanced decision tools
+          for when you&apos;re actively making a retirement call.
         </p>
       </section>
 
