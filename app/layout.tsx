@@ -4,6 +4,7 @@ import {
   Plus_Jakarta_Sans,
 } from "next/font/google";
 import type { ReactNode } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { AnalyticsScripts } from "@/components/layout/analytics";
 import { SiteShell } from "@/components/layout/site-shell";
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* Env-gated on NEXT_PUBLIC_PLAUSIBLE_DOMAIN — does nothing if
             the env var isn't set (local dev, pre-deploy). */}
         <AnalyticsScripts />
+        <SpeedInsights />
       </body>
     </html>
   );
