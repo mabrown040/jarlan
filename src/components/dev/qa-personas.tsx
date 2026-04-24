@@ -4,6 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { cloneScenario, createDefaultScenario } from "@/lib/domain";
 import { capRetirementDurationToAge100 } from "@/lib/calc/scenario";
 import { clearScenarioDraft, saveScenarioDraft } from "@/lib/db/database";
+import {
+  getDevProOverride,
+  setDevProOverride,
+  DEV_PRO_OVERRIDE_EVENT,
+} from "@/lib/dev/dev-pro-override";
 import type { Scenario } from "@/lib/domain/types";
 
 /* ── Persona Definitions ─────────────────────────────────── */
@@ -448,6 +453,22 @@ const PERSONAS = [
 export function QADevModal() {
   const [open, setOpen] = useState(false);
   const [lastLoaded, setLastLoaded] = useState<string | null>(null);
+  // Pro-override is dev-only state mirrored from localStorage. We
+  // keep a React copy so toggling re-renders the checkbox, and we
+  // listen to the same change event `useProPlan` listens to so
+  // manual localStorage edits stay in sync.
+  const [proOverride, setProOverrideState] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setProOverrideState(getDevProOverride());
+    sync();
+    window.addEventListener(DEV_PRO_OVERRIDE_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(DEV_PRO_OVERRIDE_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Ctrl+Shift+Q (or Cmd+Shift+Q on Mac)
@@ -538,13 +559,29 @@ export function QADevModal() {
       </div>
 
       <div className="mt-3 border-t border-border/40 pt-2">
+        {/* Dev-only Pro override. No-op in production — the override
+            getter short-circuits when NODE_ENV === "production", so
+            shipping the QA panel behind a dev guard AND the override
+            behind one is belt-and-suspenders. */}
+        <label className="flex cursor-pointer items-center gap-2 py-1 text-xs text-foreground">
+          <input
+            type="checkbox"
+            checked={proOverride}
+            onChange={(e) => setDevProOverride(e.target.checked)}
+            className="size-3.5 rounded border-border/60 text-violet-600 focus:ring-1 focus:ring-violet-500"
+          />
+          <span className="font-medium">Pro mode (dev)</span>
+          <span className="text-muted-foreground">
+            — unlocks Compare, Scenario Lab
+          </span>
+        </label>
         <button
           onClick={async () => {
             // Full "new user" reset: clear persisted draft then hard navigate
             await clearScenarioDraft();
             window.location.href = "/";
           }}
-          className="text-xs text-muted-foreground hover:text-red-500"
+          className="mt-2 block text-xs text-muted-foreground hover:text-red-500"
         >
           ↺ Reset to new user
           {lastLoaded === "reset" && <span className="ml-1 text-emerald-600">✓</span>}

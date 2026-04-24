@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  DEV_PRO_OVERRIDE_EVENT,
+  getDevProOverride,
+} from "@/lib/dev/dev-pro-override";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isStripeConfiguredClient } from "@/lib/stripe/client";
 import { fetchPlanFromBrowser, type Plan } from "@/lib/supabase/pro-plan";
@@ -12,6 +16,9 @@ import { fetchPlanFromBrowser, type Plan } from "@/lib/supabase/pro-plan";
  * Returns { plan, isPro, isLoading }.
  *
  * Behavior matrix:
+ * - Dev-only Pro override set (via QA panel)     → { plan: "pro",  isPro: true  }
+ *     ↑ Noop in production builds — the override getter returns false
+ *       when `NODE_ENV === "production"`.
  * - Supabase not configured (no auth at all)     → { plan: "free", isPro: false }
  * - Supabase configured, not signed in           → { plan: "free", isPro: false }
  * - Signed in, Stripe NOT configured             → { plan: "pro",  isPro: true  }
@@ -22,23 +29,27 @@ import { fetchPlanFromBrowser, type Plan } from "@/lib/supabase/pro-plan";
  * - Signed in, Stripe configured, profile="pro"  → { plan: "pro",  isPro: true  }
  *
  * Re-fetches when the auth state changes (sign-in / sign-out / token
- * refresh), so upgrades that happen after sign-in are picked up within
- * one auth refresh cycle.
+ * refresh) OR when the dev Pro override is toggled, so upgrades /
+ * dev-tool flips are picked up within one cycle.
  */
 export function useProPlan() {
   const [plan, setPlan] = useState<Plan>("free");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) {
-      setIsLoading(false);
-      return;
-    }
-
     let cancelled = false;
 
     async function refresh() {
+      // Dev-only short-circuit: pretend Pro when the QA toggle is on.
+      // Skipped entirely in production by the override getter.
+      if (getDevProOverride()) {
+        if (!cancelled) {
+          setPlan("pro");
+          setIsLoading(false);
+        }
+        return;
+      }
+
       const client = getSupabaseBrowserClient();
       if (!client) {
         if (!cancelled) {
@@ -80,15 +91,23 @@ export function useProPlan() {
 
     void refresh();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
+    // Listen for the dev toggle flipping (same tab + cross tab).
+    const onDevOverrideChange = () => {
       void refresh();
-    });
+    };
+    window.addEventListener(DEV_PRO_OVERRIDE_EVENT, onDevOverrideChange);
+    window.addEventListener("storage", onDevOverrideChange);
+
+    const supabase = getSupabaseBrowserClient();
+    const subscription = supabase?.auth.onAuthStateChange(() => {
+      void refresh();
+    }).data.subscription;
 
     return () => {
       cancelled = true;
-      subscription.unsubscribe();
+      window.removeEventListener(DEV_PRO_OVERRIDE_EVENT, onDevOverrideChange);
+      window.removeEventListener("storage", onDevOverrideChange);
+      subscription?.unsubscribe();
     };
   }, []);
 
