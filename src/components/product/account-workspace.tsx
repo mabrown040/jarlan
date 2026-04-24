@@ -1,372 +1,322 @@
 "use client";
 
-import { Cloud, CloudOff, CreditCard, RefreshCcw, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
+/**
+ * Account dashboard.
+ *
+ * Shows the signed-in user's plan, scenario sync state, and billing
+ * controls. Relies on real Supabase auth + Stripe billing — no local
+ * preview state. If a visitor lands here without being signed in we
+ * prompt them to open the shared sign-in modal.
+ */
+import { Check, Cloud, CreditCard, LogOut, Mail, Sparkles } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { PageHero, SectionHeading, StatCard } from "@/components/brand";
+import { useSignInModal } from "@/components/auth/sign-in-modal";
+import { UpgradeButton } from "@/components/billing/upgrade-button";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  activateLocalProPlan,
-  downgradeToFree,
-  getCloudSyncCapabilities,
-  hasProAccess,
-  loadCloudSyncOverview,
-  signInLocalAccount,
-  startProTrial,
-  syncDraftForActiveAccount,
-  updateCloudSyncEnabled,
-} from "@/lib/product";
+import { useAuth } from "@/hooks/use-auth";
+import { useProPlan } from "@/hooks/use-pro-plan";
+import { useScenarioStore } from "@/lib/store";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type SyncOverview = Awaited<ReturnType<typeof loadCloudSyncOverview>>;
+function relativeTime(isoDate: string) {
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+type SyncState = {
+  count: number;
+  lastSyncedAt: string | null;
+};
 
 export function AccountWorkspace() {
-  const [overview, setOverview] = useState<SyncOverview | null>(null);
-  const [displayName, setDisplayName] = useState("Jordan");
-  const [email, setEmail] = useState("you@example.com");
-  const [message, setMessage] = useState<string | null>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "saving">("loading");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user, isLoading, signOut } = useAuth();
+  const { plan, isPro } = useProPlan();
+  const { openModal } = useSignInModal();
+  const localScenarioCount = useScenarioStore((s) => s.scenarioList.length);
 
-  async function refreshOverview() {
-    setStatus("loading");
-    const nextOverview = await loadCloudSyncOverview();
-    setOverview(nextOverview);
-    setStatus("ready");
-  }
+  const [sync, setSync] = useState<SyncState>({ count: 0, lastSyncedAt: null });
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
+  const checkoutFlag = searchParams.get("checkout");
+
+  /* ── Load sync state from Supabase ────────────────────────────── */
   useEffect(() => {
-    void refreshOverview();
+    if (!user) return;
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+
+    let cancelled = false;
+
+    async function refresh() {
+      if (!supabase || !user) return;
+
+      const [{ count }, { data: latest }] = await Promise.all([
+        supabase
+          .from("scenarios")
+          .select("id", { count: "exact", head: true })
+          .eq("owner_id", user.id),
+        supabase
+          .from("scenarios")
+          .select("updated_at")
+          .eq("owner_id", user.id)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      if (cancelled) return;
+
+      setSync({
+        count: count ?? 0,
+        lastSyncedAt: latest?.updated_at ?? null,
+      });
+    }
+
+    void refresh();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  /* ── Handle ?checkout=success (post-Stripe redirect) ──────────── */
+  useEffect(() => {
+    if (checkoutFlag !== "success") return;
+
+    setShowSuccess(true);
+
+    // Poll until the webhook flips plan → "pro" (or we time out).
+    const deadline = Date.now() + 10_000;
+    const interval = setInterval(() => {
+      if (plan === "pro" || Date.now() > deadline) {
+        clearInterval(interval);
+      }
+    }, 500);
+
+    // Clear the query param so a refresh doesn't re-trigger the banner.
+    router.replace("/account");
+
+    return () => {
+      clearInterval(interval);
+    };
+    // We intentionally depend only on the initial URL flag — not on plan —
+    // so the replace() only runs once. The interval watches plan via closure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkoutFlag, router]);
+
+  /* ── Manage subscription (Stripe customer portal) ─────────────── */
+  const handleManageSubscription = useCallback(async () => {
+    setPortalError(null);
+    setPortalLoading(true);
+    try {
+      const response = await fetch("/api/stripe/portal", { method: "POST" });
+      const data: unknown = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          data && typeof data === "object" && "error" in data &&
+          typeof (data as { error?: unknown }).error === "string"
+            ? (data as { error: string }).error
+            : `Portal failed (${response.status})`;
+        throw new Error(message);
+      }
+
+      if (
+        !data ||
+        typeof data !== "object" ||
+        !("url" in data) ||
+        typeof (data as { url?: unknown }).url !== "string"
+      ) {
+        throw new Error("Portal response missing URL");
+      }
+
+      window.location.href = (data as { url: string }).url;
+    } catch (err) {
+      setPortalError(
+        err instanceof Error ? err.message : "Unable to open billing portal",
+      );
+      setPortalLoading(false);
+    }
   }, []);
 
-  const accountProfile = overview?.accountProfile ?? null;
-  const capabilities = overview?.capabilities ?? getCloudSyncCapabilities();
+  const syncHeadline = useMemo(() => {
+    if (sync.count === 0) return "No scenarios synced";
+    return sync.count === 1 ? "1 scenario synced" : `${sync.count} scenarios synced`;
+  }, [sync.count]);
 
-  async function handleCreateAccount() {
-    setStatus("saving");
+  const syncSubtitle = useMemo(() => {
+    if (sync.count === 0) return "No scenarios synced yet.";
+    if (!sync.lastSyncedAt) return "Synced across your devices.";
+    return `Last synced ${relativeTime(sync.lastSyncedAt)}.`;
+  }, [sync.count, sync.lastSyncedAt]);
 
-    try {
-      await signInLocalAccount({ email, displayName });
-      setMessage("Local preview account created.");
-      await refreshOverview();
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Unable to create the account.",
-      );
-      setStatus("ready");
-    }
-  }
-
-  async function handleStartTrial() {
-    setStatus("saving");
-
-    try {
-      await startProTrial();
-      setMessage("Started a local 14-day Pro trial.");
-      await refreshOverview();
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Unable to start the trial.",
-      );
-      setStatus("ready");
-    }
-  }
-
-  async function handleActivatePro(cycle: "monthly" | "yearly") {
-    setStatus("saving");
-
-    try {
-      await activateLocalProPlan(cycle);
-      setMessage(
-        cycle === "yearly"
-          ? "Activated the local yearly Pro preview."
-          : "Activated the local monthly Pro preview.",
-      );
-      await refreshOverview();
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Unable to activate Pro.",
-      );
-      setStatus("ready");
-    }
-  }
-
-  async function handleDowngrade() {
-    setStatus("saving");
-
-    await downgradeToFree();
-    setMessage("Moved the account back to the free tier.");
-    await refreshOverview();
-  }
-
-  async function handleToggleSync(enabled: boolean) {
-    setStatus("saving");
-
-    try {
-      await updateCloudSyncEnabled(enabled);
-      setMessage(
-        enabled
-          ? "Cloud sync remains enabled for this account."
-          : "Cloud sync is now paused for this account.",
-      );
-      await refreshOverview();
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Unable to update sync settings.",
-      );
-      setStatus("ready");
-    }
-  }
-
-  async function handleSyncNow() {
-    setStatus("saving");
-
-    const syncResult = await syncDraftForActiveAccount();
-    setMessage(
-      syncResult
-        ? syncResult.status === "synced"
-          ? "Draft synced to the configured cloud endpoint."
-          : syncResult.status === "local_only"
-            ? "Draft queued into the local cloud-sync preview. Add an endpoint to make it remote."
-            : "Tried to sync the draft. Review the latest sync row below for details."
-        : "No Pro account or draft was available to sync.",
+  /* ── Loading state ────────────────────────────────────────────── */
+  if (isLoading) {
+    return (
+      <div className="mx-auto flex max-w-md items-center justify-center px-6 py-24 text-center">
+        <p className="text-sm text-muted-foreground">Loading&hellip;</p>
+      </div>
     );
-    await refreshOverview();
   }
 
-  return (
-    <div className="space-y-10 pb-12">
-      <PageHero
-        eyebrow="Account"
-        badges={[
-          { label: "Local preview auth" },
-          { label: "Billing controls", variant: "secondary" },
-          { label: "Cloud sync queue", variant: "outline" },
-        ]}
-        title="Account, billing, and sync controls"
-        description="This account layer keeps the browser-first flow intact while adding a sign-in identity, plan state, and a sync queue that can target a real endpoint later."
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Current plan
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--ash)]">
-              {accountProfile?.billingState ?? "Guest"}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Cloud mode
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--flame)]">
-              {capabilities.mode}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Sync records
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--ember-light)]">
-              {overview?.records.length ?? 0}
-            </p>
-          </div>
+  /* ── Signed-out state ─────────────────────────────────────────── */
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-md space-y-4 px-6 py-24 text-center">
+        <h1 className="font-display text-2xl tracking-[-0.02em] text-foreground">
+          Sign in to manage your account
+        </h1>
+        <p className="text-muted-foreground">
+          Your plan, billing, and synced scenarios live here once you&apos;re
+          signed in.
+        </p>
+        <div className="pt-2">
+          <Button onClick={openModal}>
+            <Mail className="size-4" />
+            Sign in
+          </Button>
         </div>
-      </PageHero>
-
-      <section className="mx-auto max-w-7xl space-y-8 px-6">
-        {message ? (
-          <div className="rounded-xl border border-border/60 bg-card/40 p-4 text-sm text-muted-foreground">
-            {message}
-          </div>
+        {localScenarioCount > 0 ? (
+          <p className="pt-4 text-xs text-muted-foreground">
+            You have {localScenarioCount} scenario
+            {localScenarioCount === 1 ? "" : "s"} saved locally. Signing in will
+            let you sync {localScenarioCount === 1 ? "it" : "them"} across
+            devices.
+          </p>
         ) : null}
+      </div>
+    );
+  }
 
-        {!accountProfile ? (
-          <Card>
-            <CardHeader>
-              <SectionHeading
-                eyebrow="Create account"
-                title="Start with a local preview account"
-                titleAs="h3"
-                titleClassName="text-[1.9rem]"
-                description="This signs you into a browser-stored account profile so pricing, billing state, and cloud-sync preferences have somewhere to live."
-              />
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Display name</p>
-                <Input
-                  value={displayName}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Email</p>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Button type="button" onClick={handleCreateAccount} disabled={status === "saving"}>
-                  <UserRound className="size-4" />
-                  Create local account
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {accountProfile ? (
-          <div className="grid gap-6 xl:grid-cols-[1fr,1fr]">
-            <Card>
-              <CardHeader>
-                <SectionHeading
-                  eyebrow="Plan"
-                  title="Subscription controls"
-                  titleAs="h3"
-                  titleClassName="text-[1.9rem]"
-                  description="Billing is modeled locally for now so the product can define the UX and state boundaries before a live provider is wired in."
-                />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <StatCard
-                    label="Signed in as"
-                    value={accountProfile.displayName}
-                    description={accountProfile.email}
-                    tone="accent"
-                  />
-                  <StatCard
-                    label="Effective access"
-                    value={hasProAccess(accountProfile) ? "Pro" : "Free"}
-                    description={
-                      accountProfile.trialEndsAt
-                        ? `Trial ends ${new Date(accountProfile.trialEndsAt).toLocaleDateString()}.`
-                        : "Free tier access is active."
-                    }
-                    tone={hasProAccess(accountProfile) ? "success" : "default"}
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  {!hasProAccess(accountProfile) ? (
-                    <Button
-                      type="button"
-                      onClick={handleStartTrial}
-                      disabled={status === "saving"}
-                    >
-                      <CreditCard className="size-4" />
-                      Start Pro trial
-                    </Button>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleActivatePro("monthly")}
-                    disabled={status === "saving"}
-                  >
-                    <CreditCard className="size-4" />
-                    Monthly Pro preview
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleActivatePro("yearly")}
-                    disabled={status === "saving"}
-                  >
-                    <CreditCard className="size-4" />
-                    Yearly Pro preview
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={handleDowngrade}
-                    disabled={status === "saving"}
-                  >
-                    Move back to free
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <SectionHeading
-                  eyebrow="Cloud sync"
-                  title="Sync queue"
-                  titleAs="h3"
-                  titleClassName="text-[1.9rem]"
-                  description="When a remote endpoint is configured, Pro accounts can reuse this same queue to sync scenarios beyond the browser."
-                />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card/40 p-4">
-                  <div className="space-y-1">
-                    <p className="font-medium text-foreground">Enable cloud sync</p>
-                    <p className="text-sm text-muted-foreground">
-                      Current mode: {capabilities.mode}. Endpoint configured:{" "}
-                      {capabilities.endpointConfigured ? "yes" : "no"}.
-                    </p>
-                  </div>
-                  <label className="inline-flex items-center gap-2 text-sm text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={accountProfile.cloudSyncEnabled}
-                      onChange={(event) => handleToggleSync(event.target.checked)}
-                    />
-                    {accountProfile.cloudSyncEnabled ? (
-                      <Cloud className="size-4" />
-                    ) : (
-                      <CloudOff className="size-4" />
-                    )}
-                  </label>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSyncNow}
-                    disabled={status === "saving"}
-                  >
-                    <RefreshCcw className="size-4" />
-                    Sync current draft now
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {overview?.records.length ? (
-                    overview.records.map((record) => (
-                      <div
-                        key={record.scenarioId}
-                        className="rounded-xl border border-border/60 bg-card/40 p-4 text-sm text-muted-foreground"
-                      >
-                        <p className="font-medium text-foreground">
-                          {record.scenarioName}
-                        </p>
-                        <p className="mt-2">Status: {record.status}.</p>
-                        <p className="mt-1">
-                          Last attempted: {record.lastAttemptedAt ?? "Never"}.
-                        </p>
-                        {record.lastError ? (
-                          <p className="mt-1 text-red-300">{record.lastError}</p>
-                        ) : null}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-border/60 bg-card/35 p-4 text-sm text-muted-foreground">
-                      No sync records yet. Save a scenario or trigger a manual sync to
-                      seed the queue.
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        ) : null}
+  /* ── Main dashboard ───────────────────────────────────────────── */
+  return (
+    <div className="mx-auto max-w-4xl space-y-10 px-6 py-12 sm:py-16">
+      <section className="space-y-2 text-center">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
+          Account
+        </p>
+        <h1 className="font-display text-3xl tracking-[-0.03em] text-foreground sm:text-4xl">
+          Your account
+        </h1>
+        <p className="text-base text-muted-foreground">
+          Signed in as{" "}
+          <span className="font-medium text-foreground">{user.email}</span>
+        </p>
       </section>
+
+      {showSuccess ? (
+        <div className="mb-8 flex items-start gap-3 rounded-xl border border-[var(--ember)]/30 bg-[rgba(255,107,53,0.06)] p-4">
+          <Sparkles className="mt-0.5 size-5 text-[var(--ember)]" />
+          <div className="flex-1">
+            <p className="font-medium text-foreground">Welcome to Pro!</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your subscription is active. Cloud sync is unlocked across all
+              your devices.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSuccess(false)}
+            aria-label="Dismiss"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            &times;
+          </button>
+        </div>
+      ) : null}
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* ── Plan card ─────────────────────────────────────────── */}
+        <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            Plan
+          </p>
+          <h2 className="mt-2 font-display text-2xl tracking-[-0.02em] text-foreground">
+            {isPro ? "Pro" : "Free"}
+          </h2>
+
+          {isPro ? (
+            <>
+              <p className="mt-4 text-sm text-muted-foreground">
+                You&apos;re on Pro. Thanks for supporting Calcifer.
+              </p>
+              <Button
+                variant="outline"
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
+                className="mt-4 w-full"
+              >
+                <CreditCard className="size-4" />
+                {portalLoading ? "Opening portal\u2026" : "Manage subscription"}
+              </Button>
+              {portalError ? (
+                <p className="mt-2 text-xs text-red-400">{portalError}</p>
+              ) : null}
+              <ul className="mt-5 space-y-2 text-xs text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <Check className="size-3.5 text-[var(--ember)]" />
+                  Cloud sync across devices
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="size-3.5 text-[var(--ember)]" />
+                  Priority support
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="size-3.5 text-[var(--ember)]" />
+                  Future Pro features included
+                </li>
+              </ul>
+            </>
+          ) : (
+            <>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Use the full calculator forever, for free.
+              </p>
+              <UpgradeButton cycle="monthly" className="mt-4 w-full">
+                <Sparkles className="size-4" />
+                Upgrade to Pro
+              </UpgradeButton>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Cloud sync across devices, priority support, future Pro
+                features.
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* ── Sync card ─────────────────────────────────────────── */}
+        <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            Cloud sync
+          </p>
+          <h2 className="mt-2 flex items-center gap-2 font-display text-2xl tracking-[-0.02em] text-foreground">
+            <Cloud className="size-5 text-[var(--ember)]" />
+            {syncHeadline}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">{syncSubtitle}</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Your plans are encrypted at rest and protected by row-level
+            security &mdash; no one else can read them.
+          </p>
+          <Button variant="outline" onClick={signOut} className="mt-4 w-full">
+            <LogOut className="size-4" />
+            Sign out
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

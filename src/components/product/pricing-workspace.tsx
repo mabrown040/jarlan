@@ -1,30 +1,24 @@
 "use client";
 
-import Link from "next/link";
-import { Check, CreditCard, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Check } from "lucide-react";
+import { useMemo, useState } from "react";
 
-import { PageHero, SectionHeading } from "@/components/brand";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  activateLocalProPlan,
-  hasProAccess,
-  loadAccountProfile,
-  planSummaries,
-  productFeatures,
-  startProTrial,
-  type LocalAccountProfile,
-} from "@/lib/product";
-import { formatCurrency } from "@/lib/calc";
+import { useSignInModal } from "@/components/auth/sign-in-modal";
+import { UpgradeButton } from "@/components/billing/upgrade-button";
+import { useAuth } from "@/hooks/use-auth";
+import { useProPlan } from "@/hooks/use-pro-plan";
+import { planSummaries, productFeatures } from "@/lib/product/plans";
+
+type BillingCycle = "monthly" | "yearly";
+
+const EMBER_GRADIENT_CLASSES =
+  "bg-gradient-to-r from-[var(--ember)] to-[var(--flame)] text-white shadow-[0_2px_12px_rgba(255,107,53,0.35)] hover:shadow-[0_4px_18px_rgba(255,107,53,0.5)]";
 
 export function PricingWorkspace() {
-  const [accountProfile, setAccountProfile] = useState<LocalAccountProfile | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    void loadAccountProfile().then(setAccountProfile);
-  }, []);
+  const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  const { user, isLoading: authLoading } = useAuth();
+  const { isPro, isLoading: planLoading } = useProPlan();
+  const { openModal } = useSignInModal();
 
   const freeFeatures = useMemo(
     () => productFeatures.filter((feature) => feature.tier === "free"),
@@ -35,174 +29,253 @@ export function PricingWorkspace() {
     [],
   );
 
-  async function handleStartTrial() {
-    try {
-      const profile = await startProTrial();
-      setAccountProfile(profile);
-      setMessage("Started a local 14-day Pro trial.");
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Unable to start the Pro trial.",
-      );
-    }
-  }
-
-  async function handleActivatePro(cycle: "monthly" | "yearly") {
-    try {
-      const profile = await activateLocalProPlan(cycle);
-      setAccountProfile(profile);
-      setMessage(
-        cycle === "yearly"
-          ? "Activated the local yearly Pro plan preview."
-          : "Activated the local monthly Pro plan preview.",
-      );
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Unable to activate Pro.",
-      );
-    }
-  }
+  const isLoading = authLoading || planLoading;
+  const proMonthlyEffective = cycle === "yearly" ? 8 : 12;
 
   return (
-    <div className="space-y-10 pb-12">
-      <PageHero
-        eyebrow="Pricing"
-        badges={[
-          { label: "Generous free tier" },
-          { label: "Pro planning", variant: "secondary" },
-          { label: "Local-first account preview", variant: "outline" },
-        ]}
-        title="Free for discovery, Pro for active retirement decisions"
-        description="The free tier keeps the top-of-funnel calculators genuinely useful. Pro is positioned as the planning layer for annual reviews, scenario comparisons, cloud sync, and decision-ready handoffs."
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Free monthly
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--ash)]">
-              {formatCurrency(planSummaries.free.priceMonthly)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Pro monthly
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--flame)]">
-              {formatCurrency(planSummaries.pro.priceMonthly)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-[rgba(245,240,235,0.6)]">
-              Pro yearly
-            </p>
-            <p className="mt-2 font-display text-3xl tracking-[-0.03em] text-[var(--ember-light)]">
-              {formatCurrency(planSummaries.pro.priceYearly)}
-            </p>
-          </div>
+    <div className="mx-auto max-w-5xl px-6 py-12 sm:py-16">
+      <section className="space-y-4 text-center">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
+          Pricing
+        </p>
+        <h1 className="font-display text-4xl tracking-[-0.03em] text-foreground sm:text-5xl">
+          Free forever. Pro when you&apos;re ready.
+        </h1>
+        <p className="mx-auto max-w-xl text-base text-muted-foreground">
+          The full calculator is free &mdash; run scenarios, compare strategies,
+          read the research. Pro adds cloud sync across devices and advanced
+          decision tools when you&apos;re making a real retirement call.
+        </p>
+      </section>
+
+      {/* Billing cycle toggle */}
+      <div className="mt-10 flex justify-center">
+        <div
+          role="tablist"
+          aria-label="Billing cycle"
+          className="inline-flex items-center gap-1 rounded-full bg-muted p-1"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={cycle === "monthly"}
+            onClick={() => setCycle("monthly")}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
+              cycle === "monthly"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={cycle === "yearly"}
+            onClick={() => setCycle("yearly")}
+            className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
+              cycle === "yearly"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Yearly
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${
+                cycle === "yearly"
+                  ? "bg-[rgba(255,107,53,0.12)] text-[var(--ember)]"
+                  : "bg-background/60 text-muted-foreground"
+              }`}
+            >
+              Save $48
+            </span>
+          </button>
         </div>
-      </PageHero>
+      </div>
 
-      <section className="mx-auto max-w-7xl space-y-8 px-6">
-        {message ? (
-          <div className="rounded-xl border border-border/60 bg-card/40 p-4 text-sm text-muted-foreground">
-            {message}
+      {/* Pricing cards */}
+      <div className="mt-10 grid gap-6 md:grid-cols-2">
+        {/* Free card */}
+        <div className="flex flex-col rounded-2xl border border-border/60 bg-card/40 p-8">
+          <div className="space-y-1">
+            <h2 className="font-display text-xl tracking-[-0.02em] text-foreground">
+              {planSummaries.free.name}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {planSummaries.free.headline}
+            </p>
           </div>
-        ) : null}
 
-        <div className="grid gap-6 xl:grid-cols-[1fr,1fr]">
-          <Card>
-            <CardHeader>
-              <SectionHeading
-                eyebrow="Free"
-                title={planSummaries.free.headline}
-                titleAs="h3"
-                titleClassName="text-[1.9rem]"
-                description={planSummaries.free.description}
+          <div className="mt-6 flex items-baseline gap-1.5">
+            <span className="font-display text-5xl tracking-[-0.03em] text-foreground">
+              $0
+            </span>
+            <span className="text-sm text-muted-foreground">/mo</span>
+          </div>
+
+          <p className="mt-4 text-sm text-muted-foreground">
+            {planSummaries.free.description}
+          </p>
+
+          <div className="mt-6">
+            {user ? (
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                className="w-full rounded-full border border-border/60 bg-muted/40 px-4 py-2 text-sm font-medium text-muted-foreground"
+              >
+                You&apos;re on Free
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={openModal}
+                className="w-full rounded-full border border-border/60 bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/70"
+              >
+                Get started
+              </button>
+            )}
+          </div>
+
+          <ul className="mt-8 space-y-3 border-t border-border/40 pt-6">
+            {freeFeatures.map((feature) => (
+              <li key={feature.id} className="flex items-start gap-3 text-sm">
+                <Check
+                  className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <span className="text-foreground">{feature.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Pro card */}
+        <div className="relative flex flex-col rounded-2xl border border-[var(--ember)]/40 bg-card/40 p-8 shadow-[0_0_0_1px_var(--ember)_inset,_0_20px_40px_-20px_rgba(255,107,53,0.3)]">
+          <span className="absolute -top-3 left-8 inline-flex items-center rounded-full bg-gradient-to-r from-[var(--ember)] to-[var(--flame)] px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white shadow-[0_2px_10px_rgba(255,107,53,0.4)]">
+            Recommended
+          </span>
+
+          <div className="space-y-1">
+            <h2 className="font-display text-xl tracking-[-0.02em] text-foreground">
+              {planSummaries.pro.name}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {planSummaries.pro.headline}
+            </p>
+          </div>
+
+          <div className="mt-6">
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-display text-5xl tracking-[-0.03em] text-foreground">
+                ${proMonthlyEffective}
+              </span>
+              <span className="text-sm text-muted-foreground">/mo</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {cycle === "yearly"
+                ? "$96/yr, billed annually"
+                : "Billed monthly"}
+            </p>
+          </div>
+
+          <p className="mt-4 text-sm text-muted-foreground">
+            {planSummaries.pro.description}
+          </p>
+
+          <div className="mt-6">
+            {isLoading ? (
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                className="w-full rounded-full border border-border/60 bg-muted/40 px-4 py-2 text-sm font-medium text-muted-foreground"
+              >
+                Loading&hellip;
+              </button>
+            ) : !user ? (
+              <button
+                type="button"
+                onClick={openModal}
+                className={`w-full rounded-full px-4 py-2 text-sm font-semibold transition-all ${EMBER_GRADIENT_CLASSES}`}
+              >
+                Sign in to upgrade
+              </button>
+            ) : isPro ? (
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                className="w-full rounded-full border border-border/60 bg-muted/40 px-4 py-2 text-sm font-medium text-muted-foreground"
+              >
+                You&apos;re on Pro &#10003;
+              </button>
+            ) : (
+              <UpgradeButton
+                cycle={cycle}
+                className={`w-full ${EMBER_GRADIENT_CLASSES}`}
+              >
+                Upgrade to Pro
+              </UpgradeButton>
+            )}
+          </div>
+
+          <ul className="mt-8 space-y-3 border-t border-[var(--ember)]/20 pt-6">
+            <li className="flex items-start gap-3 text-sm">
+              <Check
+                className="mt-0.5 size-4 shrink-0 text-[var(--ember)]"
+                aria-hidden="true"
               />
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {freeFeatures.map((feature) => (
-                <div
-                  key={feature.id}
-                  className="rounded-xl border border-border/60 bg-card/40 p-4"
-                >
-                  <p className="font-medium text-foreground">{feature.label}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+              <span className="font-medium text-foreground">
+                Everything in Free
+              </span>
+            </li>
+            {proFeatures.map((feature) => (
+              <li key={feature.id} className="flex items-start gap-3 text-sm">
+                <Check
+                  className="mt-0.5 size-4 shrink-0 text-[var(--ember)]"
+                  aria-hidden="true"
+                />
+                <span className="text-foreground">{feature.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
-          <Card className="border-[rgba(255,107,53,0.18)]">
-            <CardHeader>
-              <SectionHeading
-                eyebrow="Pro"
-                title={planSummaries.pro.headline}
-                titleAs="h3"
-                titleClassName="text-[1.9rem]"
-                description={planSummaries.pro.description}
-              />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {proFeatures.map((feature) => (
-                <div
-                  key={feature.id}
-                  className="rounded-xl border border-[rgba(255,107,53,0.18)] bg-[rgba(255,107,53,0.06)] p-4"
-                >
-                  <p className="font-medium text-foreground">{feature.label}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </div>
-              ))}
-
-              <div className="rounded-2xl border border-border/60 bg-card/40 p-5">
-                <div className="flex items-center gap-3">
-                  <Sparkles className="size-5 text-[var(--ember)]" />
-                  <p className="font-medium text-foreground">Soft upgrade path</p>
-                </div>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  The prompt is intentionally framed as a next step after someone has
-                  already received real value from the free calculators.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  {accountProfile ? (
-                    <>
-                      {!hasProAccess(accountProfile) ? (
-                        <Button type="button" onClick={handleStartTrial}>
-                          <Check className="size-4" />
-                          Start 14-day Pro trial
-                        </Button>
-                      ) : null}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleActivatePro("monthly")}
-                      >
-                        <CreditCard className="size-4" />
-                        Choose monthly
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleActivatePro("yearly")}
-                      >
-                        <CreditCard className="size-4" />
-                        Choose yearly
-                      </Button>
-                    </>
-                  ) : (
-                    <Button asChild>
-                      <Link href="/account">Create a local account first</Link>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {/* FAQ */}
+      <section className="mt-16 space-y-8">
+        <h2 className="text-center font-display text-2xl tracking-[-0.02em] text-foreground sm:text-3xl">
+          Questions
+        </h2>
+        <div className="mx-auto max-w-2xl space-y-6">
+          <div className="space-y-2">
+            <h3 className="font-semibold text-foreground">
+              Can I cancel anytime?
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Yes. Cancel from your account page and you&apos;ll keep Pro access
+              until the end of the billing cycle.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <h3 className="font-semibold text-foreground">
+              What happens to my data if I downgrade?
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Your scenarios stay in your browser and in the cloud. Pro sync
+              pauses, but nothing is deleted.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <h3 className="font-semibold text-foreground">Is there a trial?</h3>
+            <p className="text-sm text-muted-foreground">
+              No free trial &mdash; the Free tier is generous enough to answer
+              your FIRE question without upgrading. Pro is for when you&apos;re
+              actively planning.
+            </p>
+          </div>
         </div>
       </section>
     </div>

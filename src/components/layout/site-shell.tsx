@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { UserMenu } from "@/components/auth/user-menu";
+import { useSupabaseSyncBootstrap } from "@/hooks/use-supabase-sync-bootstrap";
 import { PlanDrawer, PlanDrawerTrigger } from "@/components/plan-drawer";
 import { QADevModal } from "@/components/dev/qa-personas";
 import { HydrationWarningBanner } from "@/components/layout/hydration-warning-banner";
@@ -169,6 +171,10 @@ export function SiteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  // Bootstrap cloud sync for signed-in users. Safe no-op when Supabase
+  // isn't configured or user isn't signed in — no crash, no console noise.
+  useSupabaseSyncBootstrap();
+
   // Close mobile nav on route change
   useEffect(() => {
     setMobileNavOpen(false);
@@ -250,6 +256,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
                 )}
               </nav>
               <PlanDrawerTrigger />
+              <UserMenu />
               <ThemeToggle />
             </div>
 

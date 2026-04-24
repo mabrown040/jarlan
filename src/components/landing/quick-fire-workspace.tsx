@@ -340,17 +340,22 @@ export function QuickFireWorkspace({
               title="Know your number. Plan your freedom."
               description="A research-backed FIRE calculator that shows its math."
               actions={
-                <>
-                  <Button asChild>
-                    <Link href={"/quiz" as Route}>Take the FIRE quiz</Link>
-                  </Button>
-                  {/* Secondary CTA for visitors who aren't ready to input
-                      numbers — drops them into /accumulation with the
-                      sample-scenario banner so the state is explicit. */}
-                  <Button asChild variant="outline">
-                    <Link href={"/accumulation" as Route}>See a sample plan</Link>
-                  </Button>
-                </>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap gap-3">
+                    <Button asChild>
+                      <Link href={"/quiz" as Route}>Take the FIRE quiz</Link>
+                    </Button>
+                    {/* Secondary CTA for visitors who aren't ready to input
+                        numbers — drops them into /accumulation with the
+                        sample-scenario banner so the state is explicit. */}
+                    <Button asChild variant="outline">
+                      <Link href={"/accumulation" as Route}>See a sample plan</Link>
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground/80">
+                    Free forever. No account required &mdash; sign in to sync across devices.
+                  </p>
+                </div>
               }
             />
             {/* Visual proof before the decision. Muted projection chart

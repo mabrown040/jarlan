@@ -25,6 +25,7 @@ import {
   parseImportPayload,
 } from "@/lib/domain/portability";
 import { syncScenarioForActiveAccount } from "@/lib/product";
+import { syncScenarioToCloud, deleteScenarioFromCloud } from "@/lib/supabase/sync";
 import { clamp, roundTo } from "@/lib/utils";
 
 type StoreStatus = "idle" | "hydrating" | "ready";
@@ -772,6 +773,10 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
       const scenario = get().activeScenario;
       await saveScenarioDraft(scenario);
       await syncScenarioForActiveAccount(scenario);
+      // Fire-and-forget cloud sync. Cloud sync is best-effort; the
+      // local save above is the source of truth. Errors are logged
+      // inside syncScenarioToCloud and never bubble up.
+      void syncScenarioToCloud(scenario);
       set({ saveStatus: "saved" });
     } catch {
       set({ saveStatus: "error" });
@@ -880,6 +885,9 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
     const wasActive = scenarioId === current.id;
     try {
       await deleteScenarioRecord(scenarioId);
+      // Fire-and-forget cloud delete — best effort, won't block local
+      // deletion if network is down or Supabase not configured.
+      void deleteScenarioFromCloud(scenarioId);
 
       if (wasActive) {
         // Fall back to the most-recently-updated remaining scenario,
