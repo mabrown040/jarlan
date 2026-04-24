@@ -66,6 +66,7 @@ export interface SocialSecurityInput {
   monthlyBenefitAtFra: number;
   monthlyBenefitAt70: number;
   claimingAge: 62 | 67 | 70;
+  ssaImportedAt?: string;
 }
 
 export interface UserProfile {

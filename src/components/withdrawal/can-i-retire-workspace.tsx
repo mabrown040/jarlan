@@ -424,7 +424,10 @@ export function CanIRetireWorkspace() {
           {selectedStrategyMeta.label} tuning
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Adjust the strategy-specific guardrails that most affect how spending moves over time.
+          Adjust the strategy-specific guardrails that most affect how spending moves over time.{" "}
+          <Link href="/education/withdrawal-strategies" className="text-[var(--ember)] hover:underline">
+            Learn more →
+          </Link>
         </p>
       </div>
 
@@ -432,7 +435,7 @@ export function CanIRetireWorkspace() {
         {selectedStrategy === "cape_dynamic" ? (
           <>
             <div className="space-y-1">
-              <FieldLabel htmlFor="cape-a" label="Intercept (a)" />
+              <FieldLabel htmlFor="cape-a" label="Intercept (a)" tooltip="The base withdrawal floor independent of CAPE. Default 0.01 means you always withdraw at least 1% even in very expensive markets." learnHref="/education/cape-ratio" />
               <NumberInput
                 id="cape-a"
                 min={0}
@@ -444,7 +447,7 @@ export function CanIRetireWorkspace() {
               />
             </div>
             <div className="space-y-1">
-              <FieldLabel htmlFor="cape-b" label="Coefficient (b)" />
+              <FieldLabel htmlFor="cape-b" label="Coefficient (b)" tooltip="The CAPE sensitivity factor. At b=0.5, the formula is 0.01 + 0.5/CAPE. Higher values give more aggressive rate cuts in expensive markets." learnHref="/education/cape-ratio" />
               <NumberInput
                 id="cape-b"
                 min={0}
@@ -461,7 +464,7 @@ export function CanIRetireWorkspace() {
         {selectedStrategy === "guyton_klinger" ? (
           <>
             <div className="space-y-1">
-              <FieldLabel htmlFor="gk-guardrail-width" label="Guardrail width" />
+              <FieldLabel htmlFor="gk-guardrail-width" label="Guardrail width" tooltip="How far above or below your withdrawal rate triggers a spending raise or cut. A width of 0.20 means a ±20% band around the initial rate." learnHref="/education/guyton-klinger" />
               <NumberInput
                 id="gk-guardrail-width"
                 min={0.05}
@@ -475,7 +478,7 @@ export function CanIRetireWorkspace() {
               />
             </div>
             <div className="space-y-1">
-              <FieldLabel htmlFor="gk-adjustment-size" label="Adjustment size" />
+              <FieldLabel htmlFor="gk-adjustment-size" label="Adjustment size" tooltip="How much spending is cut (or raised) when a guardrail is triggered. 0.10 = 10% reduction." learnHref="/education/guyton-klinger" />
               <NumberInput
                 id="gk-adjustment-size"
                 min={0.01}
@@ -508,7 +511,7 @@ export function CanIRetireWorkspace() {
         {selectedStrategy === "floor_ceiling" ? (
           <>
             <div className="space-y-1">
-              <FieldLabel htmlFor="floor-withdrawal" label="Floor spending" />
+              <FieldLabel htmlFor="floor-withdrawal" label="Floor spending" tooltip="Minimum you'll spend per year regardless of market conditions. Typically 80–90% of your planned spending." learnHref="/education/floor-ceiling" />
               <NumberInput
                 id="floor-withdrawal"
                 min={0}
@@ -519,7 +522,7 @@ export function CanIRetireWorkspace() {
               />
             </div>
             <div className="space-y-1">
-              <FieldLabel htmlFor="ceiling-withdrawal" label="Ceiling spending" />
+              <FieldLabel htmlFor="ceiling-withdrawal" label="Ceiling spending" tooltip="Maximum you'll spend in a good year. Typically 110–120% of planned spending." learnHref="/education/floor-ceiling" />
               <NumberInput
                 id="ceiling-withdrawal"
                 min={0}

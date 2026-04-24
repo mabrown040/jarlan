@@ -1,4 +1,6 @@
+import type { Route } from "next";
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { CircleHelp } from "lucide-react";
 
 import { Label } from "@/components/ui/label";
@@ -12,11 +14,13 @@ export function FieldLabel({
   htmlFor,
   label,
   tooltip,
+  learnHref,
   icon: Icon = CircleHelp,
 }: {
   htmlFor: string;
   label: string;
   tooltip?: string;
+  learnHref?: string;
   icon?: LucideIcon;
 }) {
   return (
@@ -33,7 +37,18 @@ export function FieldLabel({
               <Icon className="size-3.5" />
             </button>
           </TooltipTrigger>
-          <TooltipContent>{tooltip}</TooltipContent>
+          <TooltipContent className={learnHref ? "pb-2" : undefined}>
+            <p>{tooltip}</p>
+            {learnHref ? (
+              <Link
+                href={learnHref as Route}
+                className="mt-1.5 block text-[var(--ember)] hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Read the full article →
+              </Link>
+            ) : null}
+          </TooltipContent>
         </Tooltip>
       ) : null}
     </div>

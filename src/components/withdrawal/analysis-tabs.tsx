@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { LoaderCircle } from "lucide-react";
+import Link from "next/link";
 
 import { ChartShell, StatCard } from "@/components/brand";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -323,7 +324,14 @@ export function AnalysisTabs(props: AnalysisTabsProps) {
                 <ChartShell
                   eyebrow="Monte Carlo outlook"
                   title="Forward-looking probability view"
-                  description={`The active strategy is also simulated with ${props.monteCarloTrials.toLocaleString()} trials in ${props.monteCarloSimulationType.replaceAll("_", " ")} mode.`}
+                  description={
+                    <>
+                      The active strategy is also simulated with {props.monteCarloTrials.toLocaleString()} trials in {props.monteCarloSimulationType.replaceAll("_", " ")} mode.{" "}
+                      <Link href="/education/monte-carlo" className="text-[var(--ember)] hover:underline">
+                        Learn more →
+                      </Link>
+                    </>
+                  }
                 >
                   <div className="mb-4 rounded-xl border border-border/60 bg-card/35 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import type {
 import { getCountryPreset, listCountryPresets, listStateTaxPresets } from "@/lib/data";
 import { useScenarioStore } from "@/lib/store";
 import { estimateScenarioTax } from "@/lib/tax";
+import { SSAImport } from "@/components/plan-drawer/ssa-import";
 import { get401kEmployeeLimit, getRothIraLimit, getHsaLimit } from "@/lib/tax/limits";
 import { cn } from "@/lib/utils";
 
@@ -261,7 +263,7 @@ export function PlanDrawerContent() {
           {showRetirementExpenses ? (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="drawer-ret-expenses" label="Retirement spending" tooltip="If your spending will differ in retirement (e.g., no mortgage, more travel). Drives your FIRE number." />
+                <FieldLabel htmlFor="drawer-ret-expenses" label="Retirement spending" tooltip="If your spending will differ in retirement (e.g., no mortgage, more travel). Drives your FIRE number." learnHref="/education/fire-number" />
                 <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setShowRetirementExpenses(false); updateRetirementExpenses(activeScenario.annualExpenses); }}>Same as now</button>
               </div>
               <NumberInput id="drawer-ret-expenses" min={0} step={1000} inputMode="numeric" value={activeScenario.retirementExpenses} onValueChange={updateRetirementExpenses} />
@@ -313,14 +315,14 @@ export function PlanDrawerContent() {
           ) : null}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="drawer-wr" label="Withdrawal rate" tooltip="The classic 4% rule. Lower is safer for longer retirements." />
+              <FieldLabel htmlFor="drawer-wr" label="Withdrawal rate" tooltip="The classic 4% rule. Lower is safer for longer retirements." learnHref="/education/the-4-percent-rule" />
               <span className="text-sm font-medium">{formatPercent(activeScenario.assumptions.withdrawalRate, 2)}</span>
             </div>
             <Slider id="drawer-wr" min={0.025} max={0.06} step={0.001} value={[activeScenario.assumptions.withdrawalRate]} onValueChange={([v]) => updateWithdrawalRate(v)} />
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="drawer-strategy" label="Strategy" tooltip="The withdrawal method for drawing income each year. Different strategies handle market volatility differently." />
+              <FieldLabel htmlFor="drawer-strategy" label="Strategy" tooltip="The withdrawal method for drawing income each year. Different strategies handle market volatility differently." learnHref="/education/withdrawal-strategies" />
               <a href="/education#safe-withdrawal-rate" className="text-xs font-medium text-primary transition-colors hover:text-primary/80">Learn more →</a>
             </div>
             <Select id="drawer-strategy" value={activeScenario.withdrawalStrategy.type} onChange={(e) => updateScenario((s) => { s.withdrawalStrategy.type = e.target.value as typeof s.withdrawalStrategy.type; })}>
@@ -360,7 +362,7 @@ export function PlanDrawerContent() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <FieldLabel htmlFor="drawer-mc-mode" label="Monte Carlo mode" tooltip="How random returns are generated. Bootstrap uses actual historical returns." />
+            <FieldLabel htmlFor="drawer-mc-mode" label="Monte Carlo mode" tooltip="How random returns are generated. Bootstrap uses actual historical returns." learnHref="/education/monte-carlo" />
             <Select id="drawer-mc-mode" value={activeScenario.simulationSettings.simulationType === "historical" ? "monte_carlo_bootstrap" : activeScenario.simulationSettings.simulationType} onChange={(e) => updateScenario((s) => { s.simulationSettings.simulationType = e.target.value as typeof s.simulationSettings.simulationType; })}>
               <option value="monte_carlo_parametric">Parametric</option>
               <option value="monte_carlo_bootstrap">Bootstrap</option>
@@ -379,14 +381,14 @@ export function PlanDrawerContent() {
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="drawer-return" label="Expected real return" tooltip="After-inflation investment return. Historical US stocks average ~7% real." />
+              <FieldLabel htmlFor="drawer-return" label="Expected real return" tooltip="After-inflation investment return. Historical US stocks average ~7% real." learnHref="/education/real-vs-nominal-returns" />
               <span className="text-sm font-medium">{formatPercent(activeScenario.assumptions.expectedRealReturn, 1)}</span>
             </div>
             <Slider id="drawer-return" min={0} max={0.1} step={0.005} value={[activeScenario.assumptions.expectedRealReturn]} onValueChange={([v]) => updateExpectedRealReturn(v)} />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="drawer-fees" label="Investment fees" tooltip="Total expense ratio of your funds. Subtracted from real return." />
+              <FieldLabel htmlFor="drawer-fees" label="Investment fees" tooltip="Total expense ratio of your funds. Subtracted from real return." learnHref="/education/investment-fees" />
               <span className="text-sm font-medium">{formatPercent(activeScenario.simulationSettings.feeDrag, 2)}</span>
             </div>
             <Slider id="drawer-fees" min={0} max={0.02} step={0.001} value={[activeScenario.simulationSettings.feeDrag]} onValueChange={([v]) => updateFeeDrag(v)} />
@@ -400,14 +402,14 @@ export function PlanDrawerContent() {
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="drawer-expense-growth" label="Lifestyle creep" tooltip="How fast spending grows above inflation. 0% keeps spending flat in today's dollars." />
+              <FieldLabel htmlFor="drawer-expense-growth" label="Lifestyle creep" tooltip="How fast spending grows above inflation. 0% keeps spending flat in today's dollars." learnHref="/education/lifestyle-creep" />
               <span className="text-sm font-medium">{formatPercent(activeScenario.assumptions.expenseGrowthRate ?? 0, 1)}</span>
             </div>
             <Slider id="drawer-expense-growth" min={0} max={0.05} step={0.005} value={[activeScenario.assumptions.expenseGrowthRate ?? 0]} onValueChange={([v]) => updateExpenseGrowthRate(v)} />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="drawer-inflation" label="Inflation" tooltip="For context only. Projections use real (today's) dollars." />
+              <FieldLabel htmlFor="drawer-inflation" label="Inflation" tooltip="For context only. Projections use real (today's) dollars." learnHref="/education/real-vs-nominal-returns" />
               <span className="text-sm font-medium">{formatPercent(activeScenario.assumptions.inflation, 1)}</span>
             </div>
             <Slider id="drawer-inflation" min={0} max={0.08} step={0.005} value={[activeScenario.assumptions.inflation]} onValueChange={([v]) => updateInflation(v)} />
@@ -429,7 +431,7 @@ export function PlanDrawerContent() {
                   <Input id={`drawer-acct-name-${account.id}`} value={account.name} onChange={(e) => updateScenario((s) => { const a = s.accounts.find((c) => c.id === account.id); if (a) a.name = e.target.value; })} />
                 </div>
                 <div className="space-y-1">
-                  <FieldLabel htmlFor={`drawer-acct-type-${account.id}`} label="Type" tooltip="Account type determines tax treatment. Pre-tax (401k/IRA), tax-free (Roth), or taxable." />
+                  <FieldLabel htmlFor={`drawer-acct-type-${account.id}`} label="Type" tooltip="Account type determines tax treatment. Pre-tax (401k/IRA), tax-free (Roth), or taxable." learnHref="/education/account-types" />
                   <Select id={`drawer-acct-type-${account.id}`} value={account.type} onChange={(e) => updateScenario((s) => { const a = s.accounts.find((c) => c.id === account.id); if (a) a.type = e.target.value as AccountType; })}>
                     {accountTypeOptions.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
                   </Select>
@@ -460,7 +462,7 @@ export function PlanDrawerContent() {
                     }
                     if (account.type === "hsa") {
                       const hsaLimit = getHsaLimit(age, activeScenario.profile.filingStatus);
-                      return <p className="text-[10px] text-muted-foreground">HSA limit: ${(hsaLimit / 1000).toFixed(1)}K/yr{age >= 55 ? " (includes catch-up)" : ""} (2025). Triple tax advantage.</p>;
+                      return <p className="text-[10px] text-muted-foreground">HSA limit: ${(hsaLimit / 1000).toFixed(1)}K/yr{age >= 55 ? " (includes catch-up)" : ""} (2025). <Link href="/education/hsa-triple-advantage" className="text-[var(--ember)] hover:underline">Triple tax advantage →</Link></p>;
                     }
                     return null;
                   })()}
@@ -562,25 +564,36 @@ export function PlanDrawerContent() {
         }
       >
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Enter your estimated monthly Social Security benefits. Find yours at{" "}
+          <SSAImport
+            importedAt={activeScenario.socialSecurity.ssaImportedAt}
+            onImport={(result) =>
+              updateScenario((s) => {
+                s.socialSecurity.monthlyBenefitAt62 = result.monthlyBenefitAt62;
+                s.socialSecurity.monthlyBenefitAtFra = result.monthlyBenefitAtFra;
+                s.socialSecurity.monthlyBenefitAt70 = result.monthlyBenefitAt70;
+                s.socialSecurity.ssaImportedAt = result.importedAt;
+              })
+            }
+          />
+          <p className="text-xs text-muted-foreground">
+            Or enter estimates manually — find yours at{" "}
             <a href="https://www.ssa.gov/myaccount" target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--ember)] hover:underline">ssa.gov</a>.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <FieldLabel htmlFor="drawer-ss-62" label="Monthly at 62" tooltip="Your estimated monthly benefit if you claim Social Security at age 62 (earliest eligible age, ~30% reduction from FRA)." />
+              <FieldLabel htmlFor="drawer-ss-62" label="Monthly at 62" tooltip="Your estimated monthly benefit if you claim Social Security at age 62 (earliest eligible age, ~30% reduction from FRA)." learnHref="/education/social-security-timing" />
               <NumberInput id="drawer-ss-62" min={0} step={100} inputMode="numeric" value={activeScenario.socialSecurity.monthlyBenefitAt62} onValueChange={(v) => updateScenario((s) => { s.socialSecurity.monthlyBenefitAt62 = v; })} />
             </div>
             <div className="space-y-1.5">
-              <FieldLabel htmlFor="drawer-ss-fra" label="Monthly at FRA" tooltip="Your estimated benefit at full retirement age (67 for most people). This is your primary insurance amount." />
+              <FieldLabel htmlFor="drawer-ss-fra" label="Monthly at FRA" tooltip="Your estimated benefit at full retirement age (67 for most people). This is your primary insurance amount." learnHref="/education/social-security-timing" />
               <NumberInput id="drawer-ss-fra" min={0} step={100} inputMode="numeric" value={activeScenario.socialSecurity.monthlyBenefitAtFra} onValueChange={(v) => updateScenario((s) => { s.socialSecurity.monthlyBenefitAtFra = v; })} />
             </div>
             <div className="space-y-1.5">
-              <FieldLabel htmlFor="drawer-ss-70" label="Monthly at 70" tooltip="Your estimated benefit if you delay claiming to age 70 (~24% bonus over FRA via delayed retirement credits)." />
+              <FieldLabel htmlFor="drawer-ss-70" label="Monthly at 70" tooltip="Your estimated benefit if you delay claiming to age 70 (~24% bonus over FRA via delayed retirement credits)." learnHref="/education/social-security-timing" />
               <NumberInput id="drawer-ss-70" min={0} step={100} inputMode="numeric" value={activeScenario.socialSecurity.monthlyBenefitAt70} onValueChange={(v) => updateScenario((s) => { s.socialSecurity.monthlyBenefitAt70 = v; })} />
             </div>
             <div className="space-y-1.5">
-              <FieldLabel htmlFor="drawer-ss-claim" label="Claiming age" tooltip="When you plan to start receiving benefits. Delaying increases your monthly amount but means fewer years of payments." />
+              <FieldLabel htmlFor="drawer-ss-claim" label="Claiming age" tooltip="When you plan to start receiving benefits. Delaying increases your monthly amount but means fewer years of payments." learnHref="/education/social-security-timing" />
               <Select id="drawer-ss-claim" value={String(activeScenario.socialSecurity.claimingAge)} onChange={(e) => updateScenario((s) => { s.socialSecurity.claimingAge = Number(e.target.value) as 62 | 67 | 70; })}>
                 <option value="62">Claim at 62</option>
                 <option value="67">Claim at 67 (FRA)</option>

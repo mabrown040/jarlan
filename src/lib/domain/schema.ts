@@ -17,6 +17,7 @@ const socialSecuritySchema = z.object({
   monthlyBenefitAtFra: z.number().nonnegative(),
   monthlyBenefitAt70: z.number().nonnegative(),
   claimingAge: z.union([z.literal(62), z.literal(67), z.literal(70)]),
+  ssaImportedAt: z.string().optional(),
 });
 
 const assetAllocationSchema = z.object({

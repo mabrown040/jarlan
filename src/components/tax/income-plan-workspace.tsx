@@ -1,6 +1,7 @@
 "use client";
 
 import { Copy } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -192,7 +193,14 @@ export default function IncomePlanWorkspace() {
         <ChartShell
           eyebrow="Social Security"
           title="Claiming strategy"
-          description="Expected lifetime benefits are weighted by the scenario's mortality outlook to avoid a purely nominal break-even answer."
+          description={
+            <>
+              Expected lifetime benefits are weighted by the scenario&apos;s mortality outlook to avoid a purely nominal break-even answer.{" "}
+              <Link href="/education/social-security-timing" className="text-[var(--ember)] hover:underline">
+                Learn more →
+              </Link>
+            </>
+          }
         >
           <div className="space-y-4">
             {socialSecurityAnalysis.options.map((option) => (
@@ -282,7 +290,14 @@ export default function IncomePlanWorkspace() {
         <ChartShell
           eyebrow="Tax optimization"
           title="Drawdown sequencing"
-          description="A simple ten-year tax estimate across a few common withdrawal sequences, using the balances in the shared scenario."
+          description={
+            <>
+              A simple ten-year tax estimate across a few common withdrawal sequences, using the balances in the shared scenario.{" "}
+              <Link href="/education/tax-efficient-withdrawal" className="text-[var(--ember)] hover:underline">
+                Learn more →
+              </Link>
+            </>
+          }
         >
           <div className="grid gap-4 md:grid-cols-3">
             {drawdownComparison.map((strategy, index) => (
@@ -317,7 +332,14 @@ export default function IncomePlanWorkspace() {
         <ChartShell
           eyebrow="Roth ladder"
           title="Roth conversion ladder plan"
-          description="Fills the target tax bracket each year from retirement until RMDs begin at age 73. Early retirees also get a 5-year bridge clock; retirees past 59.5 can already pull from Traditional penalty-free, so the ladder is purely for bracket management."
+          description={
+            <>
+              Fills the target tax bracket each year from retirement until RMDs begin at age 73. Early retirees also get a 5-year bridge clock; retirees past 59.5 can already pull from Traditional penalty-free, so the ladder is purely for bracket management.{" "}
+              <Link href="/education/roth-ladder" className="text-[var(--ember)] hover:underline">
+                Learn more →
+              </Link>
+            </>
+          }
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
@@ -388,6 +410,12 @@ export default function IncomePlanWorkspace() {
           defaultOpen={false}
         >
           <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              How Roth conversions interact with ACA subsidy thresholds before Medicare.{" "}
+              <Link href="/education/aca-early-retirement" className="text-[var(--ember)] hover:underline">
+                Learn more →
+              </Link>
+            </p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 label="400% FPL threshold"
