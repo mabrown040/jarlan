@@ -109,8 +109,23 @@ export function QuickFireWorkspace({
   const sharedScenarioParam = searchParams.get(SCENARIO_QUERY_KEY);
   const [copied, setCopied] = useState(false);
   const { hasDraft } = useHasExistingDraft();
+  // Show the "Know your number" welcome hero ONLY when we're sure the
+  // user has no plan yet. Two signals must agree:
+  //   - IndexedDB has no draft (legacy local-only check), AND
+  //   - the store has had a chance to hydrate (including cloud pull for
+  //     signed-in users) and the active scenario is still the default
+  //     sample — `isPersonalized === false`.
+  // The old version only checked `hasDraft === false`, so a signed-in
+  // user on a fresh browser would see the marketing hero even after
+  // their cloud scenario was pulled into the store.
+  const storeSettled = status === "ready";
+  const activePlanIsSample = activeScenario.isPersonalized === false;
   const showWizard =
-    variant === "landing" && !sharedScenarioParam && hasDraft === false;
+    variant === "landing" &&
+    !sharedScenarioParam &&
+    hasDraft === false &&
+    storeSettled &&
+    activePlanIsSample;
 
   useInitializeStore(sharedScenarioParam);
   useGlobalScenarioFormatting(activeScenario);
