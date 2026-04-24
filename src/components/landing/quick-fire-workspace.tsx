@@ -27,7 +27,6 @@ import {
   calculateQuickFireSummary,
   formatCompactCurrency,
   formatPercent,
-  formatYears,
   getPlannedAnnualInvestmentContribution,
   getCurrentPortfolioBalance,
 } from "@/lib/calc";
@@ -35,7 +34,6 @@ import { computeProjectionMilestones } from "@/lib/calc/milestones";
 import {
   deriveDisplayYearsToFi,
   deriveIncomeCardVariant,
-  deriveProjectionFireYearIndex,
   derivedProjectedSpendingExplanation,
   shouldShowRaiseSavingsWarning,
 } from "@/components/landing/fire-display";
@@ -204,15 +202,6 @@ export function QuickFireWorkspace({
   // edge cases can be unit tested without mounting the whole workspace.
   const traditionalFireTarget =
     fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
-  const projectionFireYearIndex = useMemo(
-    () =>
-      deriveProjectionFireYearIndex({
-        projection: summary.projection,
-        traditionalTarget: traditionalFireTarget,
-        currentBalance,
-      }),
-    [currentBalance, summary.projection, traditionalFireTarget],
-  );
   const { displayYearsToFi, displayFireAge, isPastFire } = useMemo(
     () =>
       deriveDisplayYearsToFi({

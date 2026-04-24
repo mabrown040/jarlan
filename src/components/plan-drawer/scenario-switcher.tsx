@@ -23,7 +23,6 @@ import { cn } from "@/lib/utils";
  */
 export function ScenarioSwitcher() {
   const scenarioList = useScenarioStore((s) => s.scenarioList);
-  const activeScenarioId = useScenarioStore((s) => s.activeScenario.id);
   const refreshScenarioList = useScenarioStore((s) => s.refreshScenarioList);
   const switchToScenario = useScenarioStore((s) => s.switchToScenario);
   const duplicateActive = useScenarioStore((s) => s.duplicateActiveScenario);
