@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Sparkles, WandSparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -16,9 +16,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Select } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import {
-  calculateFireTypeSummaries,
   formatCompactCurrency,
-  formatPercent,
   formatYears,
 } from "@/lib/calc";
 import {
@@ -252,7 +250,6 @@ export function FireTypeQuiz() {
 
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState(DEFAULT_FIRE_TYPE_QUIZ_ANSWERS);
-  const [quizComplete, setQuizComplete] = useState(false);
   // Surfaced when the user tries to advance from contributionSplit
   // while allocations exceed their after-tax budget. Offers two paths:
   // trim a bucket (dismiss) or revisit the spending step.
@@ -292,10 +289,6 @@ export function FireTypeQuiz() {
     () => getFireTypeRecommendation(answers),
     [answers],
   );
-  const fireTypes = useMemo(
-    () => calculateFireTypeSummaries(scenario),
-    [scenario],
-  );
   const isLastStep = stepIndex === steps.length - 1;
   const completion = (stepIndex + 1) / steps.length;
 
@@ -317,26 +310,22 @@ export function FireTypeQuiz() {
     });
   }
 
-  // After quiz completion, all stages route to home which shows results
-  // The stage-specific CTA on the home page determines the next destination
-  const stageNextStep: Record<FireStage, { href: Route; label: string }> = {
-    curious: { href: "/education" as Route, label: "Start learning about FIRE" },
-    saving: { href: "/accumulation" as Route, label: "Open Your Plan" },
-    pre_retirement: { href: "/withdrawal" as Route, label: "Stress-test your retirement" },
-    retired: { href: "/withdrawal" as Route, label: "Check your plan" },
-  };
-
   async function persistQuizToStore() {
     const built = buildScenarioFromQuizAnswers(answers);
     replaceScenario(built);
     await saveDraft();
   }
 
-  async function handleQuizComplete() {
-    // Persist again in case the user edited answers between "See my result" and this CTA.
-    // replaceScenario is idempotent for identical inputs.
+  /**
+   * Persist the quiz scenario and route the user straight to home, with
+   * `?from_quiz=1&type=<id>` so home can render a one-shot banner that
+   * names the recommended path. The result UI lives on home now — there
+   * is no inline result screen to flash through first.
+   */
+  async function finishQuiz() {
     await persistQuizToStore();
-    router.push("/" as Route);
+    const target = `/?from_quiz=1&type=${recommendation.id}` as Route;
+    router.push(target);
   }
 
   /**
@@ -372,8 +361,7 @@ export function FireTypeQuiz() {
       }));
     }
     if (isLastStep) {
-      await persistQuizToStore();
-      setQuizComplete(true);
+      await finishQuiz();
     } else {
       setStepIndex((v) => Math.min(v + 1, steps.length - 1));
     }
@@ -989,43 +977,7 @@ export function FireTypeQuiz() {
       />
 
       <section className="mx-auto max-w-7xl space-y-8 px-6">
-        {/* Quiz card or collapsed result */}
-        {quizComplete ? (
-          <button
-            type="button"
-            onClick={() => setQuizComplete(false)}
-            className="group w-full rounded-2xl bg-card p-6 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="rounded-full border border-[rgba(255,107,53,0.18)] bg-[rgba(255,107,53,0.12)] p-2.5 text-[var(--ember)]">
-                  <Sparkles className="size-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
-                    Your result
-                  </p>
-                  <p className="mt-1 font-display text-2xl tracking-[-0.03em] text-foreground">
-                    {recommendation.label}
-                  </p>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    {recommendation.headline}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-6">
-                <div className="hidden text-right sm:block">
-                  <p className="text-sm text-muted-foreground">Target</p>
-                  <p className="font-display text-xl tracking-[-0.03em] text-foreground">
-                    {formatCompactCurrency(recommendation.targetNumber)}
-                  </p>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5 text-muted-foreground transition-transform group-hover:translate-y-0.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-              </div>
-            </div>
-          </button>
-        ) : (
-          <form
+        <form
             className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]"
             onSubmit={async (event) => {
               // Pressing Enter inside any input submits the form; this
@@ -1046,8 +998,7 @@ export function FireTypeQuiz() {
                 return;
               }
               if (isLastStep) {
-                await persistQuizToStore();
-                setQuizComplete(true);
+                await finishQuiz();
               } else {
                 setStepIndex((v) => Math.min(v + 1, steps.length - 1));
               }
@@ -1134,7 +1085,6 @@ export function FireTypeQuiz() {
               </div>
             </div>
           </form>
-        )}
 
         {/* Over-budget prompt for contributionSplit. Not a hard block —
             we offer whichever honest path actually resolves the gap. */}
@@ -1243,125 +1193,6 @@ export function FireTypeQuiz() {
                   </>
                 );
               })()}
-            </div>
-          </div>
-        ) : null}
-
-        {/* Results — only show after completion */}
-        {quizComplete ? (
-          <div className="space-y-8">
-            {/* Recommendation detail */}
-            <div className="space-y-5">
-              <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                Your recommendation
-              </h2>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">Target</p>
-                  <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-[var(--ember)]">
-                    {formatCompactCurrency(recommendation.targetNumber)}
-                  </p>
-                  <div className="mt-3 space-y-1">
-                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-[var(--flame)] to-[var(--ember)]"
-                        style={{ width: `${Math.min(recommendation.progressToTarget * 100, 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {formatPercent(recommendation.progressToTarget, 0)} there
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Coast target</p>
-                  <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
-                    {formatCompactCurrency(recommendation.coastTargetToday)}
-                  </p>
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Save this much, then compounding alone finishes the job by retirement.
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Why this path</p>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground">
-                    {recommendation.rationale}
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {recommendation.nextStep}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Button type="button" onClick={handleQuizComplete}>
-                  <WandSparkles className="size-4" />
-                  {stageNextStep[answers.stage].label}
-                </Button>
-              </div>
-            </div>
-
-            {/* Type comparison */}
-            <div className="space-y-5">
-              <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                Compare all paths
-              </h2>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                {fireTypes.map((fireType) => {
-                  const highlighted = fireType.id === recommendation.id;
-                  return (
-                    <div
-                      key={fireType.id}
-                      className={cn(
-                        "flex flex-col gap-3 rounded-2xl p-5 transition-all",
-                        highlighted
-                          ? "bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03),0_0_0_2px_rgba(255,107,53,0.2)]"
-                          : "bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]",
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-semibold text-foreground">{fireType.label}</h3>
-                        {highlighted ? (
-                          <span className="rounded-full bg-[rgba(255,107,53,0.12)] px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-[var(--ember)]">
-                            Best fit
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                        {formatCompactCurrency(fireType.target)}
-                      </p>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            highlighted
-                              ? "bg-gradient-to-r from-[var(--flame)] to-[var(--ember)]"
-                              : "bg-primary/60",
-                          )}
-                          style={{ width: `${Math.min(fireType.progress * 100, 100)}%` }}
-                        />
-                      </div>
-                      <p className="text-sm leading-snug text-muted-foreground">
-                        {fireType.description}
-                      </p>
-                      {fireType.id === "coast" ? (
-                        <Link
-                          href="/education/coast-fire"
-                          className="mt-1 text-xs font-medium text-[var(--ember)] hover:underline"
-                        >
-                          Learn about Coast FIRE &rarr;
-                        </Link>
-                      ) : fireType.id === "barista" ? (
-                        <Link
-                          href="/education/barista-fire"
-                          className="mt-1 text-xs font-medium text-[var(--ember)] hover:underline"
-                        >
-                          Learn about Barista FIRE &rarr;
-                        </Link>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           </div>
         ) : null}
