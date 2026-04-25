@@ -59,6 +59,28 @@ describe("scenario migrations", () => {
     expect(parsed!.ownerId).toBeNull();
   });
 
+  it("v2 → v3 adds assumptions.taxRateOverride=null and preserves everything else", () => {
+    const current = createDefaultScenario();
+    const v2 = downgradeScenarioForTest(current, 2);
+    expect(
+      (v2.assumptions as Record<string, unknown>).taxRateOverride,
+    ).toBeUndefined();
+
+    const migrated = runScenarioMigrations(v2);
+    expect(migrated).not.toBeNull();
+    expect(migrated!.version).toBe(APP_VERSION);
+    expect(
+      (migrated!.assumptions as Record<string, unknown>).taxRateOverride,
+    ).toBeNull();
+    // Other assumptions untouched.
+    expect(
+      (migrated!.assumptions as Record<string, unknown>).expectedRealReturn,
+    ).toBe(current.assumptions.expectedRealReturn);
+    expect(
+      (migrated!.assumptions as Record<string, unknown>).withdrawalRate,
+    ).toBe(current.assumptions.withdrawalRate);
+  });
+
   it("parseScenario returns null on non-object input without throwing", () => {
     expect(parseScenario(null)).toBeNull();
     expect(parseScenario(undefined)).toBeNull();

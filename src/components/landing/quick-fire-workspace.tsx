@@ -797,7 +797,18 @@ export function QuickFireWorkspace({
 
                     {/* Tax Estimate */}
                     <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Tax estimate</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Tax estimate</p>
+                        {/* "Manual" pill when the user has set a custom
+                            effective rate in the drawer's Tax estimate
+                            section. Hint that the number isn't from the
+                            calculator's bracket math. */}
+                        {taxEstimate.isManualOverride ? (
+                          <span className="inline-flex items-center rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                            Manual
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
                         {formatCompactCurrency(taxEstimate.totalTax)}
                         <span className="text-base font-normal text-muted-foreground">/yr</span>

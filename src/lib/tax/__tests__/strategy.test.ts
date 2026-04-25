@@ -8,6 +8,7 @@ import {
   compareDrawdownStrategies,
   estimateAcaConversionRoom,
   estimateFederalTax,
+  estimateScenarioTax,
 } from "@/lib/tax";
 
 describe("tax strategy helpers", () => {
@@ -79,5 +80,66 @@ describe("tax strategy helpers", () => {
     expect(
       bracketBreakdown.reduce((total, row) => total + row.amount, 0),
     ).toBe(100_000);
+  });
+});
+
+describe("estimateScenarioTax — manual override", () => {
+  it("returns calculator-estimated tax when override is null (existing behavior)", () => {
+    const scenario = cloneScenario(createDefaultScenario());
+    scenario.assumptions.taxRateOverride = null;
+    const result = estimateScenarioTax(scenario);
+    expect(result.isManualOverride).toBe(false);
+    // Federal/state/FICA all add up to totalTax in the normal path.
+    expect(
+      result.federalTax + result.stateTax + result.fica.totalFica,
+    ).toBeCloseTo(result.totalTax, 2);
+  });
+
+  it("short-circuits to gross × override when set, ignoring bracket math", () => {
+    const scenario = cloneScenario(createDefaultScenario());
+    scenario.annualIncome = 200_000;
+    scenario.assumptions.taxRateOverride = 0.3;
+    const result = estimateScenarioTax(scenario);
+    expect(result.isManualOverride).toBe(true);
+    expect(result.totalTax).toBeCloseTo(60_000, 2);
+    expect(result.takeHome).toBeCloseTo(140_000, 2);
+    expect(result.effectiveRate).toBe(0.3);
+    // Federal/state/FICA contract: federal carries the lump sum so
+    // (federal + state + fica) === totalTax for sankey consumers.
+    expect(result.federalTax).toBeCloseTo(60_000, 2);
+    expect(result.stateTax).toBe(0);
+    expect(result.fica.totalFica).toBe(0);
+  });
+
+  it("override applies to household gross when partner income is set", () => {
+    const scenario = cloneScenario(createDefaultScenario());
+    scenario.annualIncome = 100_000;
+    scenario.profile.partner = {
+      name: "Partner",
+      age: 30,
+      retirementAge: null,
+      annualIncome: 50_000,
+      socialSecurityBenefit: {
+        monthlyBenefitAt62: 0,
+        monthlyBenefitAtFra: 0,
+        monthlyBenefitAt70: 0,
+        claimingAge: 67,
+      },
+    };
+    scenario.assumptions.taxRateOverride = 0.25;
+    const result = estimateScenarioTax(scenario);
+    expect(result.grossIncome).toBe(150_000);
+    expect(result.totalTax).toBeCloseTo(37_500, 2);
+    expect(result.takeHome).toBeCloseTo(112_500, 2);
+  });
+
+  it("override at 0 means zero tax (edge case, no NaN)", () => {
+    const scenario = cloneScenario(createDefaultScenario());
+    scenario.assumptions.taxRateOverride = 0;
+    const result = estimateScenarioTax(scenario);
+    expect(result.isManualOverride).toBe(true);
+    expect(result.totalTax).toBe(0);
+    expect(result.takeHome).toBe(scenario.annualIncome);
+    expect(result.effectiveRate).toBe(0);
   });
 });

@@ -167,6 +167,19 @@ export interface ScenarioAssumptions {
   partTimeIncomeDuration: number | null;
   incomeGrowthRate: number;
   expenseGrowthRate: number;
+  /**
+   * Optional manual override for the working-years effective tax rate
+   * (total tax / gross income). When set, the tax engine skips
+   * federal-bracket + state + FICA math and treats `gross × override`
+   * as the user's total tax. Use case: people with unique tax
+   * situations the calculator can't model (foreign income,
+   * government pensions, large capital gains, AMT). Null = use the
+   * calculator's estimate (default).
+   *
+   * Only affects working-years tax math. Retirement-side tax
+   * (account-type aware withdrawals) keeps its own logic.
+   */
+  taxRateOverride: number | null;
 }
 
 export interface Scenario {

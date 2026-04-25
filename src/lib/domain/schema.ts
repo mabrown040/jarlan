@@ -137,6 +137,12 @@ const scenarioAssumptionsSchema = z.object({
   partTimeIncomeDuration: z.number().int().min(1).max(50).nullable().default(null),
   incomeGrowthRate: z.number().min(0).max(0.1).default(0.01),
   expenseGrowthRate: z.number().min(0).max(0.1).default(0),
+  // Bounds: 0% to 70%. 70% is a deliberately generous ceiling — the
+  // theoretical max for a high-income earner in CA + NYC + AMT is
+  // around 55-60%, so 70% gives headroom without enabling clearly-
+  // wrong inputs. Default(null) means migrating data without the
+  // field gets it set to null (= "off").
+  taxRateOverride: z.number().min(0).max(0.7).nullable().default(null),
 });
 
 export const scenarioSchema = z.object({

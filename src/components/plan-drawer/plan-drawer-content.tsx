@@ -33,7 +33,7 @@ import { useScenarioStore } from "@/lib/store";
 import { estimateScenarioTax } from "@/lib/tax";
 import { SSAImport } from "@/components/plan-drawer/ssa-import";
 import { get401kEmployeeLimit, getRothIraLimit, getHsaLimit } from "@/lib/tax/limits";
-import { cn } from "@/lib/utils";
+import { clamp, cn } from "@/lib/utils";
 
 const accountTypeOptions: Array<{ value: AccountType; label: string }> = [
   { value: "traditional_401k", label: "Traditional 401(k)" },
@@ -90,6 +90,7 @@ export function PlanDrawerContent() {
     updateExpenseGrowthRate,
     updateInflation,
     updateFeeDrag,
+    updateTaxRateOverride,
     updateCountry,
     updateCurrency,
     setPartnerPlanningEnabled,
@@ -414,6 +415,98 @@ export function PlanDrawerContent() {
             </div>
             <Slider id="drawer-inflation" min={0} max={0.08} step={0.005} value={[activeScenario.assumptions.inflation]} onValueChange={([v]) => updateInflation(v)} />
           </div>
+        </div>
+      </CollapsibleSection>
+
+      {/* ── Tax estimate ──
+          Default: calculator computes federal/state/FICA from
+          income + filing status + state. Power-user override: type
+          your own effective rate and we skip the bracket math.
+          Used for unique tax situations the calculator can't model
+          (foreign income, gov pension, big capital gains, AMT). */}
+      <CollapsibleSection
+        title="Tax estimate"
+        summary={
+          typeof activeScenario.assumptions.taxRateOverride === "number"
+            ? `Manual: ${formatPercent(activeScenario.assumptions.taxRateOverride, 1)} effective`
+            : "Calculator-estimated"
+        }
+      >
+        <div className="space-y-3">
+          <label className="flex cursor-pointer items-start gap-2">
+            <input
+              type="checkbox"
+              checked={
+                typeof activeScenario.assumptions.taxRateOverride === "number"
+              }
+              onChange={(e) => {
+                // Toggling on seeds with the calculator's current
+                // estimate so the user starts from a sensible value
+                // rather than 0%. Toggling off clears to null (use
+                // calculator).
+                if (e.target.checked) {
+                  const seed = taxCalc.effectiveRate || 0.25;
+                  updateTaxRateOverride(seed);
+                } else {
+                  updateTaxRateOverride(null);
+                }
+              }}
+              className="mt-0.5 size-4 rounded border-border/60 text-[var(--ember)] focus:ring-1 focus:ring-[var(--ember)]"
+            />
+            <span className="text-sm">
+              <span className="font-medium text-foreground">
+                Use my own effective tax rate
+              </span>
+              <span className="ml-1 text-muted-foreground">
+                (overrides federal + state + FICA estimate)
+              </span>
+            </span>
+          </label>
+          {typeof activeScenario.assumptions.taxRateOverride === "number" ? (
+            <div className="space-y-2 pl-6">
+              <div className="flex items-center justify-between">
+                <FieldLabel
+                  htmlFor="drawer-tax-override"
+                  label="Your effective tax rate"
+                  tooltip="Total tax (federal + state + FICA + anything else) as a percentage of gross income. Look at last year's tax return: Total tax / gross income."
+                />
+                <span className="text-sm font-medium">
+                  {formatPercent(
+                    activeScenario.assumptions.taxRateOverride,
+                    1,
+                  )}
+                </span>
+              </div>
+              <NumberInput
+                id="drawer-tax-override"
+                min={0}
+                max={70}
+                step={0.5}
+                inputMode="decimal"
+                // Display + edit as percentage points (e.g. 27.5)
+                // while the schema stores 0.275. Conversion happens
+                // at the boundary.
+                value={Math.round(
+                  activeScenario.assumptions.taxRateOverride * 1000,
+                ) / 10}
+                onValueChange={(v) =>
+                  updateTaxRateOverride(clamp(v / 100, 0, 0.7))
+                }
+              />
+              <button
+                type="button"
+                onClick={() => updateTaxRateOverride(null)}
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Reset to calculator estimate
+              </button>
+            </div>
+          ) : (
+            <p className="pl-6 text-xs text-muted-foreground">
+              Calculator estimate: {formatPercent(taxCalc.effectiveRate, 1)}{" "}
+              effective ({formatCompactCurrency(taxCalc.totalTax)}/yr).
+            </p>
+          )}
         </div>
       </CollapsibleSection>
 

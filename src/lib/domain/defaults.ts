@@ -16,7 +16,7 @@ import type {
  *   v1 — initial shape
  *   v2 — added `ownerId` (nullable) to enable future cloud sync
  */
-export const APP_VERSION = 2;
+export const APP_VERSION = 3;
 export const DEFAULT_SCENARIO_ID = "default-firecalc-scenario";
 
 export function createDefaultAccount(
@@ -123,6 +123,7 @@ export function createDefaultScenario(): Scenario {
       partTimeIncomeDuration: null,
       incomeGrowthRate: 0.01,
       expenseGrowthRate: 0,
+      taxRateOverride: null,
     },
     withdrawalStrategy: {
       type: "fixed",
