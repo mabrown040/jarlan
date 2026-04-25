@@ -719,13 +719,18 @@ export function QuickFireWorkspace({
                     {/* Show what's actually being invested (account contribs +
                         employer match), not "take-home minus expenses" which
                         conflated potential savings with real contributions.
-                        Falls back to gross rate when tax data is unavailable. */}
+                        Label it "savings rate" because that's the FIRE-
+                        community term for this exact ratio (invested $ /
+                        take-home) — every education article and other
+                        workspace in the app uses that vocabulary, so the
+                        hero shouldn't drift. Falls back to gross rate when
+                        tax data is unavailable. */}
                     <span className="font-semibold text-foreground">
                       {plannedInvestmentContribution > 0 && taxEstimate.takeHome > 0
                         ? formatPercent(investedRate, 0)
                         : formatPercent(summary.savingsRate, 0)}
                     </span>
-                    {" "}invested rate
+                    {" "}savings rate
                   </span>
                 </div>
               </button>
@@ -856,6 +861,31 @@ export function QuickFireWorkspace({
               </section>
             )}
 
+            {/* Post-FI moment of recognition — surfaced above the
+                "Dig deeper" hub when the user's portfolio has crossed
+                their FIRE number. Used to live inside Section 4
+                "Explore your tools" but that section was redundant
+                with the new hub; the callout itself is too good to
+                lose, so we kept it as a standalone above. */}
+            {alreadyFi && (
+              <section className="mx-auto max-w-7xl px-6">
+                <Link
+                  href={"/withdrawal" as Route}
+                  className="group block rounded-2xl border border-[rgba(99,102,241,0.2)] bg-[rgba(99,102,241,0.04)] p-6 transition-all hover:border-[rgba(99,102,241,0.35)]"
+                >
+                  <p className="font-display text-lg tracking-[-0.02em] text-foreground">
+                    You&apos;ve reached your target. See if your plan will last.
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Run historical backtests and Monte Carlo simulations to stress-test your withdrawal strategy.
+                  </p>
+                  <p className="mt-3 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                    Stress-test your retirement {"→"}
+                  </p>
+                </Link>
+              </section>
+            )}
+
             {/* Section 3: Dig deeper — hub links into the app's
                 bigger surfaces. Replaced the previous "Three paths to
                 freedom" grid, which lost its job once
@@ -909,99 +939,6 @@ export function QuickFireWorkspace({
               </div>
             </section>
 
-
-            {/* Section 4: Quick Actions */}
-            <section className="mx-auto max-w-7xl px-6">
-              <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                Explore your tools
-              </h2>
-              {alreadyFi && (
-                <Link
-                  href={"/withdrawal" as Route}
-                  className="group mt-4 block rounded-2xl border border-[rgba(99,102,241,0.2)] bg-[rgba(99,102,241,0.04)] p-6 transition-all hover:border-[rgba(99,102,241,0.35)]"
-                >
-                  <p className="font-display text-lg tracking-[-0.02em] text-foreground">
-                    You&apos;ve reached your target. See if your plan will last.
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Run historical backtests and Monte Carlo simulations to stress-test your withdrawal strategy.
-                  </p>
-                  <p className="mt-3 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                    Stress-test your retirement {"\u2192"}
-                  </p>
-                </Link>
-              )}
-              <div className={cn("mt-4 grid gap-4 lg:grid-cols-3", alreadyFi && "lg:grid-cols-3")}>
-                {/* Spend — shown first for post-FI users */}
-                <div className={cn(
-                  "rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]",
-                  alreadyFi && "order-first",
-                )}>
-                  <div className="flex items-center gap-2">
-                    <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(99,102,241,0.1)]">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/><path d="M12 6v6l4 2"/></svg>
-                    </div>
-                    <h3 className="font-semibold text-foreground">Spend</h3>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    <Link
-                      href={"/withdrawal" as Route}
-                      className="group block"
-                    >
-                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                        {/* Matches the sub-nav label. Previously read "Your
-                            Plan" which was the pre-rename Spend sub-tab name. */}
-                        Can I retire? {"\u2192"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Historical backtests and Monte Carlo stress tests.</p>
-                    </Link>
-                    <Link
-                      href={"/tax-strategy" as Route}
-                      className="group block"
-                    >
-                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                        Income plan {"\u2192"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Roth conversions, drawdown sequencing, and ACA planning.</p>
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Save — de-emphasized for post-FI users */}
-                <div className={cn(
-                  "rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]",
-                  alreadyFi && "order-last opacity-60",
-                )}>
-                  <div className="flex items-center gap-2">
-                    <div className="flex size-8 items-center justify-center rounded-lg bg-[rgba(255,107,53,0.1)]">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-                    </div>
-                    <h3 className="font-semibold text-foreground">Save</h3>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    <Link
-                      href={"/accumulation" as Route}
-                      className="group block"
-                    >
-                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                        Your Plan {"\u2192"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Projections, milestones, and year-by-year breakdown.</p>
-                    </Link>
-                    <Link
-                      href={"/save-what-if" as Route}
-                      className="group block"
-                    >
-                      <p className="text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                        What if? {"\u2192"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">See how changes to savings, returns, or lifestyle shift your timeline.</p>
-                    </Link>
-                  </div>
-                </div>
-
-              </div>
-            </section>
 
             {/* Section 5: Personalized Insight */}
             <section className="mx-auto max-w-7xl px-6">
