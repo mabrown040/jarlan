@@ -11,6 +11,7 @@ interface ExtractApiResponse {
   scenario: Scenario;
   confidence: "high" | "medium" | "low";
   notes?: string;
+  replyDraft: { summary: string; message: string };
   shareUrl: string;
 }
 
@@ -228,6 +229,8 @@ function ResultPanel({
         </div>
       ) : null}
 
+      <ReplyDraftPanel replyDraft={data.replyDraft} shareUrl={shareUrl} />
+
       <ScenarioSummary scenario={scenario} />
 
       <AssumptionsList
@@ -271,6 +274,90 @@ function ResultPanel({
         >
           Open in workspace
         </button>
+      </div>
+    </div>
+  );
+}
+
+interface ReplyDraftPanelProps {
+  replyDraft: { summary: string; message: string };
+  shareUrl: string;
+}
+
+/**
+ * The headline output of the admin tool: a Reddit-ready reply
+ * the operator can edit and copy. The reply is initialized with
+ * {{link}} substituted for the actual share URL — the operator
+ * sees and copies the final text. They're free to edit before
+ * posting; word count is shown so they don't accidentally exceed
+ * subreddit length norms.
+ *
+ * If the model declined to draft (`message === ""`), show a
+ * gentle empty state pointing at the model's note above.
+ */
+function ReplyDraftPanel({ replyDraft, shareUrl }: ReplyDraftPanelProps) {
+  const initial = replyDraft.message.replaceAll("{{link}}", shareUrl);
+  const [replyText, setReplyText] = useState(initial);
+  const [copied, setCopied] = useState(false);
+
+  const trimmed = replyText.trim();
+  const wordCount = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(replyText);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1_500);
+    } catch {
+      // Clipboard access can fail in some contexts (non-HTTPS,
+      // restricted extensions). Operator can still select-and-copy
+      // from the textarea manually.
+    }
+  }
+
+  if (replyDraft.message === "") {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-900/50 dark:bg-amber-900/20">
+        <strong className="font-medium">No reply drafted.</strong>{" "}
+        The model declined to write a reply for this input — see the note
+        above for why. You can still use the share URL on its own.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-lg border-2 border-gray-900 p-4 dark:border-gray-100">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold uppercase tracking-wide">
+          Reddit reply draft
+        </h3>
+        <button
+          type="button"
+          onClick={copy}
+          disabled={trimmed.length === 0}
+          className="shrink-0 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200 dark:disabled:bg-gray-700"
+        >
+          {copied ? "Copied!" : "Copy reply"}
+        </button>
+      </div>
+
+      {replyDraft.summary ? (
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          <span className="font-semibold">Operator note:</span>{" "}
+          {replyDraft.summary}
+        </p>
+      ) : null}
+
+      <textarea
+        value={replyText}
+        onChange={(e) => setReplyText(e.target.value)}
+        rows={12}
+        className="block w-full rounded-md border border-gray-300 bg-white p-3 text-sm leading-relaxed shadow-sm focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+      />
+
+      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+        <span>{wordCount} words</span>
+        <span>Edit freely before posting — the link is already inserted.</span>
       </div>
     </div>
   );

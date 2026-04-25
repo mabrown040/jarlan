@@ -161,6 +161,7 @@ export async function POST(request: Request) {
     scenario: validated,
     confidence: extraction.extraction.confidence,
     notes: extraction.extraction.notes,
+    replyDraft: extraction.extraction.replyDraft,
     shareUrl,
   });
 }
