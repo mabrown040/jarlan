@@ -95,6 +95,7 @@ export async function extractScenario(
       assumptions: response.parsed_output.assumptions,
       confidence: response.parsed_output.confidence,
       notes: response.parsed_output.notes,
+      replyDraft: response.parsed_output.replyDraft,
     };
 
     return { ok: true, extraction, usage };

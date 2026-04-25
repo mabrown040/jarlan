@@ -57,6 +57,24 @@ export interface ScenarioDraft {
 }
 
 /**
+ * Reddit-ready reply the operator can post on the source thread.
+ * The whole point of the admin tool: a draft scenario without a
+ * post-able message is just data; with the message, it's a growth
+ * lever.
+ *
+ * `message` contains the literal token `{{link}}` exactly once
+ * where the share URL should appear. The UI substitutes it before
+ * the operator copies. Empty `message` signals the model declined
+ * to draft a reply (input too thin, off-topic, distress signal).
+ */
+export interface ReplyDraft {
+  /** 1-line operator-only TL;DR (not part of the public reply). */
+  summary: string;
+  /** 150–250 word Reddit reply with `{{link}}` placeholder. */
+  message: string;
+}
+
+/**
  * Result the model returns. `draft` populates what it could; every
  * non-trivial field gets an entry in `assumptions` explaining why.
  * `confidence` is the overall extraction confidence (worst-case
@@ -69,6 +87,7 @@ export interface ExtractionResult {
   assumptions: AssumptionLog[];
   confidence: "high" | "medium" | "low";
   notes?: string;
+  replyDraft: ReplyDraft;
 }
 
 /**
