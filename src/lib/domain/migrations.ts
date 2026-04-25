@@ -56,6 +56,17 @@ const migrations: Record<number, ScenarioMigration> = {
       version: 3,
     };
   },
+  /**
+   * v3 → v4: adds optional `meta` field for AI-feature provenance
+   * (source, raw text, assumptions log). Legacy scenarios have no
+   * provenance to record, so `meta` is left undefined — AI-generated
+   * scenarios (chat edits, description extraction) populate it
+   * explicitly when they're built.
+   */
+  3: (input) => ({
+    ...input,
+    version: 4,
+  }),
 };
 
 export function runScenarioMigrations(
@@ -102,6 +113,9 @@ export function downgradeScenarioForTest(
 ): Record<string, unknown> {
   const { ...copy } = scenario as unknown as Record<string, unknown>;
   // Strip fields added in versions strictly newer than the target.
+  if (targetVersion < 4) {
+    delete copy.meta;
+  }
   if (
     targetVersion < 3 &&
     typeof copy.assumptions === "object" &&

@@ -81,6 +81,47 @@ describe("scenario migrations", () => {
     ).toBe(current.assumptions.withdrawalRate);
   });
 
+  it("v3 → v4 leaves meta undefined and preserves everything else", () => {
+    const current = createDefaultScenario();
+    const v3 = downgradeScenarioForTest(current, 3);
+    expect(v3).not.toHaveProperty("meta");
+
+    const migrated = runScenarioMigrations(v3);
+    expect(migrated).not.toBeNull();
+    expect(migrated!.version).toBe(APP_VERSION);
+    expect(migrated!.meta).toBeUndefined();
+    // Other fields untouched.
+    expect(migrated!.annualIncome).toBe(current.annualIncome);
+    expect(
+      (migrated!.assumptions as Record<string, unknown>).taxRateOverride,
+    ).toBe(current.assumptions.taxRateOverride);
+  });
+
+  it("scenarios with meta round-trip through parseScenario", () => {
+    const current = createDefaultScenario();
+    const withMeta = {
+      ...current,
+      meta: {
+        source: "description" as const,
+        sourceText: "I'm 35, save $30K/year, want to retire by 50.",
+        assumptionsLog: [
+          {
+            field: "profile.age",
+            value: 35,
+            reason: "stated explicitly in description",
+            confidence: "high" as const,
+            source: "derived" as const,
+          },
+        ],
+        createdBy: "ai" as const,
+        createdByModel: "claude-opus-4-7",
+      },
+    };
+    const parsed = parseScenario(withMeta);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.meta).toEqual(withMeta.meta);
+  });
+
   it("parseScenario returns null on non-object input without throwing", () => {
     expect(parseScenario(null)).toBeNull();
     expect(parseScenario(undefined)).toBeNull();
