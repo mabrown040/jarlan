@@ -103,10 +103,37 @@ function computeContributionBudget(answers: FireTypeQuizAnswers) {
 /** Virtual step keys that don't map 1:1 to a single answer field */
 type VirtualStepKey = "accountSplit" | "contributionSplit";
 
+/**
+ * Smart contribution defaults — fill 401(k), Roth IRA, HSA up to their
+ * limits in priority order, then taxable. Same heuristic the in-step
+ * "first-render seed" used; lifted to a helper so the form-level "Skip"
+ * button can apply the same numbers without entering the step.
+ */
+function getDefaultContributions(answers: FireTypeQuizAnswers) {
+  const limits = getContributionLimits(answers.currentAge, {
+    filingStatus: answers.filingStatus,
+    partnerHas401k: answers.partnerHas401k,
+  });
+  const { totalSavings } = computeContributionBudget(answers);
+  const traditional = Math.min(limits.traditional401k, totalSavings);
+  const roth = Math.min(limits.rothIra, Math.max(totalSavings - traditional, 0));
+  const hsa = Math.min(limits.hsa, Math.max(totalSavings - traditional - roth, 0));
+  const taxable = Math.max(totalSavings - traditional - roth - hsa, 0);
+  return { traditional, roth, hsa, taxable };
+}
+
 interface QuizStep {
   key: keyof FireTypeQuizAnswers | VirtualStepKey;
   title: string;
   description: string;
+  /**
+   * Optional steps live at the tail of every flow. Users see an "Optional"
+   * badge plus a prominent "Skip — use defaults" button so the quiz can
+   * end without touching them. Sensible defaults flow through to the
+   * scenario regardless; users who want more accuracy can still opt in
+   * here, and advanced users edit the same fields in the plan drawer.
+   */
+  optional?: boolean;
 }
 
 const stageStep: QuizStep = {
@@ -115,6 +142,10 @@ const stageStep: QuizStep = {
   description: "This helps us tailor the quiz and send you to the right tools.",
 };
 
+/**
+ * Question catalog. Order here is also the canonical order each flow
+ * surfaces them in, so optional steps live at the bottom.
+ */
 const allQuestionSteps: QuizStep[] = [
   { key: "currentAge", title: "How old are you today?", description: "This sets the starting point for the rest of the timeline and Coast FIRE math." },
   { key: "targetFiAge", title: "When would full financial independence feel ideal?", description: "Think about the age where optional work becomes more valuable than mandatory work." },
@@ -123,21 +154,39 @@ const allQuestionSteps: QuizStep[] = [
   { key: "state", title: "Which state do you live in?", description: "State income taxes can significantly affect your take-home pay and FIRE timeline." },
   { key: "annualSpending", title: "What annual spending level feels comfortable?", description: "Use a real-world number, not the absolute minimum you could survive on for a year." },
   { key: "currentPortfolio", title: "How much is already invested toward FIRE?", description: "A current portfolio helps calculate Coast FIRE and your overall progress." },
-  { key: "accountSplit", title: "Where is your money?", description: "Account types matter for tax-efficient withdrawals in retirement. Skip if you're not sure." },
-  { key: "contributionSplit", title: "Where do your savings go?", description: "How you allocate contributions affects your tax bill now and in retirement." },
   { key: "riskTolerance", title: "How much risk of running short feels acceptable?", description: "Cautious answers push toward more margin. Aggressive answers favor speed." },
+  // Optional tail — same for every flow, but skipping is first-class.
+  {
+    key: "accountSplit",
+    title: "Where is your money?",
+    description: "Skip and we'll assume it's all in a taxable brokerage — you can fine-tune any time inside your plan.",
+    optional: true,
+  },
+  {
+    key: "contributionSplit",
+    title: "Where do your savings go?",
+    description: "Skip and we'll fill 401(k), Roth, and HSA up to the limits, then route the rest to taxable.",
+    optional: true,
+  },
 ];
 
 const stageQuestionKeys: Record<FireStage, Array<keyof FireTypeQuizAnswers | "accountSplit" | "contributionSplit">> = {
-  curious: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "state", "annualSpending", "currentPortfolio", "riskTolerance"],
-  saving: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "state", "annualSpending", "currentPortfolio", "accountSplit", "contributionSplit", "riskTolerance"],
-  pre_retirement: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "state", "annualSpending", "currentPortfolio", "accountSplit", "riskTolerance"],
-  retired: ["currentAge", "annualSpending", "currentPortfolio", "accountSplit", "riskTolerance"],
+  // Working toward FIRE — same flow for curious / saving / pre-retirement.
+  // Stage only changes the destination CTA after the quiz, not the questions.
+  curious: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "state", "annualSpending", "currentPortfolio", "riskTolerance", "accountSplit", "contributionSplit"],
+  saving: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "state", "annualSpending", "currentPortfolio", "riskTolerance", "accountSplit", "contributionSplit"],
+  pre_retirement: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "state", "annualSpending", "currentPortfolio", "riskTolerance", "accountSplit", "contributionSplit"],
+  // Already FI — no income / target FI age (they're already there); no
+  // contribution split (no new contributions to allocate). Account split
+  // still matters for withdrawal sequencing.
+  retired: ["currentAge", "filingStatus", "state", "annualSpending", "currentPortfolio", "riskTolerance", "accountSplit"],
 };
 
 function getStepsForStage(stage: FireStage): QuizStep[] {
   const keys = stageQuestionKeys[stage];
-  return [stageStep, ...allQuestionSteps.filter((s) => keys.includes(s.key))];
+  // Preserve the order declared in `stageQuestionKeys` (not the catalog
+  // order), so the retired flow puts state/filing right after age, etc.
+  return [stageStep, ...keys.map((key) => allQuestionSteps.find((s) => s.key === key)!).filter(Boolean)];
 }
 
 const riskLabels = [
@@ -289,6 +338,46 @@ export function FireTypeQuiz() {
     // replaceScenario is idempotent for identical inputs.
     await persistQuizToStore();
     router.push("/" as Route);
+  }
+
+  /**
+   * Skip an optional step using its sensible default. For accountSplit
+   * that's "everything in taxable" (matches the seed when the user enters
+   * currentPortfolio). For contributionSplit it's the smart-fill that
+   * fills tax-advantaged accounts up to the limits, then taxable.
+   *
+   * Mutates state synchronously and advances. If the skipped step is the
+   * last one, finishes the quiz instead of advancing.
+   */
+  async function skipOptionalStep() {
+    if (currentStep.key === "accountSplit") {
+      setAnswers((prev) => ({
+        ...prev,
+        traditionalBalance: 0,
+        rothBalance: 0,
+        hsaBalance: 0,
+        taxableBalance: prev.currentPortfolio,
+      }));
+    } else if (currentStep.key === "contributionSplit") {
+      const defaults = getDefaultContributions(answers);
+      setAnswers((prev) => ({
+        ...prev,
+        traditionalContribution: defaults.traditional,
+        rothContribution: defaults.roth,
+        hsaContribution: defaults.hsa,
+        taxableContribution: defaults.taxable,
+        megaBackdoorRothAvailable: false,
+        megaBackdoorRothContribution: 0,
+        partnerMegaBackdoorRothAvailable: false,
+        partnerMegaBackdoorRothContribution: 0,
+      }));
+    }
+    if (isLastStep) {
+      await persistQuizToStore();
+      setQuizComplete(true);
+    } else {
+      setStepIndex((v) => Math.min(v + 1, steps.length - 1));
+    }
   }
 
   function renderStep() {
@@ -541,18 +630,6 @@ export function FireTypeQuiz() {
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setAnswer("traditionalBalance", 0);
-                setAnswer("rothBalance", 0);
-                setAnswer("hsaBalance", 0);
-                setAnswer("taxableBalance", answers.currentPortfolio);
-              }}
-              className="text-xs text-[var(--ember)] hover:underline"
-            >
-              I&apos;m not sure — put it all in taxable
-            </button>
           </div>
         );
       }
@@ -577,10 +654,12 @@ export function FireTypeQuiz() {
         } = budget;
         const totalAllocated = preTaxableAllocated + derivedTaxable;
 
-        const defaultTrad = Math.min(limits.traditional401k, totalSavings);
-        const defaultRoth = Math.min(limits.rothIra, Math.max(totalSavings - defaultTrad, 0));
-        const defaultHsa = Math.min(limits.hsa, Math.max(totalSavings - defaultTrad - defaultRoth, 0));
-        const defaultTaxable = Math.max(totalSavings - defaultTrad - defaultRoth - defaultHsa, 0);
+        const {
+          traditional: defaultTrad,
+          roth: defaultRoth,
+          hsa: defaultHsa,
+          taxable: defaultTaxable,
+        } = getDefaultContributions(answers);
         const catchUpNote = answers.currentAge >= 50
           ? ` (includes ${answers.currentAge >= 60 && answers.currentAge <= 63 ? "super " : ""}catch-up)`
           : "";
@@ -870,22 +949,6 @@ export function FireTypeQuiz() {
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setAnswer("traditionalContribution", defaultTrad);
-                setAnswer("rothContribution", defaultRoth);
-                setAnswer("hsaContribution", defaultHsa);
-                setAnswer("taxableContribution", defaultTaxable);
-                setAnswer("megaBackdoorRothAvailable", false);
-                setAnswer("megaBackdoorRothContribution", 0);
-                setAnswer("partnerMegaBackdoorRothAvailable", false);
-                setAnswer("partnerMegaBackdoorRothContribution", 0);
-              }}
-              className="text-xs text-[var(--ember)] hover:underline"
-            >
-              I&apos;m not sure — use smart defaults
-            </button>
           </div>
         );
       }
@@ -994,9 +1057,19 @@ export function FireTypeQuiz() {
             {/* Question header */}
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                  {currentStep.title}
-                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
+                    {currentStep.title}
+                  </h2>
+                  {currentStep.optional ? (
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
+                    >
+                      Optional
+                    </Badge>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {currentStep.description}
                 </p>
@@ -1030,21 +1103,36 @@ export function FireTypeQuiz() {
                 <ArrowLeft className="size-4" />
                 Back
               </Button>
-              {isLastStep ? (
-                // `type="submit"` so the form's onSubmit fires from
-                // both button click and Enter keypress — single code
-                // path. The form's onSubmit intercepts over-budget
-                // cases and shows a prompt instead of advancing.
-                <Button type="submit">
-                  <Sparkles className="size-4" />
-                  See my result
-                </Button>
-              ) : (
-                <Button type="submit">
-                  Next
-                  <ArrowRight className="size-4" />
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {currentStep.optional ? (
+                  // First-class skip: same visual weight as Continue,
+                  // applies the step's sensible default and advances.
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      void skipOptionalStep();
+                    }}
+                  >
+                    Skip — use defaults
+                  </Button>
+                ) : null}
+                {isLastStep ? (
+                  // `type="submit"` so the form's onSubmit fires from
+                  // both button click and Enter keypress — single code
+                  // path. The form's onSubmit intercepts over-budget
+                  // cases and shows a prompt instead of advancing.
+                  <Button type="submit">
+                    <Sparkles className="size-4" />
+                    See my result
+                  </Button>
+                ) : (
+                  <Button type="submit">
+                    {currentStep.optional ? "Looks good" : "Next"}
+                    <ArrowRight className="size-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </form>
         )}
