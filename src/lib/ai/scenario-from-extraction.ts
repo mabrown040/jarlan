@@ -17,6 +17,7 @@ import type {
   Scenario,
   ScenarioMetaSource,
 } from "@/lib/domain/types";
+import { estimateScenarioTax } from "@/lib/tax/strategy";
 
 import type { ScenarioDraft } from "./types";
 
@@ -97,6 +98,31 @@ export function buildScenarioFromExtraction(
       accounts[0]!.annualContribution = draft.annualSavings;
     }
     base.accounts = accounts;
+  }
+
+  // When the AI didn't extract `annualSavings`, derive it from
+  // take-home minus stated expenses so the dashboard's "Saving"
+  // stat card (which reads from `accounts[*].annualContribution`)
+  // and the "Where your money goes" Sankey (which derives from
+  // take-home − expenses) agree on a single number. Without this,
+  // a high-income scenario with no stated savings shows "$0/yr"
+  // contributing while the Sankey shows the full take-home flowing
+  // somewhere — jarring for the operator and wrong for downstream
+  // projections that read account contributions.
+  //
+  // Runs only when `annualSavings` is null in the draft. If the
+  // model gave us a real number (extracted or explicitly zero),
+  // we trust it.
+  if (draft.annualSavings === null) {
+    const taxEstimate = estimateScenarioTax(base);
+    const derivedSavings = Math.max(
+      0,
+      taxEstimate.takeHome - base.annualExpenses,
+    );
+    base.annualSavings = derivedSavings;
+    if (base.accounts[0] && derivedSavings > 0) {
+      base.accounts[0].annualContribution = derivedSavings;
+    }
   }
 
   // Surface every field that fell back to a default because the
