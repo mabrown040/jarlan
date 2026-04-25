@@ -15,8 +15,10 @@ import type {
  * History:
  *   v1 — initial shape
  *   v2 — added `ownerId` (nullable) to enable future cloud sync
+ *   v3 — added `assumptions.taxRateOverride` for manual tax overrides
+ *   v4 — added `meta` for AI-feature provenance (source + assumptions log)
  */
-export const APP_VERSION = 3;
+export const APP_VERSION = 4;
 export const DEFAULT_SCENARIO_ID = "default-firecalc-scenario";
 
 export function createDefaultAccount(

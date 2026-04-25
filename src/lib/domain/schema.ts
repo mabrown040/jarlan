@@ -145,6 +145,26 @@ const scenarioAssumptionsSchema = z.object({
   taxRateOverride: z.number().min(0).max(0.7).nullable().default(null),
 });
 
+const assumptionLogSchema = z.object({
+  field: z.string().min(1).max(200),
+  value: z.unknown(),
+  reason: z.string().min(1).max(500),
+  confidence: z.enum(["high", "medium", "low"]),
+  source: z.enum(["derived", "default", "inferred"]),
+});
+
+const scenarioMetaSchema = z.object({
+  source: z.enum(["manual", "quiz", "description", "chat", "imported"]),
+  // 50KB cap on raw source text — mirrors the paste cap from the
+  // chat architecture doc and protects against payload bombs in
+  // shared/imported scenarios. The 512KB scenario-level cap in
+  // share-URL serialization is the outer guard.
+  sourceText: z.string().max(50_000).optional(),
+  assumptionsLog: z.array(assumptionLogSchema).max(200).optional(),
+  createdBy: z.enum(["user", "ai"]).optional(),
+  createdByModel: z.string().min(1).max(100).optional(),
+});
+
 export const scenarioSchema = z.object({
   id: z.string().min(1),
   version: z.number().int().min(1),
@@ -175,6 +195,11 @@ export const scenarioSchema = z.object({
    * older data always surfaces with ownerId explicitly null.
    */
   ownerId: z.string().nullable().optional(),
+  /**
+   * Provenance metadata for AI-aware features. Added in schema v4.
+   * Optional for legacy and non-AI scenarios.
+   */
+  meta: scenarioMetaSchema.optional(),
 });
 
 export function parseScenario(input: unknown): Scenario | null {
