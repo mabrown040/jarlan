@@ -20,6 +20,16 @@ const buckets = new Map<string, Bucket>();
 // if eviction ever fails to keep up. Oldest (by resetAt) evicted first.
 const MAX_KEYS = 10_000;
 
+/**
+ * Common time windows in milliseconds. Use when calling `rateLimit()`
+ * to keep window choices grep-able and consistent across routes.
+ */
+export const RATE_LIMIT_WINDOWS = {
+  minute: 60 * 1000,
+  hour: 60 * 60 * 1000,
+  day: 24 * 60 * 60 * 1000,
+} as const;
+
 export type RateLimitResult = {
   allowed: boolean;
   remaining: number;
@@ -57,6 +67,26 @@ export function clientIpFromHeaders(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]!.trim();
   return headers.get("x-real-ip") ?? "unknown";
+}
+
+/**
+ * Build a rate-limit key scoped to an authenticated user. Use for
+ * per-account burst protection (e.g. AI-chat per-minute quotas, Pro
+ * feature throttling). For persistent daily budgets that survive
+ * cold boots, aggregate from a database audit table instead — the
+ * in-memory limiter resets per process.
+ */
+export function userKey(route: string, userId: string): string {
+  return `${route}:user:${userId}`;
+}
+
+/**
+ * Build a rate-limit key scoped to the requesting IP. Use as
+ * anti-DOS protection on public routes or as a fallback when the
+ * user isn't authenticated.
+ */
+export function ipKey(route: string, headers: Headers): string {
+  return `${route}:ip:${clientIpFromHeaders(headers)}`;
 }
 
 export function rateLimitResponseHeaders(result: RateLimitResult, limit: number) {
