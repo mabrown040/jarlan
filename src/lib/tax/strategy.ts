@@ -193,6 +193,39 @@ export function estimateScenarioTax(scenario: Scenario) {
   const filingStatus = scenario.profile.filingStatus;
   const employmentType = scenario.profile.employmentType ?? "w2";
   const age = scenario.profile.age;
+  const overrideRate = scenario.assumptions.taxRateOverride;
+
+  /* ── Manual override short-circuit ─────────────────────── */
+  // When the user has set `assumptions.taxRateOverride`, we trust
+  // their number and skip federal/state/FICA bracket math entirely.
+  // Federal tax surfaces as the lump-sum bucket so the
+  // (federal + state + fica) === totalTax invariant still holds for
+  // downstream consumers that sum the parts (e.g. sankey).
+  //
+  // NOTE: gate on `typeof === "number"` (not `!== null`) so unmigrated
+  // pre-v3 scenarios that arrive with `undefined` instead of `null`
+  // don't fall through into `gross * undefined = NaN`. parseScenario
+  // catches this for fresh data, but personas already in IndexedDB
+  // skip parsing on the way out.
+  if (typeof overrideRate === "number" && grossIncome > 0) {
+    const totalTax = grossIncome * overrideRate;
+    const takeHome = grossIncome - totalTax;
+    const actualSavings = Math.max(takeHome - scenario.annualExpenses, 0);
+    const afterTaxSavingsRate = takeHome > 0 ? actualSavings / takeHome : 0;
+    return {
+      grossIncome,
+      federalTax: totalTax,
+      stateTax: 0,
+      fica: { totalFica: 0, employerFica: 0, employeeFica: 0 },
+      totalTax,
+      takeHome,
+      actualSavings,
+      afterTaxSavingsRate,
+      effectiveRate: overrideRate,
+      contributionWarnings: [] as string[],
+      isManualOverride: true as const,
+    };
+  }
 
   /* ── FICA ──────────────────────────────────────────────── */
   const fica = calculateFica(grossIncome, employmentType, filingStatus);
@@ -252,6 +285,7 @@ export function estimateScenarioTax(scenario: Scenario) {
     afterTaxSavingsRate,
     effectiveRate,
     contributionWarnings,
+    isManualOverride: false as const,
   };
 }
 

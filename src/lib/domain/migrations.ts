@@ -36,6 +36,26 @@ const migrations: Record<number, ScenarioMigration> = {
     ownerId: null,
     version: 2,
   }),
+  /**
+   * v2 → v3: adds `assumptions.taxRateOverride: null` so the new
+   * manual tax-rate override field is explicit on every scenario.
+   * Null = "off, use calculator's estimate" — the existing behavior
+   * for everyone before this migration.
+   */
+  2: (input) => {
+    const assumptions =
+      typeof input.assumptions === "object" && input.assumptions !== null
+        ? (input.assumptions as Record<string, unknown>)
+        : {};
+    return {
+      ...input,
+      assumptions: {
+        ...assumptions,
+        taxRateOverride: null,
+      },
+      version: 3,
+    };
+  },
 };
 
 export function runScenarioMigrations(
@@ -81,6 +101,18 @@ export function downgradeScenarioForTest(
   targetVersion: number,
 ): Record<string, unknown> {
   const { ...copy } = scenario as unknown as Record<string, unknown>;
+  // Strip fields added in versions strictly newer than the target.
+  if (
+    targetVersion < 3 &&
+    typeof copy.assumptions === "object" &&
+    copy.assumptions !== null
+  ) {
+    const assumptions = {
+      ...(copy.assumptions as Record<string, unknown>),
+    };
+    delete assumptions.taxRateOverride;
+    copy.assumptions = assumptions;
+  }
   if (targetVersion < 2) {
     delete copy.ownerId;
   }

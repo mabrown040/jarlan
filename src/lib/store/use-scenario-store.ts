@@ -90,6 +90,8 @@ interface ScenarioStore {
   updateExpenseGrowthRate: (value: number) => void;
   updateInflation: (value: number) => void;
   updateFeeDrag: (value: number) => void;
+  /** Set/clear the manual tax-rate override. Null disables the override. */
+  updateTaxRateOverride: (value: number | null) => void;
   updateStockAllocation: (value: number) => void;
   updateRebalanceFrequency: (value: Scenario["simulationSettings"]["rebalanceFrequency"]) => void;
   updateFinalValueTarget: (value: number) => void;
@@ -684,6 +686,20 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
         assumptions: {
           ...state.activeScenario.assumptions,
           inflation: clamp(value, 0, 0.08),
+        },
+      }),
+      saveStatus: "idle",
+    })),
+  updateTaxRateOverride: (value) =>
+    set((state) => ({
+      activeScenario: touchScenario({
+        ...state.activeScenario,
+        assumptions: {
+          ...state.activeScenario.assumptions,
+          // null disables the override and falls back to the calculator's
+          // estimate. Numeric values clamp to [0, 70%] — same range as
+          // the schema's Zod validator.
+          taxRateOverride: value === null ? null : clamp(value, 0, 0.7),
         },
       }),
       saveStatus: "idle",
