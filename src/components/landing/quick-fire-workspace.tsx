@@ -776,13 +776,16 @@ export function QuickFireWorkspace({
                       <p className="mt-3 text-sm text-muted-foreground">After federal + state taxes</p>
                     </div>
 
-                    {/* Invested (account contributions + employer match).
+                    {/* Saving (account contributions + employer match).
                         Was "Savings" with `takeHome - expenses` — that's
                         theoretical-max savings and diverges from the
-                        "Save per year" slider. This reports what the
-                        projection actually uses. */}
+                        "Save per year" slider. Briefly was "Invested"
+                        but read like a portfolio balance instead of an
+                        annual flow. "Saving" parallels "Take-home" and
+                        matches the "savings rate" vocabulary used in
+                        the FIRE summary. */}
                     <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Invested</p>
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Saving</p>
                       <p className="mt-2 font-display text-[2rem] leading-none tracking-[-0.03em] text-foreground">
                         {formatCompactCurrency(plannedInvestmentContribution)}
                         <span className="text-base font-normal text-muted-foreground">/yr</span>
@@ -1184,11 +1187,13 @@ export function QuickFireWorkspace({
                       className="group rounded-2xl bg-card p-6 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
                     >
                       <div className="flex items-center justify-between">
-                        {/* Renamed from "After-tax savings" (takeHome minus
-                            expenses — theoretical max) to "Invested" (actual
-                            account contribs + match, matching the slider and
-                            the projection math). */}
-                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Invested</p>
+                        {/* Was "After-tax savings" (takeHome - expenses —
+                            theoretical max), then briefly "Invested" (read
+                            like a portfolio balance, not a flow). Now
+                            "Saving" — actual account contribs + match,
+                            matching the slider, the projection math, and
+                            the "savings rate" framing in the FIRE summary. */}
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Saving</p>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                       </div>
                       <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
