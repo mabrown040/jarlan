@@ -141,7 +141,7 @@ describe("buildScenarioFromExtraction", () => {
     expect(result.accounts[1]!.annualContribution).toBe(0);
   });
 
-  it("populates Scenario.meta with provenance, source text, and assumptions", () => {
+  it("populates Scenario.meta with provenance, source text, and assumptions (model entries preserved)", () => {
     const result = buildScenarioFromExtraction({
       draft: { ...EMPTY_DRAFT, age: 35 },
       assumptions: SAMPLE_ASSUMPTIONS,
@@ -153,9 +153,88 @@ describe("buildScenarioFromExtraction", () => {
     expect(result.meta).toBeDefined();
     expect(result.meta!.source).toBe("imported");
     expect(result.meta!.sourceText).toBe("I'm 35 years old");
-    expect(result.meta!.assumptionsLog).toEqual(SAMPLE_ASSUMPTIONS);
     expect(result.meta!.createdBy).toBe("ai");
     expect(result.meta!.createdByModel).toBe("claude-opus-4-7");
+    // The model's assumption entries are preserved in the log,
+    // alongside the server-side default-source entries (those are
+    // tested separately).
+    expect(result.meta!.assumptionsLog).toEqual(
+      expect.arrayContaining(SAMPLE_ASSUMPTIONS),
+    );
+  });
+
+  it("appends default-source assumptions for fields the AI did not populate", () => {
+    const result = buildScenarioFromExtraction({
+      draft: { ...EMPTY_DRAFT, age: 35 },
+      assumptions: [],
+      sourceText: "I'm 35.",
+      sourceTag: "imported",
+      modelId: "claude-opus-4-7",
+    });
+
+    const log = result.meta!.assumptionsLog ?? [];
+    const defaultEntries = log.filter((a) => a.source === "default");
+
+    // Every null draft field should produce one default entry — except
+    // for `age` (which the user provided as 35) and the explicitly
+    // skipped fields (employmentType, retirementExpenses).
+    const fields = defaultEntries.map((e) => e.field);
+    expect(fields).toContain("profile.retirementAge");
+    expect(fields).toContain("profile.state");
+    expect(fields).toContain("profile.filingStatus");
+    expect(fields).toContain("profile.householdSize");
+    expect(fields).toContain("annualIncome");
+    expect(fields).toContain("annualSavings");
+    expect(fields).toContain("annualExpenses");
+    expect(fields).toContain("assumptions.withdrawalRate");
+    expect(fields).toContain("assumptions.expectedRealReturn");
+    expect(fields).toContain("accounts");
+    // age was extracted (35) — should NOT have a default entry
+    expect(fields).not.toContain("profile.age");
+    // Every default entry has confidence "low"
+    for (const entry of defaultEntries) {
+      expect(entry.confidence).toBe("low");
+    }
+  });
+
+  it("does not log a default for a field the AI populated", () => {
+    const result = buildScenarioFromExtraction({
+      draft: {
+        ...EMPTY_DRAFT,
+        age: 35,
+        state: "CA",
+        annualIncome: 150_000,
+        withdrawalRate: 0.04,
+      },
+      assumptions: [],
+      sourceText: "...",
+      sourceTag: "imported",
+      modelId: "claude-opus-4-7",
+    });
+
+    const fields = (result.meta!.assumptionsLog ?? [])
+      .filter((a) => a.source === "default")
+      .map((e) => e.field);
+
+    expect(fields).not.toContain("profile.age");
+    expect(fields).not.toContain("profile.state");
+    expect(fields).not.toContain("annualIncome");
+    expect(fields).not.toContain("assumptions.withdrawalRate");
+  });
+
+  it("does not flag accounts as default when at least one balance bucket was extracted", () => {
+    const result = buildScenarioFromExtraction({
+      draft: { ...EMPTY_DRAFT, taxablePortfolio: 50_000 },
+      assumptions: [],
+      sourceText: "...",
+      sourceTag: "imported",
+      modelId: "claude-opus-4-7",
+    });
+
+    const accountsEntry = (result.meta!.assumptionsLog ?? []).find(
+      (a) => a.field === "accounts" && a.source === "default",
+    );
+    expect(accountsEntry).toBeUndefined();
   });
 
   it("caps oversized sourceText at 50KB to match the schema", () => {

@@ -99,10 +99,20 @@ export function buildScenarioFromExtraction(
     base.accounts = accounts;
   }
 
+  // Surface every field that fell back to a default because the
+  // model returned `null`. The system prompt asks the model to log
+  // these, but it interprets "fields you populated" as "fields with
+  // a non-null value" — so a returned-null field silently inherits
+  // the default. This server-side pass closes that gap so the
+  // operator sees, e.g., "state defaulted to CA because not stated".
+  const defaultAssumptions = buildDefaultAssumptions(draft, base, accounts);
+
   base.meta = {
     source: params.sourceTag,
     sourceText: params.sourceText.slice(0, MAX_SOURCE_TEXT_BYTES),
-    assumptionsLog: params.assumptions,
+    // Defaults first (they're meta about what was assumed). Capped at
+    // the schema's max to avoid blowing past it on sparse extractions.
+    assumptionsLog: [...defaultAssumptions, ...params.assumptions].slice(0, 50),
     createdBy: "ai",
     createdByModel: params.modelId,
   };
@@ -113,6 +123,111 @@ export function buildScenarioFromExtraction(
   base.isPersonalized = true;
 
   return base;
+}
+
+/**
+ * Generate `source: "default"` assumption-log entries for every
+ * scenario field that fell back to `createDefaultScenario()` because
+ * the AI returned null in the draft. Confidence is always "low" —
+ * defaults are placeholders, not extracted info.
+ *
+ * Skipped intentionally:
+ * - `employmentType` (low impact, less commonly stated in posts)
+ * - partner profile (orthogonal to the main extraction)
+ * - retirementExpenses (mirrors annualExpenses by design)
+ * - saferWithdrawalRate (derived from withdrawalRate when stated)
+ */
+function buildDefaultAssumptions(
+  draft: ScenarioDraft,
+  scenario: Scenario,
+  extractedAccounts: Account[],
+): AssumptionLog[] {
+  const out: AssumptionLog[] = [];
+
+  if (draft.age === null) {
+    out.push(makeDefaultAssumption("profile.age", scenario.profile.age));
+  }
+  if (draft.retirementAge === null) {
+    out.push(
+      makeDefaultAssumption(
+        "profile.retirementAge",
+        scenario.profile.retirementAge,
+      ),
+    );
+  }
+  if (draft.state === null) {
+    out.push(makeDefaultAssumption("profile.state", scenario.profile.state));
+  }
+  if (draft.filingStatus === null) {
+    out.push(
+      makeDefaultAssumption(
+        "profile.filingStatus",
+        scenario.profile.filingStatus,
+      ),
+    );
+  }
+  if (draft.householdSize === null) {
+    out.push(
+      makeDefaultAssumption(
+        "profile.householdSize",
+        scenario.profile.householdSize,
+      ),
+    );
+  }
+  if (draft.annualIncome === null) {
+    out.push(makeDefaultAssumption("annualIncome", scenario.annualIncome));
+  }
+  if (draft.annualSavings === null) {
+    out.push(makeDefaultAssumption("annualSavings", scenario.annualSavings));
+  }
+  if (draft.annualExpenses === null) {
+    out.push(makeDefaultAssumption("annualExpenses", scenario.annualExpenses));
+  }
+  if (draft.withdrawalRate === null) {
+    out.push(
+      makeDefaultAssumption(
+        "assumptions.withdrawalRate",
+        scenario.assumptions.withdrawalRate,
+      ),
+    );
+  }
+  if (draft.expectedRealReturn === null) {
+    out.push(
+      makeDefaultAssumption(
+        "assumptions.expectedRealReturn",
+        scenario.assumptions.expectedRealReturn,
+      ),
+    );
+  }
+
+  // When all four balance buckets came back null, the scenario is
+  // running on the default placeholder account ($185K taxable). Flag
+  // that explicitly so the operator doesn't think the AI extracted it.
+  if (extractedAccounts.length === 0) {
+    out.push({
+      field: "accounts",
+      value: scenario.accounts[0]?.currentBalance ?? null,
+      reason:
+        "no account balances stated in source text; using calculator placeholder",
+      confidence: "low",
+      source: "default",
+    });
+  }
+
+  return out;
+}
+
+function makeDefaultAssumption(
+  field: string,
+  value: number | string | null,
+): AssumptionLog {
+  return {
+    field,
+    value,
+    reason: "not stated in source text; using calculator default",
+    confidence: "low",
+    source: "default",
+  };
 }
 
 function buildAccountsFromDraft(draft: ScenarioDraft): Account[] {
