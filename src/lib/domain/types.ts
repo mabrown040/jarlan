@@ -182,6 +182,42 @@ export interface ScenarioAssumptions {
   taxRateOverride: number | null;
 }
 
+export const scenarioMetaSources = [
+  "manual",
+  "quiz",
+  "description",
+  "chat",
+  "imported",
+] as const;
+export type ScenarioMetaSource = (typeof scenarioMetaSources)[number];
+
+/**
+ * Per-field assumption made when generating a scenario from
+ * unstructured input (e.g., AI extraction from a free-text
+ * description). Surfaced in the UI so users can review and edit
+ * anything that wasn't directly stated.
+ */
+export interface AssumptionLog {
+  field: string;
+  value: unknown;
+  reason: string;
+  confidence: "high" | "medium" | "low";
+  source: "derived" | "default" | "inferred";
+}
+
+/**
+ * Provenance metadata for AI-aware features. `meta` is optional —
+ * legacy scenarios and scenarios built without AI assistance leave
+ * it undefined. Added in schema v4.
+ */
+export interface ScenarioMeta {
+  source: ScenarioMetaSource;
+  sourceText?: string;
+  assumptionsLog?: AssumptionLog[];
+  createdBy?: "user" | "ai";
+  createdByModel?: string;
+}
+
 export interface Scenario {
   id: string;
   /** Schema version. Bump APP_VERSION (in defaults.ts) whenever the
@@ -211,6 +247,13 @@ export interface Scenario {
    * schema version 2 — existing v1 scenarios get `null` on migration.
    */
   ownerId?: string | null;
+  /**
+   * Provenance metadata for AI-aware features (chat-driven edits,
+   * scenarios extracted from free-text descriptions). Optional —
+   * legacy scenarios and scenarios built without AI assistance leave
+   * it undefined. Added in schema v4.
+   */
+  meta?: ScenarioMeta;
 }
 
 export interface ProjectionPoint {
