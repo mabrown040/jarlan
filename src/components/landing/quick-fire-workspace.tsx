@@ -61,66 +61,6 @@ function ChartSkeleton({ className }: { className?: string }) {
   );
 }
 
-type PostQuizType = "fire" | "coast" | "barista";
-const FIRE_TYPE_LABELS: Record<PostQuizType, string> = {
-  fire: "FIRE",
-  coast: "Coast FIRE",
-  barista: "Barista FIRE",
-};
-
-/**
- * One-shot rationale text for the post-quiz banner. Phrased with concrete
- * numbers (years to coast, target dollar amount, retirement age) instead
- * of the vague flattery the old result screen used. We compute fresh from
- * the active scenario rather than passing strings through the URL — that
- * way the rationale always matches what the rest of the home page shows,
- * even after the user tweaks the plan in the drawer.
- */
-function buildPostQuizRationale(
-  type: PostQuizType,
-  scenario: import("@/lib/domain/types").Scenario,
-  summary: import("@/lib/domain/types").QuickFireSummary,
-  fireTypes: import("@/lib/domain/types").FireTypeSummary[],
-  currentBalance: number,
-): string {
-  const retirementAge =
-    scenario.profile.retirementAge ?? scenario.profile.age + 30;
-
-  if (type === "coast") {
-    const coast = fireTypes.find((f) => f.id === "coast");
-    const target = coast?.target ?? 0;
-    if (currentBalance >= target) {
-      return `Your portfolio already clears the coast target. You could shift to lower-stress work today and let compounding finish the job by age ${retirementAge}.`;
-    }
-    if (summary.coastAge !== null) {
-      const yrs = Math.max(
-        Math.round(summary.coastAge - scenario.profile.age),
-        1,
-      );
-      return `At your current pace you can coast in ~${yrs} year${yrs === 1 ? "" : "s"}, once you've saved about ${formatCompactCurrency(target)} — then compounding alone finishes the job by age ${retirementAge}.`;
-    }
-    return `Save toward about ${formatCompactCurrency(target)}. Once your portfolio clears that line, compounding alone finishes the job by age ${retirementAge}.`;
-  }
-
-  if (type === "barista") {
-    const fire = fireTypes.find((f) => f.id === "fire");
-    const barista = fireTypes.find((f) => f.id === "barista");
-    const fireTarget = fire?.target ?? 0;
-    const baristaTarget = barista?.target ?? 0;
-    const reduction = fireTarget - baristaTarget;
-    if (reduction > 0) {
-      return `With part-time income easing the load, your portfolio target drops from ${formatCompactCurrency(fireTarget)} to ${formatCompactCurrency(baristaTarget)} — a ${formatCompactCurrency(reduction)} headstart.`;
-    }
-    return `Adding post-FIRE income lowers your portfolio target. Set a part-time income amount in your plan to see how much.`;
-  }
-
-  // fire
-  if (summary.yearsToFi !== null && summary.fireAge !== null) {
-    const yrs = Math.max(Math.round(summary.yearsToFi), 1);
-    return `At your current pace you'll hit your ${formatCompactCurrency(summary.fireNumber)} FIRE target in ~${yrs} year${yrs === 1 ? "" : "s"} — age ${Math.round(summary.fireAge)}.`;
-  }
-  return `Your full FIRE target is ${formatCompactCurrency(summary.fireNumber)}. Adjust savings or your target age in your plan to make the math reach.`;
-}
 import { US_BENCHMARKS, estimateNetWorthPercentile, getMedianNetWorthForAge } from "@/lib/data/benchmarks";
 import { buildScenarioProjection } from "@/lib/calc/quick-fire";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
@@ -169,29 +109,23 @@ export function QuickFireWorkspace({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const sharedScenarioParam = searchParams.get(SCENARIO_QUERY_KEY);
-  // Quiz hands off to home with `?from_quiz=1&type=<id>` so we can render
-  // a one-shot recommendation banner. We capture the type from
-  // window.location on first client commit, then drive visibility from
-  // state so the URL can stay clean. Strict mode's double-mount in dev
-  // is fine because we ignore re-mounts where the URL has already been
-  // stripped (the second mount sees no params and sets nothing).
-  const [postQuizBanner, setPostQuizBanner] = useState<PostQuizType | null>(null);
+  // Quiz hands off to home with `?from_quiz=1` so we can render a one-shot
+  // celebration banner. The capture has to happen in an effect (not a
+  // useState initializer) because the SSR pass sees `typeof window ===
+  // "undefined"` and would freeze state at `false` through hydration.
+  const [postQuizBanner, setPostQuizBanner] = useState(false);
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("from_quiz") !== "1") return;
-    const t = params.get("type");
-    if (t === "fire" || t === "coast" || t === "barista") {
-      setPostQuizBanner(t);
+    if (new URLSearchParams(window.location.search).get("from_quiz") === "1") {
+      setPostQuizBanner(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   function dismissPostQuizBanner() {
-    setPostQuizBanner(null);
+    setPostQuizBanner(false);
     if (typeof window === "undefined") return;
     const live = new URLSearchParams(window.location.search);
-    if (!live.has("from_quiz") && !live.has("type")) return;
+    if (!live.has("from_quiz")) return;
     live.delete("from_quiz");
-    live.delete("type");
     const nextUrl = live.toString() ? `${pathname}?${live.toString()}` : pathname;
     router.replace(nextUrl as Route, { scroll: false });
   }
@@ -701,18 +635,17 @@ export function QuickFireWorkspace({
           </>
         ) : (
           <>
-            {/* Post-quiz banner — fires once per quiz handoff. Reads
-                ?from_quiz=1&type=<id>, captures into local state, then the
-                URL is wiped by the cleanup effect above. Dismiss kills the
-                state; the comparison section below stays as a permanent
-                home fixture. */}
+            {/* Post-quiz banner — celebratory landing for users coming
+                from the quiz. Doesn't try to "match" them to a path; the
+                comparison section below lets them pick. Read on first
+                client commit (see effect above) and dismissable. */}
             {postQuizBanner ? (
               <section className="mx-auto max-w-7xl px-6 pt-8">
                 <div className="relative rounded-2xl border border-[rgba(255,107,53,0.22)] bg-gradient-to-br from-[rgba(255,107,53,0.08)] via-[rgba(255,107,53,0.04)] to-transparent p-6">
                   <button
                     type="button"
                     onClick={dismissPostQuizBanner}
-                    aria-label="Dismiss recommendation banner"
+                    aria-label="Dismiss post-quiz banner"
                     className="absolute right-4 top-4 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                   >
                     <X className="size-4" />
@@ -723,19 +656,14 @@ export function QuickFireWorkspace({
                     </div>
                     <div className="flex-1">
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
-                        Your match
+                        Plan saved
                       </p>
                       <p className="mt-1 font-display text-2xl tracking-[-0.03em] text-foreground">
-                        {FIRE_TYPE_LABELS[postQuizBanner]}
+                        Your numbers are below.
                       </p>
                       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                        {buildPostQuizRationale(
-                          postQuizBanner,
-                          activeScenario,
-                          summary,
-                          fireTypes,
-                          currentBalance,
-                        )}
+                        Tweak anything in the plan drawer, or compare the
+                        FIRE strategies to see which timeline fits.
                       </p>
                       <a
                         href="#compare-paths"
@@ -747,7 +675,7 @@ export function QuickFireWorkspace({
                         }}
                         className="mt-3 inline-block text-sm font-medium text-[var(--ember)] hover:underline"
                       >
-                        Compare all paths {"↓"}
+                        Compare the paths {"↓"}
                       </a>
                     </div>
                   </div>

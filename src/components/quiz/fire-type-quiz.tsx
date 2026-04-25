@@ -23,7 +23,6 @@ import {
   getContributionLimits,
   DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
   buildScenarioFromQuizAnswers,
-  getFireTypeRecommendation,
   type FireStage,
   type FireTypeQuizAnswers,
 } from "@/lib/quiz/fire-type-quiz";
@@ -285,10 +284,6 @@ export function FireTypeQuiz() {
   const currentStep = steps[stepIndex];
   const scenario = useMemo(() => buildScenarioFromQuizAnswers(answers), [answers]);
   useGlobalScenarioFormatting(scenario);
-  const recommendation = useMemo(
-    () => getFireTypeRecommendation(answers),
-    [answers],
-  );
   const isLastStep = stepIndex === steps.length - 1;
   const completion = (stepIndex + 1) / steps.length;
 
@@ -317,15 +312,14 @@ export function FireTypeQuiz() {
   }
 
   /**
-   * Persist the quiz scenario and route the user straight to home, with
-   * `?from_quiz=1&type=<id>` so home can render a one-shot banner that
-   * names the recommended path. The result UI lives on home now — there
-   * is no inline result screen to flash through first.
+   * Persist the quiz scenario and route the user straight to home with a
+   * `?from_quiz=1` flag so home can render a one-shot celebration banner.
+   * The result UI lives on home now — there is no inline result screen
+   * to flash through first.
    */
   async function finishQuiz() {
     await persistQuizToStore();
-    const target = `/?from_quiz=1&type=${recommendation.id}` as Route;
-    router.push(target);
+    router.push("/?from_quiz=1" as Route);
   }
 
   /**
