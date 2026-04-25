@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Sparkles, WandSparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -16,22 +16,17 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Select } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import {
-  calculateFireTypeSummaries,
   formatCompactCurrency,
-  formatPercent,
   formatYears,
 } from "@/lib/calc";
 import {
   getContributionLimits,
   DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
   buildScenarioFromQuizAnswers,
-  getFireTypeRecommendation,
   type FireStage,
   type FireTypeQuizAnswers,
-  type PlanningPriority,
 } from "@/lib/quiz/fire-type-quiz";
 import { listStateTaxPresets } from "@/lib/data";
-import type { EmploymentType } from "@/lib/domain/types";
 import { useScenarioStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -103,12 +98,39 @@ function computeContributionBudget(answers: FireTypeQuizAnswers) {
 }
 
 /** Virtual step keys that don't map 1:1 to a single answer field */
-type VirtualStepKey = "accountSplit" | "contributionSplit";
+type VirtualStepKey = "accountSplit" | "contributionSplit" | "taxBasics";
+
+/**
+ * Smart contribution defaults — fill 401(k), Roth IRA, HSA up to their
+ * limits in priority order, then taxable. Same heuristic the in-step
+ * "first-render seed" used; lifted to a helper so the form-level "Skip"
+ * button can apply the same numbers without entering the step.
+ */
+function getDefaultContributions(answers: FireTypeQuizAnswers) {
+  const limits = getContributionLimits(answers.currentAge, {
+    filingStatus: answers.filingStatus,
+    partnerHas401k: answers.partnerHas401k,
+  });
+  const { totalSavings } = computeContributionBudget(answers);
+  const traditional = Math.min(limits.traditional401k, totalSavings);
+  const roth = Math.min(limits.rothIra, Math.max(totalSavings - traditional, 0));
+  const hsa = Math.min(limits.hsa, Math.max(totalSavings - traditional - roth, 0));
+  const taxable = Math.max(totalSavings - traditional - roth - hsa, 0);
+  return { traditional, roth, hsa, taxable };
+}
 
 interface QuizStep {
   key: keyof FireTypeQuizAnswers | VirtualStepKey;
   title: string;
   description: string;
+  /**
+   * Optional steps live at the tail of every flow. Users see an "Optional"
+   * badge plus a prominent "Skip — use defaults" button so the quiz can
+   * end without touching them. Sensible defaults flow through to the
+   * scenario regardless; users who want more accuracy can still opt in
+   * here, and advanced users edit the same fields in the plan drawer.
+   */
+  optional?: boolean;
 }
 
 const stageStep: QuizStep = {
@@ -117,41 +139,51 @@ const stageStep: QuizStep = {
   description: "This helps us tailor the quiz and send you to the right tools.",
 };
 
+/**
+ * Question catalog. Order here is also the canonical order each flow
+ * surfaces them in, so optional steps live at the bottom.
+ */
 const allQuestionSteps: QuizStep[] = [
   { key: "currentAge", title: "How old are you today?", description: "This sets the starting point for the rest of the timeline and Coast FIRE math." },
   { key: "targetFiAge", title: "When would full financial independence feel ideal?", description: "Think about the age where optional work becomes more valuable than mandatory work." },
   { key: "annualIncome", title: "What is your annual gross income?", description: "Pre-tax household income from all sources. This determines your savings rate and timeline." },
-  { key: "employmentType", title: "What best describes your work situation?", description: "This determines how FICA taxes are calculated — self-employed workers pay both halves." },
-  { key: "filingStatus", title: "How do you file taxes?", description: "This affects your tax brackets, contribution limits, and take-home pay estimate." },
-  { key: "state", title: "Which state do you live in?", description: "State income taxes can significantly affect your take-home pay and FIRE timeline." },
-  { key: "annualSpending", title: "What annual spending level feels comfortable?", description: "Use a real-world number, not the absolute minimum you could survive on for a year." },
+  { key: "taxBasics", title: "Where and how do you file?", description: "State and filing status shape your tax brackets, contribution limits, and take-home pay." },
+  { key: "annualSpending", title: "What do you spend in a year?", description: "What you actually spend in a year — housing, food, travel, everything." },
   { key: "currentPortfolio", title: "How much is already invested toward FIRE?", description: "A current portfolio helps calculate Coast FIRE and your overall progress." },
-  { key: "accountSplit", title: "Where is your money?", description: "Account types matter for tax-efficient withdrawals in retirement. Skip if you're not sure." },
-  { key: "contributionSplit", title: "Where do your savings go?", description: "How you allocate contributions affects your tax bill now and in retirement." },
-  { key: "partTimePreference", title: "Would you be open to earning income after FIRE?", description: "This changes whether Barista FIRE is in the mix — and sets your post-FIRE income assumption." },
-  { key: "flexibility", title: "How much spending flexibility would you have in a downturn?", description: "A plan is only useful if it feels behaviorally realistic during rough markets." },
-  { key: "dependents", title: "Are you planning with dependents in the picture?", description: "Household responsibility can shift the tradeoff toward more margin." },
   { key: "riskTolerance", title: "How much risk of running short feels acceptable?", description: "Cautious answers push toward more margin. Aggressive answers favor speed." },
-  { key: "priority", title: "What matters most in your plan right now?", description: "This helps separate speed-first FIRE plans from lifestyle-first paths." },
+  // Optional tail — same for every flow, but skipping is first-class.
+  {
+    key: "accountSplit",
+    title: "Where is your money?",
+    description: "Skip and we'll assume it's all in a taxable brokerage — you can fine-tune any time inside your plan.",
+    optional: true,
+  },
+  {
+    key: "contributionSplit",
+    title: "Where do your savings go?",
+    description: "Skip and we'll fill 401(k), Roth, and HSA up to the limits, then route the rest to taxable.",
+    optional: true,
+  },
 ];
 
-const stageQuestionKeys: Record<FireStage, Array<keyof FireTypeQuizAnswers | "accountSplit" | "contributionSplit">> = {
-  curious: ["currentAge", "targetFiAge", "annualIncome", "employmentType", "filingStatus", "state", "annualSpending", "currentPortfolio", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
-  saving: ["currentAge", "targetFiAge", "annualIncome", "employmentType", "filingStatus", "state", "annualSpending", "currentPortfolio", "accountSplit", "contributionSplit", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
-  pre_retirement: ["currentAge", "targetFiAge", "annualIncome", "employmentType", "filingStatus", "state", "annualSpending", "currentPortfolio", "accountSplit", "partTimePreference", "flexibility", "riskTolerance"],
-  retired: ["currentAge", "annualSpending", "currentPortfolio", "accountSplit", "flexibility"],
+const stageQuestionKeys: Record<FireStage, Array<keyof FireTypeQuizAnswers | VirtualStepKey>> = {
+  // Working toward FIRE — same flow for curious / saving / pre-retirement.
+  // Stage only changes the destination CTA after the quiz, not the questions.
+  curious: ["currentAge", "targetFiAge", "annualIncome", "taxBasics", "annualSpending", "currentPortfolio", "riskTolerance", "accountSplit", "contributionSplit"],
+  saving: ["currentAge", "targetFiAge", "annualIncome", "taxBasics", "annualSpending", "currentPortfolio", "riskTolerance", "accountSplit", "contributionSplit"],
+  pre_retirement: ["currentAge", "targetFiAge", "annualIncome", "taxBasics", "annualSpending", "currentPortfolio", "riskTolerance", "accountSplit", "contributionSplit"],
+  // Already FI — no income / target FI age (they're already there); no
+  // contribution split (no new contributions to allocate). Account split
+  // still matters for withdrawal sequencing.
+  retired: ["currentAge", "taxBasics", "annualSpending", "currentPortfolio", "riskTolerance", "accountSplit"],
 };
 
 function getStepsForStage(stage: FireStage): QuizStep[] {
   const keys = stageQuestionKeys[stage];
-  return [stageStep, ...allQuestionSteps.filter((s) => keys.includes(s.key))];
+  // Preserve the order declared in `stageQuestionKeys` (not the catalog
+  // order), so the retired flow puts state/filing right after age, etc.
+  return [stageStep, ...keys.map((key) => allQuestionSteps.find((s) => s.key === key)!).filter(Boolean)];
 }
-
-const priorityLabels: Record<PlanningPriority, string> = {
-  freedom_fast: "Reach freedom as fast as possible",
-  balanced_life: "Balance life now with life later",
-  premium_lifestyle: "Preserve a high-end lifestyle",
-};
 
 const riskLabels = [
   "Very cautious",
@@ -217,7 +249,6 @@ export function FireTypeQuiz() {
 
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState(DEFAULT_FIRE_TYPE_QUIZ_ANSWERS);
-  const [quizComplete, setQuizComplete] = useState(false);
   // Surfaced when the user tries to advance from contributionSplit
   // while allocations exceed their after-tax budget. Offers two paths:
   // trim a bucket (dismiss) or revisit the spending step.
@@ -253,14 +284,6 @@ export function FireTypeQuiz() {
   const currentStep = steps[stepIndex];
   const scenario = useMemo(() => buildScenarioFromQuizAnswers(answers), [answers]);
   useGlobalScenarioFormatting(scenario);
-  const recommendation = useMemo(
-    () => getFireTypeRecommendation(answers),
-    [answers],
-  );
-  const fireTypes = useMemo(
-    () => calculateFireTypeSummaries(scenario),
-    [scenario],
-  );
   const isLastStep = stepIndex === steps.length - 1;
   const completion = (stepIndex + 1) / steps.length;
 
@@ -282,26 +305,60 @@ export function FireTypeQuiz() {
     });
   }
 
-  // After quiz completion, all stages route to home which shows results
-  // The stage-specific CTA on the home page determines the next destination
-  const stageNextStep: Record<FireStage, { href: Route; label: string }> = {
-    curious: { href: "/education" as Route, label: "Start learning about FIRE" },
-    saving: { href: "/accumulation" as Route, label: "Open Your Plan" },
-    pre_retirement: { href: "/withdrawal" as Route, label: "Stress-test your retirement" },
-    retired: { href: "/withdrawal" as Route, label: "Check your plan" },
-  };
-
   async function persistQuizToStore() {
     const built = buildScenarioFromQuizAnswers(answers);
     replaceScenario(built);
     await saveDraft();
   }
 
-  async function handleQuizComplete() {
-    // Persist again in case the user edited answers between "See my result" and this CTA.
-    // replaceScenario is idempotent for identical inputs.
+  /**
+   * Persist the quiz scenario and route the user straight to home with a
+   * `?from_quiz=1` flag so home can render a one-shot celebration banner.
+   * The result UI lives on home now — there is no inline result screen
+   * to flash through first.
+   */
+  async function finishQuiz() {
     await persistQuizToStore();
-    router.push("/" as Route);
+    router.push("/?from_quiz=1" as Route);
+  }
+
+  /**
+   * Skip an optional step using its sensible default. For accountSplit
+   * that's "everything in taxable" (matches the seed when the user enters
+   * currentPortfolio). For contributionSplit it's the smart-fill that
+   * fills tax-advantaged accounts up to the limits, then taxable.
+   *
+   * Mutates state synchronously and advances. If the skipped step is the
+   * last one, finishes the quiz instead of advancing.
+   */
+  async function skipOptionalStep() {
+    if (currentStep.key === "accountSplit") {
+      setAnswers((prev) => ({
+        ...prev,
+        traditionalBalance: 0,
+        rothBalance: 0,
+        hsaBalance: 0,
+        taxableBalance: prev.currentPortfolio,
+      }));
+    } else if (currentStep.key === "contributionSplit") {
+      const defaults = getDefaultContributions(answers);
+      setAnswers((prev) => ({
+        ...prev,
+        traditionalContribution: defaults.traditional,
+        rothContribution: defaults.roth,
+        hsaContribution: defaults.hsa,
+        taxableContribution: defaults.taxable,
+        megaBackdoorRothAvailable: false,
+        megaBackdoorRothContribution: 0,
+        partnerMegaBackdoorRothAvailable: false,
+        partnerMegaBackdoorRothContribution: 0,
+      }));
+    }
+    if (isLastStep) {
+      await finishQuiz();
+    } else {
+      setStepIndex((v) => Math.min(v + 1, steps.length - 1));
+    }
   }
 
   function renderStep() {
@@ -385,87 +442,63 @@ export function FireTypeQuiz() {
             />
           </div>
         );
-      case "employmentType":
+      case "taxBasics":
         return (
-          <ChoiceGrid<EmploymentType>
-            value={answers.employmentType}
-            onChange={(value) => setAnswer("employmentType", value)}
-            options={[
-              {
-                value: "w2",
-                label: "I\u2019m a W-2 employee",
-                description: "Your employer handles payroll taxes.",
-              },
-              {
-                value: "self_employed",
-                label: "I\u2019m self-employed",
-                description: "You run a business or freelance full-time.",
-              },
-              {
-                value: "1099",
-                label: "I work as a 1099 contractor",
-                description: "Companies pay you without withholding taxes.",
-              },
-            ]}
-          />
-        );
-      case "filingStatus":
-        return (
-          <div className="space-y-4">
-            <ChoiceGrid
-              value={answers.filingStatus}
-              onChange={(value) => {
-                setAnswer("filingStatus", value);
-                // Reset partner 401k when switching to single
-                if (value === "single" || value === "head_of_household") {
-                  setAnswer("partnerHas401k", false);
-                }
-              }}
-              options={[
-                { value: "single", label: "Single", description: "Filing individually." },
-                { value: "married_joint", label: "Married filing jointly", description: "Combined household income. Wider tax brackets and doubled contribution limits." },
-                { value: "head_of_household", label: "Head of household", description: "Unmarried with dependents. Wider brackets than single." },
-                { value: "married_separate", label: "Married filing separately", description: "Filing separately. Narrower brackets, limited deductions." },
-              ]}
-            />
-            {(answers.filingStatus === "married_joint" || answers.filingStatus === "married_separate") && (
-              <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2">
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={answers.partnerHas401k}
-                    onChange={(e) => setAnswer("partnerHas401k", e.target.checked)}
-                    className="h-4 w-4 rounded border-border accent-[var(--ember)]"
-                  />
-                  My partner also has access to a 401(k)
-                </label>
-                <p className="text-[10px] text-muted-foreground">
-                  This doubles the household 401(k) contribution limit to ~$47K/yr.
-                </p>
-              </div>
-            )}
-          </div>
-        );
-      case "state":
-        return (
-          <div className="space-y-3">
-            <FieldLabel htmlFor="quiz-state" label="State of residence" />
-            <Select
-              id="quiz-state"
-              value={answers.state}
-              onChange={(e) => setAnswer("state", e.target.value)}
-            >
-              <optgroup label="No state income tax">
-                {noTaxStates.map((s) => (
-                  <option key={s.code} value={s.code}>{s.label}</option>
-                ))}
-              </optgroup>
-              <optgroup label="All states (alphabetical)">
-                {taxStates.map((s) => (
-                  <option key={s.code} value={s.code}>{s.label}</option>
-                ))}
-              </optgroup>
-            </Select>
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <FieldLabel htmlFor="quiz-state" label="State of residence" />
+              <Select
+                id="quiz-state"
+                value={answers.state}
+                onChange={(e) => setAnswer("state", e.target.value)}
+              >
+                <optgroup label="No state income tax">
+                  {noTaxStates.map((s) => (
+                    <option key={s.code} value={s.code}>{s.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="All states (alphabetical)">
+                  {taxStates.map((s) => (
+                    <option key={s.code} value={s.code}>{s.label}</option>
+                  ))}
+                </optgroup>
+              </Select>
+            </div>
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-foreground">How do you file?</p>
+              <ChoiceGrid
+                value={answers.filingStatus}
+                onChange={(value) => {
+                  setAnswer("filingStatus", value);
+                  // Reset partner 401k when switching to single
+                  if (value === "single" || value === "head_of_household") {
+                    setAnswer("partnerHas401k", false);
+                  }
+                }}
+                options={[
+                  { value: "single", label: "Single", description: "Filing individually." },
+                  { value: "married_joint", label: "Married filing jointly", description: "Combined household income. Wider tax brackets and doubled contribution limits." },
+                  { value: "head_of_household", label: "Head of household", description: "Unmarried with dependents. Wider brackets than single." },
+                  { value: "married_separate", label: "Married filing separately", description: "Filing separately. Narrower brackets, limited deductions." },
+                ]}
+              />
+              {(answers.filingStatus === "married_joint" || answers.filingStatus === "married_separate") && (
+                <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={answers.partnerHas401k}
+                      onChange={(e) => setAnswer("partnerHas401k", e.target.checked)}
+                      className="h-4 w-4 rounded border-border accent-[var(--ember)]"
+                    />
+                    My partner also has access to a 401(k)
+                  </label>
+                  <p className="text-[10px] text-muted-foreground">
+                    This doubles the household 401(k) contribution limit to ~$47K/yr.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         );
       case "annualSpending":
@@ -578,18 +611,6 @@ export function FireTypeQuiz() {
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setAnswer("traditionalBalance", 0);
-                setAnswer("rothBalance", 0);
-                setAnswer("hsaBalance", 0);
-                setAnswer("taxableBalance", answers.currentPortfolio);
-              }}
-              className="text-xs text-[var(--ember)] hover:underline"
-            >
-              I&apos;m not sure — put it all in taxable
-            </button>
           </div>
         );
       }
@@ -614,10 +635,12 @@ export function FireTypeQuiz() {
         } = budget;
         const totalAllocated = preTaxableAllocated + derivedTaxable;
 
-        const defaultTrad = Math.min(limits.traditional401k, totalSavings);
-        const defaultRoth = Math.min(limits.rothIra, Math.max(totalSavings - defaultTrad, 0));
-        const defaultHsa = Math.min(limits.hsa, Math.max(totalSavings - defaultTrad - defaultRoth, 0));
-        const defaultTaxable = Math.max(totalSavings - defaultTrad - defaultRoth - defaultHsa, 0);
+        const {
+          traditional: defaultTrad,
+          roth: defaultRoth,
+          hsa: defaultHsa,
+          taxable: defaultTaxable,
+        } = getDefaultContributions(answers);
         const catchUpNote = answers.currentAge >= 50
           ? ` (includes ${answers.currentAge >= 60 && answers.currentAge <= 63 ? "super " : ""}catch-up)`
           : "";
@@ -907,166 +930,9 @@ export function FireTypeQuiz() {
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setAnswer("traditionalContribution", defaultTrad);
-                setAnswer("rothContribution", defaultRoth);
-                setAnswer("hsaContribution", defaultHsa);
-                setAnswer("taxableContribution", defaultTaxable);
-                setAnswer("megaBackdoorRothAvailable", false);
-                setAnswer("megaBackdoorRothContribution", 0);
-                setAnswer("partnerMegaBackdoorRothAvailable", false);
-                setAnswer("partnerMegaBackdoorRothContribution", 0);
-              }}
-              className="text-xs text-[var(--ember)] hover:underline"
-            >
-              I&apos;m not sure — use smart defaults
-            </button>
           </div>
         );
       }
-      case "partTimePreference":
-        return (
-          <div className="space-y-4">
-            <ChoiceGrid
-              value={answers.partTimePreference}
-              onChange={(value) => {
-                setAnswer("partTimePreference", value);
-                // Reset post-FIRE income when switching to "no"; leave
-                // the field untouched otherwise. Silently seeding a
-                // default for "yes"/"maybe" was presumptuous — users
-                // would miss the pre-filled number and then be
-                // surprised when it showed up in their plan. The
-                // visible input below lets them type whatever they
-                // actually expect.
-                if (value === "no") setAnswer("postFireIncome", 0);
-              }}
-              options={[
-                {
-                  value: "yes",
-                  label: "Yes, I would happily work part-time",
-                  description:
-                    "Semi-retirement sounds appealing if it speeds up freedom and lowers portfolio pressure.",
-                },
-                {
-                  value: "maybe",
-                  label: "Maybe, if it buys flexibility",
-                  description:
-                    "You are open to a bridge strategy, but only if the tradeoff feels worth it.",
-                },
-                {
-                  value: "no",
-                  label: "No, I want full independence",
-                  description:
-                    "You would rather hold out for complete optionality than rely on earned income later.",
-                },
-              ]}
-            />
-            {answers.partTimePreference !== "no" ? (
-              <div className="rounded-xl bg-muted/40 p-4">
-                <FieldLabel
-                  htmlFor="quiz-post-fire-income"
-                  label="How much do you expect to earn annually after FIRE?"
-                />
-                <NumberInput
-                  id="quiz-post-fire-income"
-                  min={0}
-                  step={5_000}
-                  inputMode="numeric"
-                  value={answers.postFireIncome}
-                  onValueChange={(value) => setAnswer("postFireIncome", value)}
-                  className="mt-2"
-                />
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Part-time work, consulting, rental income, etc. This reduces the portfolio you need.
-                </p>
-                {answers.postFireIncome > 0 ? (
-                  <div className="mt-4 space-y-3 border-t border-border/30 pt-4">
-                    <p className="text-sm font-medium text-foreground">
-                      How long do you plan to work part-time?
-                    </p>
-                    <div className="grid gap-2">
-                      {([
-                        { label: "Until I don't need to anymore", value: null },
-                        { label: "About 5 years", value: 5 },
-                        { label: "About 10 years", value: 10 },
-                        ...(answers.currentAge < 62
-                          ? [{ label: `Until Social Security (~age 62, ${62 - answers.currentAge} years)`, value: 62 - answers.currentAge }]
-                          : []),
-                      ] as const).map((option) => {
-                        const selected = answers.postFireIncomeDuration === option.value;
-                        return (
-                          <button
-                            key={option.label}
-                            type="button"
-                            onClick={() => setAnswer("postFireIncomeDuration", option.value as number | null)}
-                            className={cn(
-                              "rounded-lg border px-3 py-2 text-left text-sm transition-all",
-                              selected
-                                ? "border-[rgba(255,107,53,0.26)] bg-[rgba(255,107,53,0.12)]"
-                                : "border-border/60 bg-card/40 hover:border-border",
-                            )}
-                          >
-                            {option.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        );
-      case "flexibility":
-        return (
-          <ChoiceGrid
-            value={answers.flexibility}
-            onChange={(value) => setAnswer("flexibility", value)}
-            options={[
-              {
-                value: "low",
-                label: "Low flexibility",
-                description:
-                  "Cutting 20% during a market slump would feel very hard or unrealistic.",
-              },
-              {
-                value: "medium",
-                label: "Moderate flexibility",
-                description:
-                  "You could trim some travel, upgrades, or extras, but not your entire lifestyle.",
-              },
-              {
-                value: "high",
-                label: "High flexibility",
-                description:
-                  "You can meaningfully reduce spending if a bad sequence-of-returns stretch hits.",
-              },
-            ]}
-          />
-        );
-      case "dependents":
-        return (
-          <ChoiceGrid
-            value={answers.dependents}
-            onChange={(value) => setAnswer("dependents", value)}
-            options={[
-              {
-                value: "no",
-                label: "No dependents",
-                description:
-                  "Your plan is mostly accountable to your own lifestyle and risk tolerance.",
-              },
-              {
-                value: "yes",
-                label: "Yes, dependents are part of the plan",
-                description:
-                  "You need more predictability, margin, or flexibility because others rely on this plan too.",
-              },
-            ]}
-          />
-        );
       case "riskTolerance":
         return (
           <div className="space-y-4">
@@ -1085,33 +951,6 @@ export function FireTypeQuiz() {
               }
             />
           </div>
-        );
-      case "priority":
-        return (
-          <ChoiceGrid
-            value={answers.priority}
-            onChange={(value) => setAnswer("priority", value)}
-            options={[
-              {
-                value: "freedom_fast",
-                label: priorityLabels.freedom_fast,
-                description:
-                  "You want the fastest credible path, even if that means short-term intensity.",
-              },
-              {
-                value: "balanced_life",
-                label: priorityLabels.balanced_life,
-                description:
-                  "You want progress without making current life feel like a holding pattern.",
-              },
-              {
-                value: "premium_lifestyle",
-                label: priorityLabels.premium_lifestyle,
-                description:
-                  "You care more about sustaining comfort and optionality than minimizing the FIRE number.",
-              },
-            ]}
-          />
         );
       default:
         return null;
@@ -1132,43 +971,7 @@ export function FireTypeQuiz() {
       />
 
       <section className="mx-auto max-w-7xl space-y-8 px-6">
-        {/* Quiz card or collapsed result */}
-        {quizComplete ? (
-          <button
-            type="button"
-            onClick={() => setQuizComplete(false)}
-            className="group w-full rounded-2xl bg-card p-6 text-left shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="rounded-full border border-[rgba(255,107,53,0.18)] bg-[rgba(255,107,53,0.12)] p-2.5 text-[var(--ember)]">
-                  <Sparkles className="size-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
-                    Your result
-                  </p>
-                  <p className="mt-1 font-display text-2xl tracking-[-0.03em] text-foreground">
-                    {recommendation.label}
-                  </p>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    {recommendation.headline}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-6">
-                <div className="hidden text-right sm:block">
-                  <p className="text-sm text-muted-foreground">Target</p>
-                  <p className="font-display text-xl tracking-[-0.03em] text-foreground">
-                    {formatCompactCurrency(recommendation.targetNumber)}
-                  </p>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5 text-muted-foreground transition-transform group-hover:translate-y-0.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-              </div>
-            </div>
-          </button>
-        ) : (
-          <form
+        <form
             className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]"
             onSubmit={async (event) => {
               // Pressing Enter inside any input submits the form; this
@@ -1189,8 +992,7 @@ export function FireTypeQuiz() {
                 return;
               }
               if (isLastStep) {
-                await persistQuizToStore();
-                setQuizComplete(true);
+                await finishQuiz();
               } else {
                 setStepIndex((v) => Math.min(v + 1, steps.length - 1));
               }
@@ -1199,9 +1001,19 @@ export function FireTypeQuiz() {
             {/* Question header */}
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                  {currentStep.title}
-                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
+                    {currentStep.title}
+                  </h2>
+                  {currentStep.optional ? (
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]"
+                    >
+                      Optional
+                    </Badge>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {currentStep.description}
                 </p>
@@ -1235,24 +1047,38 @@ export function FireTypeQuiz() {
                 <ArrowLeft className="size-4" />
                 Back
               </Button>
-              {isLastStep ? (
-                // `type="submit"` so the form's onSubmit fires from
-                // both button click and Enter keypress — single code
-                // path. The form's onSubmit intercepts over-budget
-                // cases and shows a prompt instead of advancing.
-                <Button type="submit">
-                  <Sparkles className="size-4" />
-                  See my result
-                </Button>
-              ) : (
-                <Button type="submit">
-                  Next
-                  <ArrowRight className="size-4" />
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {currentStep.optional ? (
+                  // First-class skip: same visual weight as Continue,
+                  // applies the step's sensible default and advances.
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      void skipOptionalStep();
+                    }}
+                  >
+                    Skip — use defaults
+                  </Button>
+                ) : null}
+                {isLastStep ? (
+                  // `type="submit"` so the form's onSubmit fires from
+                  // both button click and Enter keypress — single code
+                  // path. The form's onSubmit intercepts over-budget
+                  // cases and shows a prompt instead of advancing.
+                  <Button type="submit">
+                    <Sparkles className="size-4" />
+                    See my result
+                  </Button>
+                ) : (
+                  <Button type="submit">
+                    {currentStep.optional ? "Looks good" : "Next"}
+                    <ArrowRight className="size-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </form>
-        )}
 
         {/* Over-budget prompt for contributionSplit. Not a hard block —
             we offer whichever honest path actually resolves the gap. */}
@@ -1361,125 +1187,6 @@ export function FireTypeQuiz() {
                   </>
                 );
               })()}
-            </div>
-          </div>
-        ) : null}
-
-        {/* Results — only show after completion */}
-        {quizComplete ? (
-          <div className="space-y-8">
-            {/* Recommendation detail */}
-            <div className="space-y-5">
-              <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                Your recommendation
-              </h2>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">Target</p>
-                  <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-[var(--ember)]">
-                    {formatCompactCurrency(recommendation.targetNumber)}
-                  </p>
-                  <div className="mt-3 space-y-1">
-                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-[var(--flame)] to-[var(--ember)]"
-                        style={{ width: `${Math.min(recommendation.progressToTarget * 100, 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {formatPercent(recommendation.progressToTarget, 0)} there
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Coast target</p>
-                  <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
-                    {formatCompactCurrency(recommendation.coastTargetToday)}
-                  </p>
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Save this much, then compounding alone finishes the job by retirement.
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Why this path</p>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground">
-                    {recommendation.rationale}
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {recommendation.nextStep}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Button type="button" onClick={handleQuizComplete}>
-                  <WandSparkles className="size-4" />
-                  {stageNextStep[answers.stage].label}
-                </Button>
-              </div>
-            </div>
-
-            {/* Type comparison */}
-            <div className="space-y-5">
-              <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                Compare all paths
-              </h2>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                {fireTypes.map((fireType) => {
-                  const highlighted = fireType.id === recommendation.id;
-                  return (
-                    <div
-                      key={fireType.id}
-                      className={cn(
-                        "flex flex-col gap-3 rounded-2xl p-5 transition-all",
-                        highlighted
-                          ? "bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03),0_0_0_2px_rgba(255,107,53,0.2)]"
-                          : "bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]",
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-semibold text-foreground">{fireType.label}</h3>
-                        {highlighted ? (
-                          <span className="rounded-full bg-[rgba(255,107,53,0.12)] px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-[var(--ember)]">
-                            Best fit
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                        {formatCompactCurrency(fireType.target)}
-                      </p>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            highlighted
-                              ? "bg-gradient-to-r from-[var(--flame)] to-[var(--ember)]"
-                              : "bg-primary/60",
-                          )}
-                          style={{ width: `${Math.min(fireType.progress * 100, 100)}%` }}
-                        />
-                      </div>
-                      <p className="text-sm leading-snug text-muted-foreground">
-                        {fireType.description}
-                      </p>
-                      {fireType.id === "coast" ? (
-                        <Link
-                          href="/education/coast-fire"
-                          className="mt-1 text-xs font-medium text-[var(--ember)] hover:underline"
-                        >
-                          Learn about Coast FIRE &rarr;
-                        </Link>
-                      ) : fireType.id === "barista" ? (
-                        <Link
-                          href="/education/barista-fire"
-                          className="mt-1 text-xs font-medium text-[var(--ember)] hover:underline"
-                        >
-                          Learn about Barista FIRE &rarr;
-                        </Link>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           </div>
         ) : null}

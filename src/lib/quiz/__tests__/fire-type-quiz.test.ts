@@ -3,74 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
   buildScenarioFromQuizAnswers,
-  getFireTypeRecommendation,
 } from "@/lib/quiz/fire-type-quiz";
 
 describe("fire type quiz", () => {
-  it("recommends Coast FIRE when the current portfolio clears the coast target", () => {
-    const recommendation = getFireTypeRecommendation({
-      ...DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
-      currentAge: 30,
-      targetFiAge: 50,
-      annualSpending: 60_000,
-      currentPortfolio: 600_000,
-      partTimePreference: "no",
-      priority: "balanced_life",
-    });
-
-    expect(recommendation.id).toBe("coast");
-    expect(recommendation.coastTargetToday).toBeLessThan(600_000);
-  });
-
-  it("recommends Barista FIRE when open to part-time work", () => {
-    const recommendation = getFireTypeRecommendation({
-      ...DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
-      annualSpending: 64_000,
-      currentPortfolio: 100_000,
-      partTimePreference: "yes",
-    });
-
-    expect(recommendation.id).toBe("barista");
-  });
-
-  // Lean / Fat used to have their own recommender branches. They don't
-  // anymore — "lean" and "fat" are socioeconomic labels, not math, and
-  // the calculator refuses to prescribe them. Both cases now fall
-  // through to the single "fire" recommendation; the user's actual
-  // retirement expenses input captures whether they're targeting a
-  // leaner or more generous lifestyle. See `/education/what-is-fire`.
-  it("recommends plain FIRE for high flexibility + speed priority (no longer Lean)", () => {
-    const recommendation = getFireTypeRecommendation({
-      ...DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
-      flexibility: "high",
-      priority: "freedom_fast",
-      partTimePreference: "no",
-    });
-
-    expect(recommendation.id).toBe("fire");
-  });
-
-  it("recommends plain FIRE for premium lifestyle priority (no longer Fat)", () => {
-    const recommendation = getFireTypeRecommendation({
-      ...DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
-      priority: "premium_lifestyle",
-      partTimePreference: "no",
-    });
-
-    expect(recommendation.id).toBe("fire");
-  });
-
-  it("defaults to FIRE for balanced answers", () => {
-    const recommendation = getFireTypeRecommendation({
-      ...DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
-      partTimePreference: "no",
-      priority: "balanced_life",
-      flexibility: "medium",
-    });
-
-    expect(recommendation.id).toBe("fire");
-  });
-
   it("builds a scenario that carries the suggested part-time income", () => {
     const scenario = buildScenarioFromQuizAnswers({
       ...DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,

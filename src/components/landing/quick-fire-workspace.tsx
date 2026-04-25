@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Copy, RotateCcw } from "lucide-react";
+import { Copy, RotateCcw, Sparkles, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -60,6 +60,7 @@ function ChartSkeleton({ className }: { className?: string }) {
     />
   );
 }
+
 import { US_BENCHMARKS, estimateNetWorthPercentile, getMedianNetWorthForAge } from "@/lib/data/benchmarks";
 import { buildScenarioProjection } from "@/lib/calc/quick-fire";
 import { useGlobalScenarioFormatting } from "@/components/shared/use-global-scenario-formatting";
@@ -108,6 +109,26 @@ export function QuickFireWorkspace({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const sharedScenarioParam = searchParams.get(SCENARIO_QUERY_KEY);
+  // Quiz hands off to home with `?from_quiz=1` so we can render a one-shot
+  // celebration banner. The capture has to happen in an effect (not a
+  // useState initializer) because the SSR pass sees `typeof window ===
+  // "undefined"` and would freeze state at `false` through hydration.
+  const [postQuizBanner, setPostQuizBanner] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("from_quiz") === "1") {
+      setPostQuizBanner(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  function dismissPostQuizBanner() {
+    setPostQuizBanner(false);
+    if (typeof window === "undefined") return;
+    const live = new URLSearchParams(window.location.search);
+    if (!live.has("from_quiz")) return;
+    live.delete("from_quiz");
+    const nextUrl = live.toString() ? `${pathname}?${live.toString()}` : pathname;
+    router.replace(nextUrl as Route, { scroll: false });
+  }
   const [copied, setCopied] = useState(false);
   const { hasDraft } = useHasExistingDraft();
   // Show the "Know your number" welcome hero ONLY when we're sure the
@@ -161,6 +182,7 @@ export function QuickFireWorkspace({
       : pathname;
     router.replace(nextUrl as Route, { scroll: false });
   }, [status, sharedScenarioParam, pathname, router, searchParams]);
+
 
   const summary = useMemo(
     () => calculateQuickFireSummary(activeScenario),
@@ -613,6 +635,54 @@ export function QuickFireWorkspace({
           </>
         ) : (
           <>
+            {/* Post-quiz banner — celebratory landing for users coming
+                from the quiz. Doesn't try to "match" them to a path; the
+                comparison section below lets them pick. Read on first
+                client commit (see effect above) and dismissable. */}
+            {postQuizBanner ? (
+              <section className="mx-auto max-w-7xl px-6 pt-8">
+                <div className="relative rounded-2xl border border-[rgba(255,107,53,0.22)] bg-gradient-to-br from-[rgba(255,107,53,0.08)] via-[rgba(255,107,53,0.04)] to-transparent p-6">
+                  <button
+                    type="button"
+                    onClick={dismissPostQuizBanner}
+                    aria-label="Dismiss post-quiz banner"
+                    className="absolute right-4 top-4 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                  >
+                    <X className="size-4" />
+                  </button>
+                  <div className="flex items-start gap-4 pr-8">
+                    <div className="hidden shrink-0 rounded-full border border-[rgba(255,107,53,0.22)] bg-[rgba(255,107,53,0.12)] p-2.5 text-[var(--ember)] sm:block">
+                      <Sparkles className="size-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
+                        Plan saved
+                      </p>
+                      <p className="mt-1 font-display text-2xl tracking-[-0.03em] text-foreground">
+                        Your numbers are below.
+                      </p>
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                        Tweak anything in the plan drawer, or compare the
+                        FIRE strategies to see which timeline fits.
+                      </p>
+                      <a
+                        href="#compare-paths"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          document
+                            .getElementById("compare-paths")
+                            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                        className="mt-3 inline-block text-sm font-medium text-[var(--ember)] hover:underline"
+                      >
+                        Compare the paths {"↓"}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
             {/* Section 1: Hero Status Bar */}
             <section className="mx-auto max-w-7xl px-6 pt-8">
               <button
@@ -874,6 +944,69 @@ export function QuickFireWorkspace({
                 </div>
               </section>
             )}
+
+            {/* Section 2.6: Compare all paths — three-card grid showing
+                FIRE / Coast FIRE / Barista FIRE targets and current
+                progress against the user's own scenario. Lives on home
+                permanently (not just post-quiz) so users coming from any
+                surface can see how the strategies stack up. The post-quiz
+                banner above smooth-scrolls here via #compare-paths. */}
+            <section
+              id="compare-paths"
+              className="mx-auto max-w-7xl space-y-4 px-6 scroll-mt-24"
+            >
+              <div>
+                <h2 className="font-display text-xl tracking-[-0.03em] text-foreground">
+                  Compare all paths
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Three flavors of FIRE, sized to your numbers.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                {fireTypes.map((fireType) => {
+                  const educationHref =
+                    fireType.id === "coast"
+                      ? "/education/coast-fire"
+                      : fireType.id === "barista"
+                        ? "/education/barista-fire"
+                        : "/education/what-is-fire";
+                  return (
+                    <div
+                      key={fireType.id}
+                      className="flex flex-col gap-3 rounded-2xl bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]"
+                    >
+                      <h3 className="text-sm font-semibold text-foreground">
+                        {fireType.label}
+                      </h3>
+                      <p className="font-display text-2xl tracking-[-0.03em] text-foreground">
+                        {formatCompactCurrency(fireType.target)}
+                      </p>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary/60 transition-all"
+                          style={{
+                            width: `${Math.min(fireType.progress * 100, 100)}%`,
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPercent(Math.min(fireType.progress, 1), 0)} there
+                      </p>
+                      <p className="text-sm leading-snug text-muted-foreground">
+                        {fireType.description}
+                      </p>
+                      <Link
+                        href={educationHref as Route}
+                        className="mt-auto pt-1 text-xs font-medium text-[var(--ember)] hover:underline"
+                      >
+                        Learn about {fireType.label} {"→"}
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
 
             {/* Post-FI moment of recognition — surfaced above the
                 "Dig deeper" hub when the user's portfolio has crossed

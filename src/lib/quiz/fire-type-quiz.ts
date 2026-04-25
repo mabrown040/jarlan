@@ -1,10 +1,9 @@
-import { calculateFireTypeSummaries } from "@/lib/calc";
 import { capRetirementDurationToAge100 } from "@/lib/calc/scenario";
 import { cloneScenario, createDefaultScenario, createDefaultAccount } from "@/lib/domain";
-import type { Account, EmploymentType, FilingStatus, FireTypeSummary, Scenario } from "@/lib/domain/types";
+import type { Account, EmploymentType, FilingStatus, Scenario } from "@/lib/domain/types";
 import { getContributionLimits as getContributionLimitsFromTax } from "@/lib/tax/limits";
 import { estimateScenarioTax } from "@/lib/tax/strategy";
-import { clamp, roundTo } from "@/lib/utils";
+import { clamp } from "@/lib/utils";
 
 export type FireStage = "curious" | "saving" | "pre_retirement" | "retired";
 export type PartTimePreference = "yes" | "maybe" | "no";
@@ -68,20 +67,6 @@ export interface FireTypeQuizAnswers {
   priority: PlanningPriority;
 }
 
-export interface FireTypeRecommendation {
-  id: FireTypeSummary["id"];
-  label: string;
-  headline: string;
-  rationale: string;
-  nextStep: string;
-  fitSignals: string[];
-  targetNumber: number;
-  fullFireNumber: number;
-  coastTargetToday: number;
-  progressToTarget: number;
-  suggestedPartTimeIncome: number;
-}
-
 /** 2025 contribution limits — age-aware, filing-status-aware.
  *  Delegates to the canonical implementation in `@/lib/tax/limits`.
  */
@@ -127,43 +112,13 @@ export const DEFAULT_FIRE_TYPE_QUIZ_ANSWERS: FireTypeQuizAnswers = {
   megaBackdoorRothContribution: 0,
   partnerMegaBackdoorRothAvailable: false,
   partnerMegaBackdoorRothContribution: 0,
-  partTimePreference: "maybe",
+  partTimePreference: "no",
   postFireIncome: 0,
   postFireIncomeDuration: null,
   flexibility: "medium",
   dependents: "no",
   riskTolerance: 3,
   priority: "balanced_life",
-};
-
-const recommendationCopy: Record<
-  FireTypeSummary["id"],
-  Pick<FireTypeRecommendation, "label" | "headline" | "rationale" | "nextStep">
-> = {
-  fire: {
-    label: "FIRE",
-    headline: "Full financial independence at your current lifestyle.",
-    rationale:
-      "Your answers point toward complete financial independence — saving toward a target that covers your actual spending, then retiring fully on your portfolio.",
-    nextStep:
-      "Use the planner to dial in your savings rate, timeline, and withdrawal strategy until the plan feels bulletproof.",
-  },
-  coast: {
-    label: "Coast FIRE",
-    headline: "You may already be closer to coasting than you think.",
-    rationale:
-      "Your portfolio is strong enough that compounding can do much of the work from here. You could shift to lower-stress work and let time finish the job.",
-    nextStep:
-      "Compare coasting versus a few more years of full contributions in the planner to see which timeline fits better.",
-  },
-  barista: {
-    label: "Barista FIRE",
-    headline: "Post-FIRE income dramatically lowers your target.",
-    rationale:
-      "You're open to earning some income later, which dramatically lowers the portfolio target while preserving flexibility and purpose.",
-    nextStep:
-      "Model your post-FIRE income, healthcare costs, and seasonal spending in the planner so the semi-retirement feels concrete.",
-  },
 };
 
 function getSuggestedPartTimeIncome(preference: PartTimePreference) {
@@ -314,110 +269,3 @@ export function buildScenarioFromQuizAnswers(
   return capRetirementDurationToAge100(scenario);
 }
 
-function pickRecommendationId(
-  answers: FireTypeQuizAnswers,
-  fullFireNumber: number,
-  coastTargetToday: number,
-): FireTypeSummary["id"] {
-  const yearsToFi = Math.max(answers.targetFiAge - answers.currentAge, 0);
-
-  // Coast: strong portfolio + enough time for compounding
-  if (
-    answers.currentPortfolio >= coastTargetToday &&
-    answers.priority !== "premium_lifestyle" &&
-    yearsToFi >= 5
-  ) {
-    return "coast";
-  }
-
-  // Barista: open to part-time work
-  if (answers.partTimePreference === "yes") {
-    return "barista";
-  }
-
-  // FIRE: the default recommendation. Whether the user wants a
-  // "lean" or "fat" lifestyle is captured by their retirement
-  // expenses input — we don't pigeonhole those into named buckets
-  // because what counts as lean or fat is deeply personal. The
-  // priority / flexibility answers still influence the *plan*
-  // (withdrawal rate, expense growth assumption), just not the
-  // recommended label.
-  return "fire";
-}
-
-function buildFitSignals(
-  answers: FireTypeQuizAnswers,
-  recommendationId: FireTypeSummary["id"],
-  coastTargetToday: number,
-) {
-  const signals: string[] = [];
-
-  signals.push(
-    `Target spending is ${Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(answers.annualSpending)} per year.`,
-  );
-
-  if (answers.currentPortfolio >= coastTargetToday) {
-    signals.push(
-      "Your current portfolio is strong enough to support a Coast FIRE option.",
-    );
-  } else {
-    signals.push(
-      `Current portfolio progress is ${Math.round(
-        (answers.currentPortfolio / Math.max(answers.annualSpending / 0.04, 1)) *
-          100,
-      )}% of a full FIRE number.`,
-    );
-  }
-
-  if (recommendationId === "barista") {
-    signals.push("Post-FIRE income materially lowers the required portfolio.");
-  }
-
-  if (answers.dependents === "yes") {
-    signals.push("Dependents usually increase the value of flexibility and margin.");
-  }
-
-  return signals.slice(0, 3);
-}
-
-export function getFireTypeRecommendation(
-  answers: FireTypeQuizAnswers,
-): FireTypeRecommendation {
-  const scenario = buildScenarioFromQuizAnswers(answers);
-  const summaries = calculateFireTypeSummaries(scenario);
-  const fullFireNumber = scenario.retirementExpenses / 0.04;
-  const yearsToFi = Math.max(answers.targetFiAge - answers.currentAge, 1);
-  const coastTargetToday = fullFireNumber / 1.05 ** yearsToFi;
-  const recommendationId = pickRecommendationId(
-    answers,
-    fullFireNumber,
-    coastTargetToday,
-  );
-  const summary =
-    summaries.find((item) => item.id === recommendationId) ?? summaries[0];
-  const copy = recommendationCopy[recommendationId];
-
-  return {
-    id: recommendationId,
-    label: copy.label,
-    headline: copy.headline,
-    rationale: copy.rationale,
-    nextStep: copy.nextStep,
-    fitSignals: buildFitSignals(answers, recommendationId, coastTargetToday),
-    targetNumber: roundTo(summary.target, 0),
-    fullFireNumber: roundTo(fullFireNumber, 0),
-    coastTargetToday: roundTo(coastTargetToday, 0),
-    progressToTarget: clamp(
-      answers.currentPortfolio / Math.max(summary.target, 1),
-      0,
-      1.5,
-    ),
-    suggestedPartTimeIncome: getSuggestedPartTimeIncome(
-      answers.partTimePreference,
-    ),
-  };
-}
