@@ -90,6 +90,7 @@ import {
 import { useDrawerStore, useScenarioStore } from "@/lib/store";
 import { InlineControls } from "@/components/plan/inline-controls";
 import { SampleScenarioBanner } from "@/components/landing/sample-scenario-banner";
+import { useProPlan } from "@/hooks/use-pro-plan";
 import { cn } from "@/lib/utils";
 
 export function QuickFireWorkspace({
@@ -169,6 +170,11 @@ export function QuickFireWorkspace({
     () => calculateFireTypeSummaries(activeScenario),
     [activeScenario],
   );
+  // Pro state drives the lock badges on the "Dig deeper" cards. We
+  // intentionally render the same cards to everyone (hub framing);
+  // the badge just hints that the linked page will upsell, so the
+  // click isn't a surprise.
+  const { isPro } = useProPlan();
   const currentBalance = useMemo(
     () => getCurrentPortfolioBalance(activeScenario.accounts),
     [activeScenario.accounts],
@@ -850,81 +856,59 @@ export function QuickFireWorkspace({
               </section>
             )}
 
-            {/* Section 3: Three Paths to Freedom */}
+            {/* Section 3: Dig deeper — hub links into the app's
+                bigger surfaces. Replaced the previous "Three paths to
+                freedom" grid, which lost its job once
+                Lean/Fat/Traditional consolidated into a single FIRE
+                target. Each card is a static snapshot + CTA; no live
+                simulation on the home page. Pro-gated pages still
+                render the same card so the free experience shows the
+                full menu — the lock badge warns the destination will
+                upsell. */}
             <section className="mx-auto max-w-7xl px-6">
               <h2 className="font-display text-2xl tracking-[-0.03em] text-foreground">
-                Your paths to freedom
+                Dig deeper into your plan
               </h2>
-              <div className="mt-4 grid gap-4 lg:grid-cols-3">
-                {fireTypes
-                  .filter((ft) => ft.id === "fire" || ft.id === "coast" || ft.id === "barista")
-                  .map((ft) => {
-                    const hasPostFireIncome = activeScenario.assumptions.partTimeIncome > 0;
-                    const baristaNoIncome = ft.id === "barista" && !hasPostFireIncome;
-                    const cta =
-                      ft.id === "fire"
-                        ? "Open Your Plan"
-                        : ft.id === "coast"
-                          ? "Explore Coast FI"
-                          : "Explore Barista FI";
-                    const href =
-                      ft.id === "fire"
-                        ? "/accumulation"
-                        : ft.id === "coast"
-                          ? "/education/coast-fire"
-                          : "/education/barista-fire";
-                    return (
-                      <div
-                        key={ft.id}
-                        className="flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)]"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
-                              {ft.label}
-                            </p>
-                          </div>
-                          {ft.id === "coast" && summary.coastAge !== null ? (
-                            <>
-                              <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
-                                Age {Math.round(summary.coastAge)}
-                              </p>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {Math.max(Math.round(summary.coastAge) - activeScenario.profile.age, 0)} years from now · need {formatCompactCurrency(ft.target)} today
-                              </p>
-                            </>
-                          ) : (
-                            <p className="mt-2 font-display text-[2.5rem] leading-none tracking-[-0.03em] text-foreground">
-                              {formatCompactCurrency(ft.target)}
-                            </p>
-                          )}
-                          <div className="mt-3 space-y-1">
-                            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                              <div
-                                className="h-full rounded-full bg-gradient-to-r from-[var(--flame)] to-[var(--ember)]"
-                                style={{ width: `${Math.min(Math.max(ft.progress, 0), 1) * 100}%` }}
-                              />
-                            </div>
-                          </div>
-                          <p className="mt-3 text-sm text-muted-foreground">
-                            {baristaNoIncome
-                              ? "Work part-time in retirement to supplement a smaller portfolio. Add expected post-FIRE income in your plan to see the target."
-                              : ft.description}
-                          </p>
-                        </div>
-                        <div className="mt-4 border-t border-border/40 pt-4">
-                          <Link
-                            href={href as Route}
-                            className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
-                          >
-                            {cta} {"\u2192"}
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  })}
+              <p className="mt-1 text-sm text-muted-foreground">
+                The calculator is more than this one page. Each surface
+                below stress-tests a different assumption in your plan.
+              </p>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <DigDeeperCard
+                  eyebrow="Stress test"
+                  title="Will your plan survive bad sequences?"
+                  description="Run it against 150 years of market history plus Monte Carlo. See how the 1929, 1966, and 2000 retirees fared with your exact numbers."
+                  cta="See backtest"
+                  href="/withdrawal"
+                  locked={false}
+                />
+                <DigDeeperCard
+                  eyebrow="Scenario lab"
+                  title="What if you retired differently?"
+                  description="Pull one lever at a time — spending cuts, bridge income, guardrails — and watch your success rate shift in real time."
+                  cta="Open the lab"
+                  href="/scenario-lab"
+                  locked={!isPro}
+                />
+                <DigDeeperCard
+                  eyebrow="Compare plans"
+                  title="Two plans, side by side"
+                  description="Every metric head-to-head: FIRE number, years to FI, savings rate, projection curves. Save a variant in Save What-if to enable it."
+                  cta="Open compare"
+                  href="/compare"
+                  locked={!isPro}
+                />
+                <DigDeeperCard
+                  eyebrow="Tax strategy"
+                  title="Optimize your withdrawal order"
+                  description="Which accounts you tap first — and when — determines your lifetime tax bill. Model the sequences side by side."
+                  cta="Open tax strategy"
+                  href="/tax-strategy"
+                  locked={!isPro}
+                />
               </div>
             </section>
+
 
             {/* Section 4: Quick Actions */}
             <section className="mx-auto max-w-7xl px-6">
@@ -1459,5 +1443,88 @@ export function QuickFireWorkspace({
       </section>
       )}
     </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  DigDeeperCard                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Hub card used in the home page's "Dig deeper" section. Each card
+ * represents a deeper surface in the app (withdrawal stress test,
+ * scenario lab, compare, tax strategy) and teases that surface with
+ * a sentence + CTA.
+ *
+ * `locked` renders a Pro badge + muted styling — the card still links
+ * to the destination (where the ProGate component handles the real
+ * upsell). Home just hints that the click will ask for payment, so
+ * the click isn't surprising.
+ */
+function DigDeeperCard({
+  eyebrow,
+  title,
+  description,
+  cta,
+  href,
+  locked,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  cta: string;
+  href: string;
+  locked: boolean;
+}) {
+  return (
+    <Link
+      href={href as Route}
+      className="group flex flex-col justify-between rounded-2xl bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,17,24,0.03)] transition-all hover:shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,17,24,0.06)]"
+    >
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--ember)]">
+            {eyebrow}
+          </p>
+          {locked ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+              <LockIcon />
+              Pro
+            </span>
+          ) : null}
+        </div>
+        <h3 className="mt-2 font-display text-xl leading-tight tracking-[-0.02em] text-foreground">
+          {title}
+        </h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {description}
+        </p>
+      </div>
+      <div className="mt-4 border-t border-border/40 pt-4">
+        <span className="inline-flex items-center gap-1 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+          {locked ? `Preview ${cta.toLowerCase()}` : cta}
+          <span aria-hidden="true">{"→"}</span>
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-2.5"
+      aria-hidden="true"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
   );
 }
