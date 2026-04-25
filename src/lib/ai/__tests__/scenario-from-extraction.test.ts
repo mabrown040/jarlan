@@ -141,6 +141,72 @@ describe("buildScenarioFromExtraction", () => {
     expect(result.accounts[1]!.annualContribution).toBe(0);
   });
 
+  it("derives savings from take-home minus expenses when AI returns null", () => {
+    // High income, stated expenses, no extracted savings — the AI's
+    // "I don't know what they save" should produce a sensible
+    // derived value, not leave annualSavings at the default and
+    // accounts[0].annualContribution at $0. This unifies the
+    // dashboard's "Saving" stat card and the Sankey diagram.
+    const result = buildScenarioFromExtraction({
+      draft: {
+        ...EMPTY_DRAFT,
+        annualIncome: 250_000,
+        annualExpenses: 60_000,
+        // annualSavings: null — explicitly omitted
+        taxablePortfolio: 1_000_000,
+      },
+      assumptions: [],
+      sourceText: "...",
+      sourceTag: "imported",
+      modelId: "claude-opus-4-7",
+    });
+
+    // The exact derived savings depends on tax math, but it should
+    // be the same number on both surfaces and well above zero.
+    expect(result.annualSavings).toBeGreaterThan(50_000);
+    expect(result.accounts[0]!.annualContribution).toBe(result.annualSavings);
+  });
+
+  it("does not override an explicitly-extracted savings value with derived", () => {
+    const result = buildScenarioFromExtraction({
+      draft: {
+        ...EMPTY_DRAFT,
+        annualIncome: 250_000,
+        annualExpenses: 60_000,
+        annualSavings: 75_000, // user said this; trust it
+        taxablePortfolio: 1_000_000,
+      },
+      assumptions: [],
+      sourceText: "I save $75K/year",
+      sourceTag: "imported",
+      modelId: "claude-opus-4-7",
+    });
+
+    expect(result.annualSavings).toBe(75_000);
+    expect(result.accounts[0]!.annualContribution).toBe(75_000);
+  });
+
+  it("respects an explicit annualSavings: 0 (user about to stop working)", () => {
+    // The model returning 0 means "they explicitly aren't saving"
+    // — do NOT derive from take-home; trust the model.
+    const result = buildScenarioFromExtraction({
+      draft: {
+        ...EMPTY_DRAFT,
+        annualIncome: 250_000,
+        annualExpenses: 60_000,
+        annualSavings: 0,
+        taxablePortfolio: 1_000_000,
+      },
+      assumptions: [],
+      sourceText: "I'm about to retire",
+      sourceTag: "imported",
+      modelId: "claude-opus-4-7",
+    });
+
+    expect(result.annualSavings).toBe(0);
+    expect(result.accounts[0]!.annualContribution).toBe(0);
+  });
+
   it("populates Scenario.meta with provenance, source text, and assumptions (model entries preserved)", () => {
     const result = buildScenarioFromExtraction({
       draft: { ...EMPTY_DRAFT, age: 35 },
