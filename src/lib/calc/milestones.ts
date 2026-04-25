@@ -34,7 +34,7 @@ export function computeProjectionMilestones(params: {
   const wr = scenario.assumptions.withdrawalRate;
   const expenses = scenario.retirementExpenses || scenario.annualExpenses;
   const partTime = scenario.assumptions.partTimeIncome;
-  const traditionalTarget = fireTypes?.find((ft) => ft.id === "traditional")?.target ?? summary.fireNumber;
+  const traditionalTarget = fireTypes?.find((ft) => ft.id === "fire")?.target ?? summary.fireNumber;
   const baristaTarget = fireTypes?.find((ft) => ft.id === "barista")?.target ?? 0;
   const startBalance = summary.projection[0]?.balance ?? 0;
 

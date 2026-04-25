@@ -141,7 +141,7 @@ export function BaristaFireArticle() {
 
   /* ---- Derived targets ---- */
   const traditionalTarget =
-    fireTypes.find((ft) => ft.id === "traditional")?.target ?? summary.fireNumber;
+    fireTypes.find((ft) => ft.id === "fire")?.target ?? summary.fireNumber;
   const userBaristaTarget =
     fireTypes.find((ft) => ft.id === "barista")?.target ?? 0;
 

@@ -140,29 +140,13 @@ const recommendationCopy: Record<
   FireTypeSummary["id"],
   Pick<FireTypeRecommendation, "label" | "headline" | "rationale" | "nextStep">
 > = {
-  traditional: {
-    label: "Traditional FIRE",
+  fire: {
+    label: "FIRE",
     headline: "Full financial independence at your current lifestyle.",
     rationale:
-      "Your answers point toward complete financial independence — saving aggressively, then retiring fully on your portfolio.",
+      "Your answers point toward complete financial independence — saving toward a target that covers your actual spending, then retiring fully on your portfolio.",
     nextStep:
       "Use the planner to dial in your savings rate, timeline, and withdrawal strategy until the plan feels bulletproof.",
-  },
-  lean: {
-    label: "Lean FIRE",
-    headline: "A leaner path gets you to freedom faster.",
-    rationale:
-      "You're willing to trade lifestyle flexibility for speed. A stripped-down budget means a smaller target and a shorter timeline.",
-    nextStep:
-      "Stress-test healthcare, housing, and emergency buffers so the lean plan still holds up when life gets expensive.",
-  },
-  fat: {
-    label: "Fat FIRE",
-    headline: "Your answers lean toward a premium retirement lifestyle.",
-    rationale:
-      "You want more than enough — room for travel, comfort, and optionality. That means a bigger number but a more resilient plan.",
-    nextStep:
-      "Model taxes, sequence-of-returns risk, and a longer timeline against your lifestyle goals in the planner.",
   },
   coast: {
     label: "Coast FIRE",
@@ -351,21 +335,14 @@ function pickRecommendationId(
     return "barista";
   }
 
-  // Fat: wants premium lifestyle
-  if (answers.priority === "premium_lifestyle") {
-    return "fat";
-  }
-
-  // Lean: high flexibility + wants speed
-  if (
-    answers.flexibility === "high" &&
-    answers.priority === "freedom_fast"
-  ) {
-    return "lean";
-  }
-
-  // Traditional: the balanced default
-  return "traditional";
+  // FIRE: the default recommendation. Whether the user wants a
+  // "lean" or "fat" lifestyle is captured by their retirement
+  // expenses input — we don't pigeonhole those into named buckets
+  // because what counts as lean or fat is deeply personal. The
+  // priority / flexibility answers still influence the *plan*
+  // (withdrawal rate, expense growth assumption), just not the
+  // recommended label.
+  return "fire";
 }
 
 function buildFitSignals(

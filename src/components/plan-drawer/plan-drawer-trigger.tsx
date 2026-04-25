@@ -45,7 +45,7 @@ export function PlanDrawerTrigger() {
     if (!summary) return null;
     const fireTypes = calculateFireTypeSummaries(activeScenario);
     const traditionalTarget =
-      fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
+      fireTypes.find((ft) => ft.id === "fire")?.target ?? 0;
     return deriveDisplayYearsToFi({
       scenario: activeScenario,
       traditionalTarget,

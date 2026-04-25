@@ -135,7 +135,7 @@ export function CoastFireArticle() {
   }, [hasData, currentBalance, currentAge, sliderYearsToRet, sliderReturn, taxInfo.takeHome, activeScenario.annualExpenses]);
 
   /* ---- Fire type comparison data ---- */
-  const traditionalTarget = fireTypes.find((ft) => ft.id === "traditional")?.target ?? summary.fireNumber;
+  const traditionalTarget = fireTypes.find((ft) => ft.id === "fire")?.target ?? summary.fireNumber;
   const baristaTarget = fireTypes.find((ft) => ft.id === "barista")?.target ?? 0;
   const partTimeIncome = activeScenario.assumptions.partTimeIncome;
 

@@ -231,7 +231,12 @@ export interface QuickFireSummary {
 }
 
 export interface FireTypeSummary {
-  id: "traditional" | "lean" | "fat" | "coast" | "barista";
+  // "fire" is the single target (spending × 1/WR). "coast" and "barista"
+  // are structural variants (timing / part-time bridge). Lean / Fat are
+  // deliberately absent — they're socioeconomic labels, not math, and
+  // the calculator shouldn't prescribe them. Education articles at
+  // `/education/lean-fire` and `/education/fat-fire` remain as reference.
+  id: "fire" | "coast" | "barista";
   label: string;
   target: number;
   progress: number;

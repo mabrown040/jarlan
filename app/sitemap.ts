@@ -31,12 +31,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/scenario-lab", priority: 0.6, changeFrequency: "monthly" },
     { path: "/tax-strategy", priority: 0.7, changeFrequency: "monthly" },
     { path: "/education", priority: 0.7, changeFrequency: "weekly" },
+    // Start here
+    { path: "/education/what-is-fire", priority: 0.7, changeFrequency: "monthly" },
     // Foundation
     { path: "/education/savings-rate", priority: 0.6, changeFrequency: "monthly" },
     { path: "/education/the-4-percent-rule", priority: 0.6, changeFrequency: "monthly" },
     { path: "/education/fire-number", priority: 0.6, changeFrequency: "monthly" },
     { path: "/education/sequence-of-returns", priority: 0.6, changeFrequency: "monthly" },
-    // FIRE Types
+    // FIRE variations (Coast/Barista are structural; Lean/Fat are reference)
     { path: "/education/fat-fire", priority: 0.6, changeFrequency: "monthly" },
     { path: "/education/lean-fire", priority: 0.6, changeFrequency: "monthly" },
     { path: "/education/coast-fire", priority: 0.6, changeFrequency: "monthly" },

@@ -33,7 +33,13 @@ describe("fire type quiz", () => {
     expect(recommendation.id).toBe("barista");
   });
 
-  it("recommends Lean FIRE for high flexibility + speed priority", () => {
+  // Lean / Fat used to have their own recommender branches. They don't
+  // anymore — "lean" and "fat" are socioeconomic labels, not math, and
+  // the calculator refuses to prescribe them. Both cases now fall
+  // through to the single "fire" recommendation; the user's actual
+  // retirement expenses input captures whether they're targeting a
+  // leaner or more generous lifestyle. See `/education/what-is-fire`.
+  it("recommends plain FIRE for high flexibility + speed priority (no longer Lean)", () => {
     const recommendation = getFireTypeRecommendation({
       ...DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
       flexibility: "high",
@@ -41,20 +47,20 @@ describe("fire type quiz", () => {
       partTimePreference: "no",
     });
 
-    expect(recommendation.id).toBe("lean");
+    expect(recommendation.id).toBe("fire");
   });
 
-  it("recommends Fat FIRE for premium lifestyle priority", () => {
+  it("recommends plain FIRE for premium lifestyle priority (no longer Fat)", () => {
     const recommendation = getFireTypeRecommendation({
       ...DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
       priority: "premium_lifestyle",
       partTimePreference: "no",
     });
 
-    expect(recommendation.id).toBe("fat");
+    expect(recommendation.id).toBe("fire");
   });
 
-  it("defaults to Traditional FIRE for balanced answers", () => {
+  it("defaults to FIRE for balanced answers", () => {
     const recommendation = getFireTypeRecommendation({
       ...DEFAULT_FIRE_TYPE_QUIZ_ANSWERS,
       partTimePreference: "no",
@@ -62,7 +68,7 @@ describe("fire type quiz", () => {
       flexibility: "medium",
     });
 
-    expect(recommendation.id).toBe("traditional");
+    expect(recommendation.id).toBe("fire");
   });
 
   it("builds a scenario that carries the suggested part-time income", () => {

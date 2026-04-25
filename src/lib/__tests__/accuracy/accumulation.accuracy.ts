@@ -116,10 +116,10 @@ describe("Accumulation Engine — Golden Tests", () => {
    *   Pre-fix, the Home page's Coast card displayed the Traditional number as
    *   "need today" — e.g. $2M when the true coast amount was ~$856K.
    */
-  it("Coast summary .target equals PV of Traditional target (not the Traditional target)", () => {
+  it("Coast summary .target equals PV of the FIRE target (not the FIRE target itself)", () => {
     const scenario = createCoastAccumulatorScenario();
     const summaries = calculateFireTypeSummaries(scenario);
-    const traditional = summaries.find((s) => s.id === "traditional");
+    const fire = summaries.find((s) => s.id === "fire");
     const coast = summaries.find((s) => s.id === "coast");
 
     const yearsToRetirement =
@@ -128,12 +128,12 @@ describe("Accumulation Engine — Golden Tests", () => {
       scenario.assumptions.expectedRealReturn -
       scenario.simulationSettings.feeDrag;
     const expected =
-      (traditional?.target ?? 0) /
+      (fire?.target ?? 0) /
       Math.pow(1 + effectiveReturn, yearsToRetirement);
 
     golden("accumulation.fire-types.coast-target-is-pv", {
       input: {
-        traditionalTarget: traditional?.target ?? 0,
+        fireTarget: fire?.target ?? 0,
         return: effectiveReturn,
         years: yearsToRetirement,
       },
@@ -141,55 +141,17 @@ describe("Accumulation Engine — Golden Tests", () => {
       actual: coast?.target ?? 0,
       tolerance: 2, // 2 decimal places — PV of a rounded FIRE number
       methodology:
-        "coast.target = traditional.target / (1 + effectiveReturn)^years",
+        "coast.target = fire.target / (1 + effectiveReturn)^years",
     });
   });
 
-  /**
-   * @golden FIRE type: Lean = 60% of traditional target
-   * @methodology Lean FIRE uses 60% of current spending as the baseline
-   */
-  it("lean FIRE is 60% of traditional target", () => {
-    const scenario = createCoastAccumulatorScenario();
-    const types = calculateFireTypeSummaries(scenario);
-    const traditional = types.find((t) => t.id === "traditional");
-    const lean = types.find((t) => t.id === "lean");
-
-    expect(traditional).toBeDefined();
-    expect(lean).toBeDefined();
-    if (!traditional || !lean) return;
-
-    golden("accumulation.fire-types.lean", {
-      input: { traditionalTarget: traditional.target },
-      expected: traditional.target * 0.6,
-      actual: lean.target,
-      tolerance: 0,
-      methodology: "Lean FIRE = 60% of traditional target (reduced spending)",
-    });
-  });
-
-  /**
-   * @golden FIRE type: Fat = 150% of traditional target
-   * @methodology Fat FIRE uses 150% of current spending as the premium lifestyle floor
-   */
-  it("fat FIRE is 150% of traditional target", () => {
-    const scenario = createCoastAccumulatorScenario();
-    const types = calculateFireTypeSummaries(scenario);
-    const traditional = types.find((t) => t.id === "traditional");
-    const fat = types.find((t) => t.id === "fat");
-
-    expect(traditional).toBeDefined();
-    expect(fat).toBeDefined();
-    if (!traditional || !fat) return;
-
-    golden("accumulation.fire-types.fat", {
-      input: { traditionalTarget: traditional.target },
-      expected: traditional.target * 1.5,
-      actual: fat.target,
-      tolerance: 0,
-      methodology: "Fat FIRE = 150% of traditional target (premium lifestyle)",
-    });
-  });
+  // Lean and Fat target assertions were removed deliberately. They
+  // pinned the math for "60% of spending" / "150% of spending"
+  // buckets the app no longer produces; those labels are socio-
+  // economic, not mathematical, and the calculator doesn't prescribe
+  // them. See `/education/what-is-fire` for the user-facing
+  // rationale, and `/education/{lean,fat}-fire` for the reference
+  // articles that stayed.
 
   /**
    * @golden Coast formula invariance across calc modules

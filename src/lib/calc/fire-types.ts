@@ -26,6 +26,20 @@ function createSummary(
   } satisfies FireTypeSummary;
 }
 
+/**
+ * Compute the user's FIRE target and the two structural variations
+ * (Coast, Barista) that are distinct *strategies*, not spending-level
+ * labels.
+ *
+ * Deliberately NOT returning Lean / Fat variants. Those are
+ * socioeconomic labels — what counts as "lean" or "fat" is deeply
+ * personal, and the calculator shouldn't prescribe them. Users who
+ * want to explore a lower or higher spending level just change their
+ * retirement expenses directly and watch the one FIRE target update.
+ * The Lean / Fat articles under /education still exist as reference
+ * material for anyone who wants to know what those community terms
+ * mean, but we don't surface them as planning buckets.
+ */
 export function calculateFireTypeSummaries(scenario: Scenario): FireTypeSummary[] {
   const currentPortfolio = getCurrentPortfolioBalance(scenario.accounts);
   // Project retirement spending forward for expense growth (lifestyle creep)
@@ -37,16 +51,8 @@ export function calculateFireTypeSummaries(scenario: Scenario): FireTypeSummary[
   const spending = scenario.retirementExpenses * expGrowth ** yearsToRet;
   const wr = scenario.assumptions.withdrawalRate;
 
-  // Traditional: your actual spending
-  const traditionalTarget = calculateFireNumber(spending, wr);
-
-  // Lean: 60% of your spending — a stripped-down budget
-  const leanSpending = Math.round(spending * 0.6);
-  const leanTarget = calculateFireNumber(leanSpending, wr);
-
-  // Fat: 150% of your spending — premium lifestyle
-  const fatSpending = Math.round(spending * 1.5);
-  const fatTarget = calculateFireNumber(fatSpending, wr);
+  // The FIRE target — expenses × (1 / WR). The "25x rule" when WR = 4%.
+  const fireTarget = calculateFireNumber(spending, wr);
 
   // Coast FIRE — two related numbers:
   //   - coastTarget: the balance you'd need TODAY so pure compounding at the
@@ -59,7 +65,7 @@ export function calculateFireTypeSummaries(scenario: Scenario): FireTypeSummary[
   // calculateQuickFireSummary can't drift.
   const yearsUntilRetirement = getYearsUntilRetirement(scenario) ?? 0;
   const coastTarget = calculateCoastTarget(
-    traditionalTarget,
+    fireTarget,
     yearsUntilRetirement,
     getEffectiveRealReturn(scenario),
   );
@@ -78,11 +84,11 @@ export function calculateFireTypeSummaries(scenario: Scenario): FireTypeSummary[
     baristaTarget = calculateFireNumber(baristaSpending, wr);
   } else {
     // Bridge: need enough for reduced withdrawal during bridge + full withdrawal after
-    // traditionalTarget minus present value of the income subsidy over the bridge period
+    // fireTarget minus present value of the income subsidy over the bridge period
     const annualSubsidy = Math.min(partTimeIncome, spending);
     const r = Math.max(realReturn, 0.001); // avoid division by zero
     const pvSubsidy = annualSubsidy * ((1 - (1 + r) ** -duration) / r);
-    baristaTarget = Math.max(traditionalTarget - pvSubsidy, 0);
+    baristaTarget = Math.max(fireTarget - pvSubsidy, 0);
   }
   const baristaSpending = duration === null || duration === undefined
     ? Math.max(spending - partTimeIncome, 0)
@@ -90,51 +96,31 @@ export function calculateFireTypeSummaries(scenario: Scenario): FireTypeSummary[
 
   return [
     createSummary(
-      "traditional",
-      "Traditional FIRE",
-      traditionalTarget,
+      "fire",
+      "FIRE",
+      fireTarget,
       currentPortfolio,
       "Full financial independence at your current spending level.",
       `Target based on ${formatCurrency(spending)}/yr at a ${(wr * 100).toFixed(0)}% withdrawal rate.`,
-    ),
-    createSummary(
-      "lean",
-      "Lean FIRE",
-      leanTarget,
-      currentPortfolio,
-      `FI on a stripped-down budget — about 60% of your current spending (${formatCompactCurrency(leanSpending)}/yr).`,
-      currentPortfolio >= leanTarget
-        ? "You've already crossed the Lean FIRE line."
-        : `${formatCompactCurrency(leanTarget - currentPortfolio)} to go.`,
-    ),
-    createSummary(
-      "fat",
-      "Fat FIRE",
-      fatTarget,
-      currentPortfolio,
-      `FI with 50% more room — about ${formatCompactCurrency(fatSpending)}/yr for a premium lifestyle.`,
-      currentPortfolio >= fatTarget
-        ? "You've reached Fat FIRE territory."
-        : `${formatCompactCurrency(fatTarget - currentPortfolio)} to go.`,
     ),
     {
       ...createSummary(
         "coast",
         "Coast FIRE",
-        // The "need today" number — present value of the traditional FIRE
-        // target, discounted back at the effective real return. When the
-        // user already has this much, they can stop contributing today.
+        // The "need today" number — present value of the FIRE target,
+        // discounted back at the effective real return. When the user
+        // already has this much, they can stop contributing today.
         coastTarget,
         currentPortfolio,
         "Enough invested today that compounding alone reaches your full FIRE number by retirement.",
-        coastBalance >= traditionalTarget
+        coastBalance >= fireTarget
           ? `Compounding alone reaches ${formatCompactCurrency(coastBalance)} by retirement.`
-          : `Compounding alone leaves a gap of ${formatCompactCurrency(traditionalTarget - coastBalance)} by retirement.`,
+          : `Compounding alone leaves a gap of ${formatCompactCurrency(fireTarget - coastBalance)} by retirement.`,
       ),
       // Progress toward the coast target — how close the current portfolio is
       // to the "you can stop saving today" threshold. Equivalent to
-      // coastBalance/traditionalTarget mathematically but expressed against
-      // the number we actually display on the card.
+      // coastBalance/fireTarget mathematically but expressed against the
+      // number we actually display on the card.
       progress: clamp(currentPortfolio / Math.max(coastTarget, 1), 0, 1.5),
     },
     createSummary(

@@ -56,6 +56,13 @@ const CATEGORIES: Category[] = [
     description: "The core math every FIRE plan is built on",
     topics: [
       {
+        title: "Start here: What is FIRE?",
+        description: "The acronym, the one idea behind it, and how this site approaches the math",
+        href: "/education/what-is-fire",
+        emoji: "🧭",
+        getPersonalized: () => null,
+      },
+      {
         title: "Savings Rate",
         description: "How fast you can retire depends on one number",
         href: "/education/savings-rate",
@@ -98,34 +105,11 @@ const CATEGORIES: Category[] = [
     ],
   },
   {
-    id: "fire-types",
-    title: "FIRE Types",
-    description: "Four flavors of financial independence — find which fits your life",
+    id: "fire-variations",
+    title: "Variations on FIRE",
+    description:
+      "Coast and Barista are structural choices. Lean and Fat are community labels you decide for yourself — this site doesn't prescribe them.",
     topics: [
-      {
-        title: "Fat FIRE",
-        description: "Financial independence without compromising your lifestyle",
-        href: "/education/fat-fire",
-        emoji: "🔥",
-        getPersonalized: (ctx) =>
-          ctx.expenses > 0
-            ? ctx.expenses >= 100_000
-              ? `At ${formatCompactCurrency(ctx.expenses)}/yr you're in Fat FIRE territory`
-              : `Fat FIRE would mean ~${formatCompactCurrency(ctx.expenses * 1.5)}/yr — a ${formatCompactCurrency((ctx.expenses * 1.5) / (ctx.withdrawalRate || 0.04))} target`
-            : null,
-      },
-      {
-        title: "Lean FIRE",
-        description: "Early retirement on a frugal budget — the fastest path to FI",
-        href: "/education/lean-fire",
-        emoji: "🌿",
-        getPersonalized: (ctx) =>
-          ctx.expenses > 0
-            ? ctx.expenses <= 40_000
-              ? `At ${formatCompactCurrency(ctx.expenses)}/yr you're already in Lean FIRE territory`
-              : `Lean FIRE at $40K/yr would cut your target to ${formatCompactCurrency(40_000 / (ctx.withdrawalRate || 0.04))}`
-            : null,
-      },
       {
         title: "Coast FIRE",
         description: "Stop saving and let compounding finish the job",
@@ -145,6 +129,22 @@ const CATEGORIES: Category[] = [
           ctx.partTimeIncome > 0
             ? `${formatCompactCurrency(ctx.partTimeIncome)}/yr part-time drops your target to ${formatCompactCurrency(ctx.baristaTarget)}`
             : null,
+      },
+      {
+        title: "Lean FIRE",
+        description:
+          "The community term for retiring on a lower-spending lifestyle — what counts as 'lean' is personal",
+        href: "/education/lean-fire",
+        emoji: "🌿",
+        getPersonalized: () => null,
+      },
+      {
+        title: "Fat FIRE",
+        description:
+          "The community term for retiring on a higher-spending lifestyle — what counts as 'fat' is personal",
+        href: "/education/fat-fire",
+        emoji: "🔥",
+        getPersonalized: () => null,
       },
     ],
   },

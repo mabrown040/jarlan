@@ -131,7 +131,7 @@ export default function SaveWhatIfWorkspace() {
   const { displayYearsToFi, displayFireAge } = useMemo(() => {
     const fireTypes = calculateFireTypeSummaries(activeScenario);
     const traditionalTarget =
-      fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
+      fireTypes.find((ft) => ft.id === "fire")?.target ?? 0;
     return deriveDisplayYearsToFi({
       scenario: activeScenario,
       traditionalTarget,
@@ -195,7 +195,7 @@ export default function SaveWhatIfWorkspace() {
     if (!combinedScenario || !combinedSummary) return null;
     const fireTypes = calculateFireTypeSummaries(combinedScenario);
     const traditionalTarget =
-      fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
+      fireTypes.find((ft) => ft.id === "fire")?.target ?? 0;
     return deriveDisplayYearsToFi({
       scenario: combinedScenario,
       traditionalTarget,

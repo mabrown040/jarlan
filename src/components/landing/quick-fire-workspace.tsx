@@ -192,7 +192,7 @@ export function QuickFireWorkspace({
   const { mode: displayMode } = useDisplayMode();
   const projectionWithMilestones = useMemo(() => {
     if (!fireTypes.length) return [];
-    const traditionalTarget = fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
+    const traditionalTarget = fireTypes.find((ft) => ft.id === "fire")?.target ?? 0;
     const baristaTarget = fireTypes.find((ft) => ft.id === "barista")?.target ?? 0;
     const retirementAge = activeScenario.profile.retirementAge ?? activeScenario.profile.age + 15;
     const realReturn = activeScenario.assumptions.expectedRealReturn;
@@ -258,7 +258,7 @@ export function QuickFireWorkspace({
   // warning. Logic lives in `./fire-display` so the past-FIRE / phase guard
   // edge cases can be unit tested without mounting the whole workspace.
   const traditionalFireTarget =
-    fireTypes.find((ft) => ft.id === "traditional")?.target ?? 0;
+    fireTypes.find((ft) => ft.id === "fire")?.target ?? 0;
   const { displayYearsToFi, displayFireAge, isPastFire } = useMemo(
     () =>
       deriveDisplayYearsToFi({
@@ -624,7 +624,7 @@ export function QuickFireWorkspace({
                           if (progressToFire >= 0.9) return "Within reach";
                           const coastType = fireTypes.find((ft) => ft.id === "coast");
                           if (coastType && coastType.progress >= 1) return "Coast FIRE";
-                          return "Traditional FIRE";
+                          return "Your FIRE target";
                         })()}
                       </span>
                     </div>
@@ -847,18 +847,18 @@ export function QuickFireWorkspace({
               </h2>
               <div className="mt-4 grid gap-4 lg:grid-cols-3">
                 {fireTypes
-                  .filter((ft) => ft.id === "traditional" || ft.id === "coast" || ft.id === "barista")
+                  .filter((ft) => ft.id === "fire" || ft.id === "coast" || ft.id === "barista")
                   .map((ft) => {
                     const hasPostFireIncome = activeScenario.assumptions.partTimeIncome > 0;
                     const baristaNoIncome = ft.id === "barista" && !hasPostFireIncome;
                     const cta =
-                      ft.id === "traditional"
+                      ft.id === "fire"
                         ? "Open Your Plan"
                         : ft.id === "coast"
                           ? "Explore Coast FI"
                           : "Explore Barista FI";
                     const href =
-                      ft.id === "traditional"
+                      ft.id === "fire"
                         ? "/accumulation"
                         : ft.id === "coast"
                           ? "/education/coast-fire"
