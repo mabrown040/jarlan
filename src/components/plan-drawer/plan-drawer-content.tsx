@@ -464,35 +464,81 @@ export function PlanDrawerContent() {
           </label>
           {typeof activeScenario.assumptions.taxRateOverride === "number" ? (
             <div className="space-y-2 pl-6">
-              <div className="flex items-center justify-between">
-                <FieldLabel
-                  htmlFor="drawer-tax-override"
-                  label="Your effective tax rate"
-                  tooltip="Total tax (federal + state + FICA + anything else) as a percentage of gross income. Look at last year's tax return: Total tax / gross income."
-                />
-                <span className="text-sm font-medium">
-                  {formatPercent(
-                    activeScenario.assumptions.taxRateOverride,
-                    1,
-                  )}
-                </span>
+              {/* Two-way bound fields. Rate is the source of truth in
+                  the schema; the dollar input is a derived view that
+                  converts at the UI boundary using gross income.
+                  NumberInput's focus-aware draft state keeps the
+                  active field from being stomped on the round-trip. */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <FieldLabel
+                    htmlFor="drawer-tax-override-pct"
+                    label="Effective rate"
+                    tooltip="Total tax (federal + state + FICA + anything else) as a percentage of gross income. Look at last year's tax return: Total tax / gross income."
+                  />
+                  <div className="relative">
+                    <NumberInput
+                      id="drawer-tax-override-pct"
+                      min={0}
+                      max={70}
+                      step={0.5}
+                      inputMode="decimal"
+                      // Display + edit as percentage points (e.g. 27.5)
+                      // while the schema stores 0.275.
+                      value={Math.round(
+                        activeScenario.assumptions.taxRateOverride * 1000,
+                      ) / 10}
+                      onValueChange={(v) =>
+                        updateTaxRateOverride(clamp(v / 100, 0, 0.7))
+                      }
+                      className="pr-7"
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      %
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <FieldLabel
+                    htmlFor="drawer-tax-override-dollars"
+                    label="Annual tax"
+                    tooltip="Total dollars paid in tax per year. Edit either field — they're tied to the same number, so the other updates to match."
+                  />
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      $
+                    </span>
+                    <NumberInput
+                      id="drawer-tax-override-dollars"
+                      min={0}
+                      max={
+                        taxCalc.grossIncome > 0
+                          ? Math.round(taxCalc.grossIncome * 0.7)
+                          : undefined
+                      }
+                      step={100}
+                      inputMode="numeric"
+                      disabled={taxCalc.grossIncome <= 0}
+                      value={Math.round(
+                        taxCalc.grossIncome *
+                          activeScenario.assumptions.taxRateOverride,
+                      )}
+                      onValueChange={(v) => {
+                        if (taxCalc.grossIncome <= 0) return;
+                        updateTaxRateOverride(
+                          clamp(v / taxCalc.grossIncome, 0, 0.7),
+                        );
+                      }}
+                      className="pl-6"
+                    />
+                  </div>
+                </div>
               </div>
-              <NumberInput
-                id="drawer-tax-override"
-                min={0}
-                max={70}
-                step={0.5}
-                inputMode="decimal"
-                // Display + edit as percentage points (e.g. 27.5)
-                // while the schema stores 0.275. Conversion happens
-                // at the boundary.
-                value={Math.round(
-                  activeScenario.assumptions.taxRateOverride * 1000,
-                ) / 10}
-                onValueChange={(v) =>
-                  updateTaxRateOverride(clamp(v / 100, 0, 0.7))
-                }
-              />
+              <p className="text-xs text-muted-foreground">
+                {taxCalc.grossIncome > 0
+                  ? "Edit either field — the other updates automatically."
+                  : "Add an income above to enter a dollar amount."}
+              </p>
               <button
                 type="button"
                 onClick={() => updateTaxRateOverride(null)}
