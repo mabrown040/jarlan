@@ -398,6 +398,16 @@ export function QuickFireWorkspace({
                       <Link href={"/accumulation" as Route}>See a sample plan</Link>
                     </Button>
                   </div>
+                  {/* Tertiary action — same hierarchy as the quiz/sample
+                      buttons but visually lighter. Directly answers the
+                      question a newcomer has after seeing "FIRE" in the
+                      CTAs above. Experienced users ignore it. */}
+                  <Link
+                    href={"/education/what-is-fire" as Route}
+                    className="text-sm font-medium text-[var(--ember)] underline-offset-2 hover:underline"
+                  >
+                    What is FIRE? Read the primer &rarr;
+                  </Link>
                   <p className="text-xs text-muted-foreground/80">
                     Free forever. No account required &mdash; sign in to sync across devices.
                   </p>
