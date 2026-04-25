@@ -37,6 +37,7 @@ import {
   userKey,
 } from "@/lib/rate-limit";
 import { buildScenarioShareUrl } from "@/lib/share/scenario-url";
+import { createShortLink } from "@/lib/share/short-link";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 const requestSchema = z.object({
@@ -150,11 +151,21 @@ export async function POST(request: Request) {
     });
   }
 
-  // 9. Build a shareable URL from the request's own origin so it
-  //    works in dev (localhost), preview deploys, and production
-  //    without env-var configuration.
+  // 9. Build a shareable URL. Prefer a short /s/abc123 link backed
+  //    by share_links — much cleaner to paste in a Reddit reply
+  //    than the ~3KB compressed-in-URL form. Fall back to the long
+  //    URL when the short-link table isn't available (e.g.,
+  //    pre-migration dev environments, Supabase not configured)
+  //    so the feature degrades to "still works, just ugly".
   const origin = new URL(request.url).origin;
-  const shareUrl = buildScenarioShareUrl(`${origin}/`, validated);
+  const shortLink = await createShortLink({
+    scenario: validated,
+    origin,
+    createdBy: gate.user.id,
+  });
+  const shareUrl = shortLink
+    ? shortLink.shortUrl
+    : buildScenarioShareUrl(`${origin}/`, validated);
 
   // 10. Return everything the client UI needs.
   return NextResponse.json({
