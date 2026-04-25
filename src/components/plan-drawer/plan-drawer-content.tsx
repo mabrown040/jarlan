@@ -541,7 +541,21 @@ export function PlanDrawerContent() {
               </p>
               <button
                 type="button"
-                onClick={() => updateTaxRateOverride(null)}
+                onClick={() => {
+                  // Re-seed to the calculator's estimate WITHOUT the
+                  // override (taxCalc would just echo the user's
+                  // current override since the engine short-circuits).
+                  // Keep the override toggle on — clearing it is the
+                  // checkbox's job, not Reset's.
+                  const est = estimateScenarioTax({
+                    ...activeScenario,
+                    assumptions: {
+                      ...activeScenario.assumptions,
+                      taxRateOverride: null,
+                    },
+                  });
+                  updateTaxRateOverride(est.effectiveRate);
+                }}
                 className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
               >
                 Reset to calculator estimate
