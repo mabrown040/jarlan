@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { AdminLink } from "@/components/admin/admin-link";
 import { UserMenu } from "@/components/auth/user-menu";
 import { useSupabaseSyncBootstrap } from "@/hooks/use-supabase-sync-bootstrap";
 import {
@@ -261,6 +262,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
               </nav>
               <PlanNameTrigger />
               <PlanDrawerTrigger />
+              <AdminLink />
               <UserMenu />
               <ThemeToggle />
             </div>

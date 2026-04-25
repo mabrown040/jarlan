@@ -57,6 +57,39 @@ export interface ScenarioDraft {
 }
 
 /**
+ * Reddit-ready reply the operator can post on the source thread.
+ * The whole point of the admin tool: a draft scenario without a
+ * post-able message is just data; with the message, it's a growth
+ * lever.
+ *
+ * The model produces just the analytical body. The server-side
+ * `assembleReplyMessage()` (in `reply-template.ts`) appends the
+ * share URL and a fixed disclosure to produce the final text.
+ * Hardcoding the boilerplate eliminates risk that the model
+ * drifts on link formatting or disclosure wording.
+ *
+ * Empty `body` signals the model declined to draft a reply
+ * (input too thin, off-topic, distress signal).
+ */
+export interface ReplyDraft {
+  /** 1-line operator-only TL;DR (not part of the public reply). */
+  summary: string;
+  /**
+   * 120–200 word reply body — acknowledgment + analysis only.
+   * The server appends the share link and disclosure after.
+   * Empty string when the model declined to draft.
+   */
+  body: string;
+  /**
+   * Optional 1-sentence lead-in to the share URL that names 1–2
+   * specific assumptions the OP should verify in the tool.
+   * Server places it immediately before the URL. Empty string
+   * when no assumptions are noteworthy enough to flag.
+   */
+  assumptionsLine: string;
+}
+
+/**
  * Result the model returns. `draft` populates what it could; every
  * non-trivial field gets an entry in `assumptions` explaining why.
  * `confidence` is the overall extraction confidence (worst-case
@@ -69,6 +102,7 @@ export interface ExtractionResult {
   assumptions: AssumptionLog[];
   confidence: "high" | "medium" | "low";
   notes?: string;
+  replyDraft: ReplyDraft;
 }
 
 /**

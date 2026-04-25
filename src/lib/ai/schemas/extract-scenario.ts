@@ -59,11 +59,23 @@ const assumptionLogEntrySchema = z.object({
   source: z.enum(["derived", "default", "inferred"]),
 });
 
+// Reddit-ready reply, split into three parts so the server can
+// assemble the final message with a hardcoded disclosure (no risk
+// of model drift on the boilerplate). Caps mirror the prompt's
+// length guidance with generous headroom — the model can overshoot
+// without hitting the schema cap.
+const replyDraftSchema = z.object({
+  summary: z.string().max(300),
+  body: z.string().max(2500),
+  assumptionsLine: z.string().max(400),
+});
+
 export const extractionResultSchema = z.object({
   draft: scenarioDraftSchema,
   assumptions: z.array(assumptionLogEntrySchema).max(50),
   confidence: z.enum(["high", "medium", "low"]),
   notes: z.string().max(1000).optional(),
+  replyDraft: replyDraftSchema,
 });
 
 export type ExtractionResultParsed = z.infer<typeof extractionResultSchema>;

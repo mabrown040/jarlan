@@ -47,6 +47,11 @@ const STANDARD_USAGE = {
   cache_creation_input_tokens: 0,
 };
 
+// All mock responses must include a `replyDraft` because the
+// production schema requires it. Default to a minimal draft;
+// individual tests override when reply behavior is the focus.
+const EMPTY_REPLY = { summary: "", body: "", assumptionsLine: "" };
+
 describe("extractScenario", () => {
   beforeEach(() => {
     mocks.parse.mockReset();
@@ -80,6 +85,11 @@ describe("extractScenario", () => {
           },
         ],
         confidence: "high",
+        replyDraft: {
+          summary: "35yo making $150K, software engineer in SF",
+          body: "Sounds like you're early in the journey at 35 with a strong income — savings rate looks like the lever you're already pulling.",
+          assumptionsLine: "I had to guess your state — easy to fix in the tool.",
+        },
       },
       usage: STANDARD_USAGE,
     });
@@ -95,6 +105,11 @@ describe("extractScenario", () => {
       expect(result.extraction.draft.annualIncome).toBe(150_000);
       expect(result.extraction.assumptions).toHaveLength(1);
       expect(result.extraction.confidence).toBe("high");
+      expect(result.extraction.replyDraft.summary).toContain("35yo");
+      expect(result.extraction.replyDraft.body).toContain("strong income");
+      expect(result.extraction.replyDraft.assumptionsLine).toContain(
+        "guess your state",
+      );
       expect(result.usage.inputTokens).toBe(500);
       expect(result.usage.outputTokens).toBe(200);
       expect(result.usage.model).toBe("claude-opus-4-7");
@@ -109,6 +124,7 @@ describe("extractScenario", () => {
         draft: EMPTY_DRAFT,
         assumptions: [],
         confidence: "low",
+        replyDraft: EMPTY_REPLY,
       },
       usage: STANDARD_USAGE,
     });
@@ -135,6 +151,7 @@ describe("extractScenario", () => {
         draft: EMPTY_DRAFT,
         assumptions: [],
         confidence: "low",
+        replyDraft: EMPTY_REPLY,
       },
       usage: STANDARD_USAGE,
     });
