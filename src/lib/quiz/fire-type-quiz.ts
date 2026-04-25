@@ -127,7 +127,7 @@ export const DEFAULT_FIRE_TYPE_QUIZ_ANSWERS: FireTypeQuizAnswers = {
   megaBackdoorRothContribution: 0,
   partnerMegaBackdoorRothAvailable: false,
   partnerMegaBackdoorRothContribution: 0,
-  partTimePreference: "maybe",
+  partTimePreference: "no",
   postFireIncome: 0,
   postFireIncomeDuration: null,
   flexibility: "medium",

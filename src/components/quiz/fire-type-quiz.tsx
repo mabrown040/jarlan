@@ -28,10 +28,8 @@ import {
   getFireTypeRecommendation,
   type FireStage,
   type FireTypeQuizAnswers,
-  type PlanningPriority,
 } from "@/lib/quiz/fire-type-quiz";
 import { listStateTaxPresets } from "@/lib/data";
-import type { EmploymentType } from "@/lib/domain/types";
 import { useScenarioStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -121,37 +119,26 @@ const allQuestionSteps: QuizStep[] = [
   { key: "currentAge", title: "How old are you today?", description: "This sets the starting point for the rest of the timeline and Coast FIRE math." },
   { key: "targetFiAge", title: "When would full financial independence feel ideal?", description: "Think about the age where optional work becomes more valuable than mandatory work." },
   { key: "annualIncome", title: "What is your annual gross income?", description: "Pre-tax household income from all sources. This determines your savings rate and timeline." },
-  { key: "employmentType", title: "What best describes your work situation?", description: "This determines how FICA taxes are calculated — self-employed workers pay both halves." },
   { key: "filingStatus", title: "How do you file taxes?", description: "This affects your tax brackets, contribution limits, and take-home pay estimate." },
   { key: "state", title: "Which state do you live in?", description: "State income taxes can significantly affect your take-home pay and FIRE timeline." },
   { key: "annualSpending", title: "What annual spending level feels comfortable?", description: "Use a real-world number, not the absolute minimum you could survive on for a year." },
   { key: "currentPortfolio", title: "How much is already invested toward FIRE?", description: "A current portfolio helps calculate Coast FIRE and your overall progress." },
   { key: "accountSplit", title: "Where is your money?", description: "Account types matter for tax-efficient withdrawals in retirement. Skip if you're not sure." },
   { key: "contributionSplit", title: "Where do your savings go?", description: "How you allocate contributions affects your tax bill now and in retirement." },
-  { key: "partTimePreference", title: "Would you be open to earning income after FIRE?", description: "This changes whether Barista FIRE is in the mix — and sets your post-FIRE income assumption." },
-  { key: "flexibility", title: "How much spending flexibility would you have in a downturn?", description: "A plan is only useful if it feels behaviorally realistic during rough markets." },
-  { key: "dependents", title: "Are you planning with dependents in the picture?", description: "Household responsibility can shift the tradeoff toward more margin." },
   { key: "riskTolerance", title: "How much risk of running short feels acceptable?", description: "Cautious answers push toward more margin. Aggressive answers favor speed." },
-  { key: "priority", title: "What matters most in your plan right now?", description: "This helps separate speed-first FIRE plans from lifestyle-first paths." },
 ];
 
 const stageQuestionKeys: Record<FireStage, Array<keyof FireTypeQuizAnswers | "accountSplit" | "contributionSplit">> = {
-  curious: ["currentAge", "targetFiAge", "annualIncome", "employmentType", "filingStatus", "state", "annualSpending", "currentPortfolio", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
-  saving: ["currentAge", "targetFiAge", "annualIncome", "employmentType", "filingStatus", "state", "annualSpending", "currentPortfolio", "accountSplit", "contributionSplit", "partTimePreference", "flexibility", "dependents", "riskTolerance", "priority"],
-  pre_retirement: ["currentAge", "targetFiAge", "annualIncome", "employmentType", "filingStatus", "state", "annualSpending", "currentPortfolio", "accountSplit", "partTimePreference", "flexibility", "riskTolerance"],
-  retired: ["currentAge", "annualSpending", "currentPortfolio", "accountSplit", "flexibility"],
+  curious: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "state", "annualSpending", "currentPortfolio", "riskTolerance"],
+  saving: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "state", "annualSpending", "currentPortfolio", "accountSplit", "contributionSplit", "riskTolerance"],
+  pre_retirement: ["currentAge", "targetFiAge", "annualIncome", "filingStatus", "state", "annualSpending", "currentPortfolio", "accountSplit", "riskTolerance"],
+  retired: ["currentAge", "annualSpending", "currentPortfolio", "accountSplit", "riskTolerance"],
 };
 
 function getStepsForStage(stage: FireStage): QuizStep[] {
   const keys = stageQuestionKeys[stage];
   return [stageStep, ...allQuestionSteps.filter((s) => keys.includes(s.key))];
 }
-
-const priorityLabels: Record<PlanningPriority, string> = {
-  freedom_fast: "Reach freedom as fast as possible",
-  balanced_life: "Balance life now with life later",
-  premium_lifestyle: "Preserve a high-end lifestyle",
-};
 
 const riskLabels = [
   "Very cautious",
@@ -384,30 +371,6 @@ export function FireTypeQuiz() {
               onValueChange={(value) => setAnswer("annualIncome", value)}
             />
           </div>
-        );
-      case "employmentType":
-        return (
-          <ChoiceGrid<EmploymentType>
-            value={answers.employmentType}
-            onChange={(value) => setAnswer("employmentType", value)}
-            options={[
-              {
-                value: "w2",
-                label: "I\u2019m a W-2 employee",
-                description: "Your employer handles payroll taxes.",
-              },
-              {
-                value: "self_employed",
-                label: "I\u2019m self-employed",
-                description: "You run a business or freelance full-time.",
-              },
-              {
-                value: "1099",
-                label: "I work as a 1099 contractor",
-                description: "Companies pay you without withholding taxes.",
-              },
-            ]}
-          />
         );
       case "filingStatus":
         return (
@@ -926,147 +889,6 @@ export function FireTypeQuiz() {
           </div>
         );
       }
-      case "partTimePreference":
-        return (
-          <div className="space-y-4">
-            <ChoiceGrid
-              value={answers.partTimePreference}
-              onChange={(value) => {
-                setAnswer("partTimePreference", value);
-                // Reset post-FIRE income when switching to "no"; leave
-                // the field untouched otherwise. Silently seeding a
-                // default for "yes"/"maybe" was presumptuous — users
-                // would miss the pre-filled number and then be
-                // surprised when it showed up in their plan. The
-                // visible input below lets them type whatever they
-                // actually expect.
-                if (value === "no") setAnswer("postFireIncome", 0);
-              }}
-              options={[
-                {
-                  value: "yes",
-                  label: "Yes, I would happily work part-time",
-                  description:
-                    "Semi-retirement sounds appealing if it speeds up freedom and lowers portfolio pressure.",
-                },
-                {
-                  value: "maybe",
-                  label: "Maybe, if it buys flexibility",
-                  description:
-                    "You are open to a bridge strategy, but only if the tradeoff feels worth it.",
-                },
-                {
-                  value: "no",
-                  label: "No, I want full independence",
-                  description:
-                    "You would rather hold out for complete optionality than rely on earned income later.",
-                },
-              ]}
-            />
-            {answers.partTimePreference !== "no" ? (
-              <div className="rounded-xl bg-muted/40 p-4">
-                <FieldLabel
-                  htmlFor="quiz-post-fire-income"
-                  label="How much do you expect to earn annually after FIRE?"
-                />
-                <NumberInput
-                  id="quiz-post-fire-income"
-                  min={0}
-                  step={5_000}
-                  inputMode="numeric"
-                  value={answers.postFireIncome}
-                  onValueChange={(value) => setAnswer("postFireIncome", value)}
-                  className="mt-2"
-                />
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Part-time work, consulting, rental income, etc. This reduces the portfolio you need.
-                </p>
-                {answers.postFireIncome > 0 ? (
-                  <div className="mt-4 space-y-3 border-t border-border/30 pt-4">
-                    <p className="text-sm font-medium text-foreground">
-                      How long do you plan to work part-time?
-                    </p>
-                    <div className="grid gap-2">
-                      {([
-                        { label: "Until I don't need to anymore", value: null },
-                        { label: "About 5 years", value: 5 },
-                        { label: "About 10 years", value: 10 },
-                        ...(answers.currentAge < 62
-                          ? [{ label: `Until Social Security (~age 62, ${62 - answers.currentAge} years)`, value: 62 - answers.currentAge }]
-                          : []),
-                      ] as const).map((option) => {
-                        const selected = answers.postFireIncomeDuration === option.value;
-                        return (
-                          <button
-                            key={option.label}
-                            type="button"
-                            onClick={() => setAnswer("postFireIncomeDuration", option.value as number | null)}
-                            className={cn(
-                              "rounded-lg border px-3 py-2 text-left text-sm transition-all",
-                              selected
-                                ? "border-[rgba(255,107,53,0.26)] bg-[rgba(255,107,53,0.12)]"
-                                : "border-border/60 bg-card/40 hover:border-border",
-                            )}
-                          >
-                            {option.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        );
-      case "flexibility":
-        return (
-          <ChoiceGrid
-            value={answers.flexibility}
-            onChange={(value) => setAnswer("flexibility", value)}
-            options={[
-              {
-                value: "low",
-                label: "Low flexibility",
-                description:
-                  "Cutting 20% during a market slump would feel very hard or unrealistic.",
-              },
-              {
-                value: "medium",
-                label: "Moderate flexibility",
-                description:
-                  "You could trim some travel, upgrades, or extras, but not your entire lifestyle.",
-              },
-              {
-                value: "high",
-                label: "High flexibility",
-                description:
-                  "You can meaningfully reduce spending if a bad sequence-of-returns stretch hits.",
-              },
-            ]}
-          />
-        );
-      case "dependents":
-        return (
-          <ChoiceGrid
-            value={answers.dependents}
-            onChange={(value) => setAnswer("dependents", value)}
-            options={[
-              {
-                value: "no",
-                label: "No dependents",
-                description:
-                  "Your plan is mostly accountable to your own lifestyle and risk tolerance.",
-              },
-              {
-                value: "yes",
-                label: "Yes, dependents are part of the plan",
-                description:
-                  "You need more predictability, margin, or flexibility because others rely on this plan too.",
-              },
-            ]}
-          />
-        );
       case "riskTolerance":
         return (
           <div className="space-y-4">
@@ -1085,33 +907,6 @@ export function FireTypeQuiz() {
               }
             />
           </div>
-        );
-      case "priority":
-        return (
-          <ChoiceGrid
-            value={answers.priority}
-            onChange={(value) => setAnswer("priority", value)}
-            options={[
-              {
-                value: "freedom_fast",
-                label: priorityLabels.freedom_fast,
-                description:
-                  "You want the fastest credible path, even if that means short-term intensity.",
-              },
-              {
-                value: "balanced_life",
-                label: priorityLabels.balanced_life,
-                description:
-                  "You want progress without making current life feel like a holding pattern.",
-              },
-              {
-                value: "premium_lifestyle",
-                label: priorityLabels.premium_lifestyle,
-                description:
-                  "You care more about sustaining comfort and optionality than minimizing the FIRE number.",
-              },
-            ]}
-          />
         );
       default:
         return null;
