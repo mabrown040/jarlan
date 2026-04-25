@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { assembleReplyMessage } from "@/lib/ai/reply-template";
 import { formatCompactCurrency, formatPercent } from "@/lib/calc/format";
 import type { AssumptionLog, Scenario } from "@/lib/domain/types";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
@@ -11,7 +12,11 @@ interface ExtractApiResponse {
   scenario: Scenario;
   confidence: "high" | "medium" | "low";
   notes?: string;
-  replyDraft: { summary: string; message: string };
+  replyDraft: {
+    summary: string;
+    body: string;
+    assumptionsLine: string;
+  };
   shareUrl: string;
 }
 
@@ -280,23 +285,36 @@ function ResultPanel({
 }
 
 interface ReplyDraftPanelProps {
-  replyDraft: { summary: string; message: string };
+  replyDraft: {
+    summary: string;
+    body: string;
+    assumptionsLine: string;
+  };
   shareUrl: string;
 }
 
 /**
  * The headline output of the admin tool: a Reddit-ready reply
- * the operator can edit and copy. The reply is initialized with
- * {{link}} substituted for the actual share URL — the operator
+ * the operator can edit and copy. Initial text is assembled from
+ * the AI's body + optional assumptions-line + the share URL +
+ * a hardcoded disclosure (`assembleReplyMessage`). The operator
  * sees and copies the final text. They're free to edit before
  * posting; word count is shown so they don't accidentally exceed
  * subreddit length norms.
  *
- * If the model declined to draft (`message === ""`), show a
- * gentle empty state pointing at the model's note above.
+ * Hardcoding the disclosure + link wrap eliminates the risk
+ * that the model writes something inaccurate (we hit this with
+ * "nothing saved", which became false when share-links shipped).
+ *
+ * If the model declined to draft (`body === ""`), show a gentle
+ * empty state pointing at the model's note above.
  */
 function ReplyDraftPanel({ replyDraft, shareUrl }: ReplyDraftPanelProps) {
-  const initial = replyDraft.message.replaceAll("{{link}}", shareUrl);
+  const initial = assembleReplyMessage({
+    body: replyDraft.body,
+    assumptionsLine: replyDraft.assumptionsLine,
+    shareUrl,
+  });
   const [replyText, setReplyText] = useState(initial);
   const [copied, setCopied] = useState(false);
 
@@ -315,7 +333,7 @@ function ReplyDraftPanel({ replyDraft, shareUrl }: ReplyDraftPanelProps) {
     }
   }
 
-  if (replyDraft.message === "") {
+  if (replyDraft.body === "") {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-900/50 dark:bg-amber-900/20">
         <strong className="font-medium">No reply drafted.</strong>{" "}

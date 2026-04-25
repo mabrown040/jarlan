@@ -59,13 +59,15 @@ const assumptionLogEntrySchema = z.object({
   source: z.enum(["derived", "default", "inferred"]),
 });
 
-// Reddit-ready reply. Caps mirror the prompt's length guidance with
-// generous headroom (the prompt asks for 150–250 words; 3000 chars
-// is ~2x that ceiling, leaving room for the model to overshoot
-// without hitting the schema cap).
+// Reddit-ready reply, split into three parts so the server can
+// assemble the final message with a hardcoded disclosure (no risk
+// of model drift on the boilerplate). Caps mirror the prompt's
+// length guidance with generous headroom — the model can overshoot
+// without hitting the schema cap.
 const replyDraftSchema = z.object({
   summary: z.string().max(300),
-  message: z.string().max(3000),
+  body: z.string().max(2500),
+  assumptionsLine: z.string().max(400),
 });
 
 export const extractionResultSchema = z.object({
