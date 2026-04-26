@@ -9,7 +9,7 @@ whenever you're ready to enable accounts.
 **Create the project:**
 
 1. Go to [supabase.com](https://supabase.com) → **New Project**
-2. Name it whatever (e.g., `calcifer-prod`), set a strong DB password, pick a region close to your users
+2. Name it whatever (e.g., `jarlan-prod`), set a strong DB password, pick a region close to your users
 3. Wait ~2 min for provisioning
 
 **Run the schema:**
@@ -45,7 +45,7 @@ Dashboard → **Authentication → URL Configuration**:
 **Create the product:**
 
 1. [dashboard.stripe.com/products](https://dashboard.stripe.com/products) → **Add product**
-2. Name: `Calcifer Pro` (or whatever)
+2. Name: `Jarlan Pro` (or whatever)
 3. Add two recurring prices:
    - Monthly: $12/mo
    - Yearly: $96/yr

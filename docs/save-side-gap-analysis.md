@@ -4,7 +4,7 @@
 
 Comprehensive audit of the Save/accumulation calculation engine against industry standards (ProjectionLab, Pralana, cFIREsim) and financial planning best practices. **The engine is mathematically solid** (compounding, FIRE types, projections) but **tax modeling has critical gaps** that cause material inaccuracies in take-home pay, savings rate, and time-to-FI projections.
 
-**Market opportunity:** Every free FIRE calculator (cFIREsim, FICalc, FIRECalc, Networthify) treats money as a single undifferentiated bucket with ZERO tax awareness. If Calcifer fixes these gaps, it becomes the only free, modern, tax-aware accumulation-phase FIRE calculator.
+**Market opportunity:** Every free FIRE calculator (cFIREsim, FICalc, FIRECalc, Networthify) treats money as a single undifferentiated bucket with ZERO tax awareness. If Jarlan fixes these gaps, it becomes the only free, modern, tax-aware accumulation-phase FIRE calculator.
 
 ---
 

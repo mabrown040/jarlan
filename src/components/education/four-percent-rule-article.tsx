@@ -523,7 +523,7 @@ export function FourPercentRuleArticle() {
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
               Your success rate should be tested against specific historical cohorts — the
-              1929 cohort, the 1966 cohort, the 2000 cohort. Calcifer&apos;s historical
+              1929 cohort, the 1966 cohort, the 2000 cohort. Jarlan&apos;s historical
               backtest does this automatically, running your plan against every available
               window in Shiller&apos;s 150-year dataset.
             </p>
@@ -546,7 +546,7 @@ export function FourPercentRuleArticle() {
           But the most important insight is not the specific number. It is the framework:
           your required portfolio is a multiple of your spending, that multiple depends on
           your withdrawal rate, and your withdrawal rate depends on your horizon, your
-          flexibility, and your tolerance for historical uncertainty. Calcifer models all
+          flexibility, and your tolerance for historical uncertainty. Jarlan models all
           of this — and shows you the full historical distribution, not just the headline.
         </p>
       </section>

@@ -96,7 +96,7 @@ const trustCards = [
   {
     title: "Designed for real decision moments",
     description:
-      "Calcifer is meant to serve beginners, accumulators, pre-retirees, and already-retired users without forcing everyone through the same dense workflow.",
+      "Jarlan is meant to serve beginners, accumulators, pre-retirees, and already-retired users without forcing everyone through the same dense workflow.",
   },
 ] as const;
 

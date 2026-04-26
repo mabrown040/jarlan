@@ -111,7 +111,7 @@ export function AcaEarlyRetirementArticle() {
             </p>
             {summary.yearsToFi !== null && summary.yearsToFi > 0 ? (
               <p className="text-muted-foreground">
-                Calcifer projects you&apos;re{" "}
+                Jarlan projects you&apos;re{" "}
                 <strong className="text-foreground">
                   {formatYearsToFi(summary.yearsToFi)}
                 </strong>{" "}
@@ -632,7 +632,7 @@ export function AcaEarlyRetirementArticle() {
               Monte Carlo simulations
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              How Calcifer stress-tests your plan across thousands of possible futures.
+              How Jarlan stress-tests your plan across thousands of possible futures.
             </p>
           </Link>
         </div>

@@ -962,7 +962,7 @@ export function FireTypeQuiz() {
       {/* Hero — clean, no jargon badges */}
       <PageHero
         title="Find the FIRE path that fits your life"
-        description="Answer a few quick questions. Calcifer turns your answers into a personalized recommendation, target number, and a clear next step."
+        description="Answer a few quick questions. Jarlan turns your answers into a personalized recommendation, target number, and a clear next step."
         actions={
           <Button asChild variant="outline">
             <Link href={"/accumulation" as Route}>Skip to planner</Link>

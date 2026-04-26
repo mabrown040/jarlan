@@ -40,7 +40,7 @@ describe("scenario portability", () => {
     const current = createDefaultScenario();
     const v1 = downgradeScenarioForTest(current, 1);
     const envelope = {
-      source: "calcifer",
+      source: "jarlan",
       formatVersion: PORTABILITY_FORMAT_VERSION,
       exportedBy: { appVersion: 1, exportedAt: new Date().toISOString() },
       scenarios: [v1],
@@ -56,14 +56,14 @@ describe("scenario portability", () => {
     expect(parseImportPayload("")).toBeNull();
   });
 
-  it("returns null when the file isn't a Calcifer envelope", () => {
+  it("returns null when the file isn't a Jarlan envelope", () => {
     const notOurs = JSON.stringify({ source: "something-else", scenarios: [] });
     expect(parseImportPayload(notOurs)).toBeNull();
   });
 
   it("refuses forward-version envelopes (would drop unknown fields)", () => {
     const future = JSON.stringify({
-      source: "calcifer",
+      source: "jarlan",
       formatVersion: PORTABILITY_FORMAT_VERSION + 1,
       exportedBy: { appVersion: 99, exportedAt: new Date().toISOString() },
       scenarios: [createDefaultScenario()],
@@ -74,7 +74,7 @@ describe("scenario portability", () => {
   it("reports droppedCount for mixed-validity payloads", () => {
     const valid = createDefaultScenario();
     const envelope = {
-      source: "calcifer",
+      source: "jarlan",
       formatVersion: PORTABILITY_FORMAT_VERSION,
       exportedBy: { appVersion: APP_VERSION, exportedAt: "x" },
       scenarios: [
@@ -91,7 +91,7 @@ describe("scenario portability", () => {
 
   it("returns null when all scenarios are invalid (fails loud)", () => {
     const envelope = {
-      source: "calcifer",
+      source: "jarlan",
       formatVersion: PORTABILITY_FORMAT_VERSION,
       exportedBy: { appVersion: APP_VERSION, exportedAt: "x" },
       scenarios: [{ garbage: 1 }, { more: "garbage" }],
@@ -102,7 +102,7 @@ describe("scenario portability", () => {
   it("export envelope has the self-describing shape", () => {
     const scenario = createDefaultScenario();
     const envelope = buildExportEnvelope([scenario]);
-    expect(envelope.source).toBe("calcifer");
+    expect(envelope.source).toBe("jarlan");
     expect(envelope.formatVersion).toBe(PORTABILITY_FORMAT_VERSION);
     expect(envelope.exportedBy.appVersion).toBe(APP_VERSION);
     expect(typeof envelope.exportedBy.exportedAt).toBe("string");

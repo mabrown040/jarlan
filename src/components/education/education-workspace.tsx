@@ -295,7 +295,7 @@ const CATEGORIES: Category[] = [
     topics: [
       {
         title: "Real vs. Nominal Returns",
-        description: "Why Calcifer uses real returns and what that means for your projections",
+        description: "Why Jarlan uses real returns and what that means for your projections",
         href: "/education/real-vs-nominal-returns",
         emoji: "💹",
         getPersonalized: () => null,

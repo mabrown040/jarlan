@@ -766,7 +766,7 @@ export function LeanFireArticle() {
         {!hasData ? (
           <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-4">
             <p className="text-sm text-muted-foreground">
-              Take the quiz and Calcifer will calculate your Lean FIRE number,
+              Take the quiz and Jarlan will calculate your Lean FIRE number,
               show you how your current spending compares, and let you explore
               what your timeline would look like at different spending levels.
             </p>

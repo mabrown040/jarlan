@@ -1,10 +1,10 @@
-# Calcifer — Page-by-Page Breakdown
+# Jarlan — Page-by-Page Breakdown
 
 ## Shared shell (every page)
 
 ### Header
 Sticky, frosted glass (`bg-background/75 backdrop-blur-xl`), `border-b`.
-- Left: "Calcifer" (display font, links to `/`) + "FIRECALC" mono eyebrow (hidden on mobile)
+- Left: "Jarlan" (display font, links to `/`) + "FIRECALC" mono eyebrow (hidden on mobile)
 - Center-right: primary nav pills (Home, Save, Spend, Learn, Pro★)
 - Right: Plan Drawer trigger pill + theme toggle (sun/moon)
 - Below header border: context-sensitive sub-nav (only when active group has sub-items)

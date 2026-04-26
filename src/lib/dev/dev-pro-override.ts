@@ -7,8 +7,8 @@
  * localStorage value. The setter is also a no-op in production —
  * belt-and-suspenders so a dev utility can never leak to real users.
  */
-const KEY = "calcifer:dev-pro-override";
-export const DEV_PRO_OVERRIDE_EVENT = "calcifer:dev-pro-override-change";
+const KEY = "jarlan:dev-pro-override";
+export const DEV_PRO_OVERRIDE_EVENT = "jarlan:dev-pro-override-change";
 
 export function getDevProOverride(): boolean {
   if (process.env.NODE_ENV === "production") return false;

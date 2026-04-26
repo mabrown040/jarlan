@@ -1,4 +1,4 @@
-# Calcifer — FIRE Calculator
+# Jarlan — FIRE Calculator
 
 A local-first FIRE (Financial Independence, Retire Early) planning application built with Next.js 15, React 19, and TypeScript.
 

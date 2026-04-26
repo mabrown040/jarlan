@@ -302,7 +302,7 @@ export function CapeRatioArticle() {
           How CAPE-based withdrawals work
         </h2>
         <p className="text-base leading-relaxed text-muted-foreground">
-          Calcifer implements a CAPE-dynamic withdrawal strategy using the formula:
+          Jarlan implements a CAPE-dynamic withdrawal strategy using the formula:
         </p>
         <div className="rounded-xl border border-border/60 bg-card/40 p-4 font-mono text-sm text-foreground">
           withdrawal_rate = a + b × (1 / CAPE)
@@ -349,7 +349,7 @@ export function CapeRatioArticle() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          The Can I Retire page in Calcifer lets you tune the{" "}
+          The Can I Retire page in Jarlan lets you tune the{" "}
           <code className="rounded bg-muted px-1 py-0.5">a</code> and{" "}
           <code className="rounded bg-muted px-1 py-0.5">b</code> parameters directly
           and see how they affect your historical backtest outcomes.

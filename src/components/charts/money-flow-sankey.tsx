@@ -7,7 +7,7 @@ import { estimateScenarioTax } from "@/lib/tax/strategy";
 import { getEmployerMatchTotal } from "@/lib/calc/scenario";
 import { formatCompactCurrency } from "@/lib/calc/format";
 
-/* ── Color palette matching Calcifer theme ─────────────────── */
+/* ── Color palette matching Jarlan theme ─────────────────── */
 const COLORS = {
   income: "#f7c948",      // flame/gold
   federalTax: "#e74c3c",  // red

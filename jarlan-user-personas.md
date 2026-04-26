@@ -1,9 +1,9 @@
-# Calcifer — User Personas & Audience Guide
+# Jarlan — User Personas & Audience Guide
 
-**For:** The development team building Calcifer  
-**Purpose:** Every screen, every feature, every default value, and every word of copy should be designed with a specific person in mind. This document defines exactly who those people are, what they need, what frustrates them, and why each one matters to the success of Calcifer.
+**For:** The development team building Jarlan  
+**Purpose:** Every screen, every feature, every default value, and every word of copy should be designed with a specific person in mind. This document defines exactly who those people are, what they need, what frustrates them, and why each one matters to the success of Jarlan.
 
-**Why this document matters:** A FIRE calculator that only serves advanced spreadsheet nerds will never grow beyond a few thousand users. A calculator that only serves beginners will get dismissed by the community influencers who drive word-of-mouth. Calcifer must serve the full spectrum — and progressive disclosure is how we do it. Simple for the newcomer, infinitely deep for the expert. This document tells you who sits at each point on that spectrum so you can build for all of them.
+**Why this document matters:** A FIRE calculator that only serves advanced spreadsheet nerds will never grow beyond a few thousand users. A calculator that only serves beginners will get dismissed by the community influencers who drive word-of-mouth. Jarlan must serve the full spectrum — and progressive disclosure is how we do it. Simple for the newcomer, infinitely deep for the expert. This document tells you who sits at each point on that spectrum so you can build for all of them.
 
 ---
 
@@ -12,11 +12,11 @@
 Each persona includes:
 - **Who they are** — demographics, life stage, financial context
 - **Their mindset** — what they're feeling, what motivates them, what scares them
-- **What they need from Calcifer** — specific features and UX requirements
+- **What they need from Jarlan** — specific features and UX requirements
 - **What frustrates them about existing tools** — gaps we must fill
 - **How they discover and use the app** — their entry point and usage pattern
 - **Design implications** — concrete guidance for the builder
-- **Why they matter to Calcifer's growth** — their role in the organic flywheel
+- **Why they matter to Jarlan's growth** — their role in the organic flywheel
 
 The personas are ordered from largest audience to smallest, but importance is not linear. Some small personas (like The Influencer) have outsized impact on growth.
 
@@ -36,7 +36,7 @@ Equal parts excited and skeptical. They just learned that retirement at 40 is ma
 
 They are also quietly terrified of making a mistake. They've heard stories of people running out of money in retirement. They don't want to be naive.
 
-**What they need from Calcifer:**
+**What they need from Jarlan:**
 - The Quick FIRE Number calculator on the landing page — enter spending, see a number, instantly
 - Plain English explanations of every concept (tooltips, not walls of text)
 - The FIRE Type Quiz — "What kind of FIRE am I?" gives them a framework and a personal target
@@ -50,8 +50,8 @@ They are also quietly terrified of making a mistake. They've heard stories of pe
 - Most calculators ask for "expected real return" on the first screen — they don't know what that means
 - They feel judged by the FIRE community for not knowing things
 
-**How they discover Calcifer:**  
-TikTok/Reels ("Your FIRE number based on your monthly spending"), a Reddit post that goes viral, Google search for "early retirement calculator" or "how much do I need to retire at 40," or a friend sharing a Calcifer scenario URL.
+**How they discover Jarlan:**  
+TikTok/Reels ("Your FIRE number based on your monthly spending"), a Reddit post that goes viral, Google search for "early retirement calculator" or "how much do I need to retire at 40," or a friend sharing a Jarlan scenario URL.
 
 **Usage pattern:**  
 They visit once, run the quick calculator, see their FIRE number, and feel a rush of motivation. They come back a few times to tweak numbers. A small percentage create a saved scenario and begin tracking. Over 3-6 months, some of them graduate into Persona 2 or 3.
@@ -61,11 +61,11 @@ They visit once, run the quick calculator, see their FIRE number, and feel a rus
 - Never show advanced options by default — hide them behind "Advanced Settings" or "Show more options"
 - Every financial term must have a tooltip or inline explanation
 - Use visual progress indicators (the FIRE thermometer, years-to-FI countdown) — not tables of numbers
-- The Calcifer mascot should feel welcoming here — a happy flame saying "Let's figure this out together"
+- The Jarlan mascot should feel welcoming here — a happy flame saying "Let's figure this out together"
 - Error states should be encouraging, not judgmental ("That's a high withdrawal rate — here's why most planners use a lower one" not "WARNING: High failure probability")
 
-**Why they matter to Calcifer's growth:**  
-This is the largest audience by far — millions of people are FIRE-curious. They are the top of the funnel. They share results on social media ("OMG I just found out I can retire at 42"). They bring their friends. They drive the viral loop through scenario URL sharing and screenshot sharing. Without them, Calcifer is a niche tool for nerds. With them, it's a movement.
+**Why they matter to Jarlan's growth:**  
+This is the largest audience by far — millions of people are FIRE-curious. They are the top of the funnel. They share results on social media ("OMG I just found out I can retire at 42"). They bring their friends. They drive the viral loop through scenario URL sharing and screenshot sharing. Without them, Jarlan is a niche tool for nerds. With them, it's a movement.
 
 ---
 
@@ -83,7 +83,7 @@ Disciplined and motivated but sometimes anxious. They can see the finish line bu
 
 They also experience "one more year syndrome" fear — the worry that they'll never feel confident enough to actually pull the trigger, even when the math says they can.
 
-**What they need from Calcifer:**
+**What they need from Jarlan:**
 - Multi-account tracking (401k, Roth, taxable, HSA — each with different balances and contribution rates)
 - Employer match modeling
 - Coast FIRE and Flamingo FI calculations ("When can I downshift?")
@@ -100,8 +100,8 @@ They also experience "one more year syndrome" fear — the worry that they'll ne
 - Spreadsheets work but are tedious to maintain and ugly to look at
 - They want scenario comparison but most tools only run one scenario at a time
 
-**How they discover Calcifer:**  
-Reddit (r/financialindependence "what tools do you use?"), word of mouth from another accumulator, or they see someone share a Calcifer scenario URL in a help thread and decide to try it themselves.
+**How they discover Jarlan:**  
+Reddit (r/financialindependence "what tools do you use?"), word of mouth from another accumulator, or they see someone share a Jarlan scenario URL in a help thread and decide to try it themselves.
 
 **Usage pattern:**  
 Weekly or monthly visitor. They have a saved scenario that they update when their portfolio changes. They run "what if" scenarios frequently. They are the power users who explore every feature. They spend 15-30 minutes per session. They are the most likely to share scenario URLs when helping others on Reddit.
@@ -115,7 +115,7 @@ Weekly or monthly visitor. They have a saved scenario that they update when thei
 - They want to see both the optimistic and pessimistic case — don't just show the median
 - Export/import data (they want to back up their tracking data)
 
-**Why they matter to Calcifer's growth:**  
+**Why they matter to Jarlan's growth:**  
 These are the community contributors. They answer questions on Reddit, they write blog posts, they help newcomers. When they recommend a tool, people listen. They are the bridge between the Curious Beginner and the FIRE community's influencer layer. They generate the most shared scenario URLs. They are also the users who will file the most bug reports and feature requests — embrace this.
 
 ---
@@ -134,7 +134,7 @@ Fear and excitement in equal measure. Every market dip sends a wave of anxiety (
 
 They are also navigating complex practical decisions: When to claim Social Security? How to handle healthcare before Medicare at 65? Should they do Roth conversions? What order should they draw down accounts? These are the questions that keep them up at night.
 
-**What they need from Calcifer:**
+**What they need from Jarlan:**
 - Historical backtesting engine — their plan tested against every historical period since 1871
 - Monte Carlo simulation — probability distribution, not just a single number
 - All withdrawal strategies — they want to compare fixed 4% vs. CAPE-based dynamic vs. Guyton-Klinger guardrails
@@ -155,8 +155,8 @@ They are also navigating complex practical decisions: When to claim Social Secur
 - No single free tool handles backtesting AND tax planning AND healthcare optimization
 - They distrust tools that only show the "you'll be fine" answer without showing the worst case
 
-**How they discover Calcifer:**  
-Searching for "can I retire early calculator" or "safe withdrawal rate calculator," recommendation from a financial advisor or FIRE blog, Reddit threads about pulling the trigger, or they find Calcifer while researching Roth conversion ladders.
+**How they discover Jarlan:**  
+Searching for "can I retire early calculator" or "safe withdrawal rate calculator," recommendation from a financial advisor or FIRE blog, Reddit threads about pulling the trigger, or they find Jarlan while researching Roth conversion ladders.
 
 **Usage pattern:**  
 Intensive sessions of 30-60 minutes. They run dozens of scenarios over weeks or months before making the decision. They come back repeatedly as market conditions change. After retiring, they return quarterly or annually to check if they're still on track. Some become Persona 4 (The Already-Retired).
@@ -168,12 +168,12 @@ Intensive sessions of 30-60 minutes. They run dozens of scenarios over weeks or 
 - Mortality integration is a key differentiator — "your 87% success rate becomes 96% when accounting for the probability that you won't live to 95"
 - Roth conversion and tax planning needs a guided flow, not just a dump of inputs — walk them through the logic
 - The ACA section should explain MAGI thresholds and show visually where they sit relative to subsidy cliffs
-- The Calcifer mascot should feel calm and confident here — "determined" expression, not "happy party mode"
+- The Jarlan mascot should feel calm and confident here — "determined" expression, not "happy party mode"
 - Every output should have a "Show me the math" expansion — this persona will click it
 - Print/PDF export of their plan is critical — they want to bring it to a meeting with their spouse or a fee-only financial advisor
 
-**Why they matter to Calcifer's growth:**  
-This is the highest-value persona for credibility. When a pre-retiree with a $2M portfolio says "I used Calcifer to validate my plan and I feel confident now," that's the most powerful testimonial possible. They also generate the deepest, most engaged Reddit posts ("I'm about to retire at 42, here's my Calcifer analysis") that drive enormous discussion and traffic. Their success stories inspire the Accumulators and Beginners. They are the proof that Calcifer works.
+**Why they matter to Jarlan's growth:**  
+This is the highest-value persona for credibility. When a pre-retiree with a $2M portfolio says "I used Jarlan to validate my plan and I feel confident now," that's the most powerful testimonial possible. They also generate the deepest, most engaged Reddit posts ("I'm about to retire at 42, here's my Jarlan analysis") that drive enormous discussion and traffic. Their success stories inspire the Accumulators and Beginners. They are the proof that Jarlan works.
 
 ---
 
@@ -191,7 +191,7 @@ Vigilant. Every quarterly portfolio statement is a check-up. When the market dro
 
 They also want to understand if Guyton-Klinger guardrails have been triggered — should they cut spending this year? Or can they give themselves a raise because the market did well?
 
-**What they need from Calcifer:**
+**What they need from Jarlan:**
 - A "retirement check-up" mode — enter current portfolio value, current spending, and see updated success rate
 - CAPE-based dynamic withdrawal rate for the current year — "at today's CAPE of 27, your recommended withdrawal is $X"
 - Guardrail status — "your withdrawal rate is within bounds" or "capital preservation rule triggered: consider cutting by 10%"
@@ -206,7 +206,7 @@ They also want to understand if Guyton-Klinger guardrails have been triggered �
 - Tools don't account for the fact that their circumstances change year to year (spending changes, SS starts, healthcare changes at 65)
 - They want a simple annual check-in, not a full replanning exercise
 
-**How they discover Calcifer:**  
+**How they discover Jarlan:**  
 They probably used it before retiring (as Persona 3). Or they find it when searching for "am I on track in retirement" or "retirement withdrawal rate check." Some discover it through r/financialindependence posts from people sharing their annual retirement updates.
 
 **Usage pattern:**  
@@ -218,10 +218,10 @@ Quarterly or annual check-in. Brief sessions (10-15 minutes) to update their por
 - Year-over-year comparison — "Last year you were at 94% success, this year you're at 91%. Here's why."
 - The guardrail status should be prominent and clear — traffic light metaphor (green/yellow/red)
 - Make the CAPE-based current withdrawal recommendation front and center — this is what they came for
-- The mascot can provide emotional comfort here — Calcifer looking calm and steady during a market dip
+- The mascot can provide emotional comfort here — Jarlan looking calm and steady during a market dip
 
-**Why they matter to Calcifer's growth:**  
-They are the living proof of concept. Their annual "retirement update" posts on Reddit and blogs are the highest-engagement FIRE content on the internet. If they share these with Calcifer screenshots and links, it's the most authentic marketing possible. They also represent recurring usage — they don't churn after a one-time calculation.
+**Why they matter to Jarlan's growth:**  
+They are the living proof of concept. Their annual "retirement update" posts on Reddit and blogs are the highest-engagement FIRE content on the internet. If they share these with Jarlan screenshots and links, it's the most authentic marketing possible. They also represent recurring usage — they don't churn after a one-time calculation.
 
 ---
 
@@ -233,17 +233,17 @@ They are the living proof of concept. Their annual "retirement update" posts on 
 Age 30-55. They have their own elaborate spreadsheet (possibly modeled after ERN's SWR Toolbox). They know what a Shiller CAPE ratio is. They've read Big ERN's entire 63-part series. They can debate the merits of VPW vs. amortization-based withdrawal. They might have a finance or engineering background. They are fluent in statistical concepts like standard deviation, Monte Carlo, percentile distributions, and confidence intervals.
 
 **Their mindset:**  
-Skeptical and rigorous. They don't trust any tool they can't audit. They'll look at Calcifer's output and immediately ask "what assumptions is this using? Where's the data from? What's the rebalancing methodology? Are you using monthly or annual returns?" If the answers are vague or wrong, they'll dismiss the entire tool.
+Skeptical and rigorous. They don't trust any tool they can't audit. They'll look at Jarlan's output and immediately ask "what assumptions is this using? Where's the data from? What's the rebalancing methodology? Are you using monthly or annual returns?" If the answers are vague or wrong, they'll dismiss the entire tool.
 
-But they're also tired of maintaining their own spreadsheets. If Calcifer is transparent enough and rigorous enough, they'll gladly adopt it.
+But they're also tired of maintaining their own spreadsheets. If Jarlan is transparent enough and rigorous enough, they'll gladly adopt it.
 
-**What they need from Calcifer:**
+**What they need from Jarlan:**
 - "Show me the math" on every single output — expandable panel showing the formula, data source, and assumptions
 - Configurable everything — custom CAPE coefficients, custom Monte Carlo parameters, custom asset classes, custom rebalancing rules
 - Data source transparency — link to Shiller's dataset, explain the bond return methodology, cite ERN/Bengen/Pfau
 - Methodology documentation — a full technical whitepaper or docs section explaining every calculation
 - CSV/JSON data export of raw simulation results
-- Ability to compare Calcifer's output against cFIREsim or FIRECalc for the same inputs (validation)
+- Ability to compare Jarlan's output against cFIREsim or FIRECalc for the same inputs (validation)
 - Open-source code they can read and audit
 - Advanced asset classes (small cap value, international, TIPS, REITs, gold)
 - Block bootstrap and regime-switching Monte Carlo options
@@ -257,11 +257,11 @@ But they're also tired of maintaining their own spreadsheets. If Calcifer is tra
 - They find errors in popular calculators and lose trust in all of them
 - "Pretty UI" means nothing to them if the math isn't right — in fact, they're suspicious of polished tools
 
-**How they discover Calcifer:**  
+**How they discover Jarlan:**  
 Bogleheads.org forums, ERN's blog comments, Hacker News, GitHub, or r/financialindependence methodology discussions. They don't come from TikTok.
 
 **Usage pattern:**  
-Deep, investigative sessions. They'll spend hours poking at edge cases, running validation tests, comparing outputs to their own spreadsheets. If Calcifer passes their tests, they become passionate advocates. If it fails one test, they'll post about the error on Bogleheads and move on.
+Deep, investigative sessions. They'll spend hours poking at edge cases, running validation tests, comparing outputs to their own spreadsheets. If Jarlan passes their tests, they become passionate advocates. If it fails one test, they'll post about the error on Bogleheads and move on.
 
 **Design implications:**
 - The "Show me the math" feature is NOT optional — it is a core trust mechanism for this persona
@@ -274,8 +274,8 @@ Deep, investigative sessions. They'll spend hours poking at edge cases, running 
 - The GitHub repo should have clean, readable code with comments explaining methodology decisions
 - Regression tests that verify output matches known-good results from cFIREsim and FIRECalc for specific test cases
 
-**Why they matter to Calcifer's growth:**  
-They are the trust layer. When a power user validates Calcifer's methodology on Bogleheads or ERN's comment section, it grants credibility that no amount of marketing can buy. They also find and report bugs before they damage reputation. They contribute code improvements via GitHub. They are the reason the tool stays accurate and respected. One positive Bogleheads thread from a known power user is worth 10,000 TikTok views.
+**Why they matter to Jarlan's growth:**  
+They are the trust layer. When a power user validates Jarlan's methodology on Bogleheads or ERN's comment section, it grants credibility that no amount of marketing can buy. They also find and report bugs before they damage reputation. They contribute code improvements via GitHub. They are the reason the tool stays accurate and respected. One positive Bogleheads thread from a known power user is worth 10,000 TikTok views.
 
 ---
 
@@ -297,7 +297,7 @@ Common scenarios:
 **Their mindset:**  
 The driving partner wants to prove to the reluctant partner that FIRE is achievable and safe. They need the tool to be convincing, clear, and trustworthy enough that the reluctant partner says "okay, I see the numbers, I believe it." The tool is acting as a mediator in a financial conversation.
 
-**What they need from Calcifer:**
+**What they need from Jarlan:**
 - Joint planning mode — two people, two incomes, two sets of accounts, two Social Security benefits, two ages
 - "What if one of us keeps working?" scenario — model different retirement dates per partner
 - Spousal Social Security strategy — survivor benefits, coordination of claiming ages
@@ -311,7 +311,7 @@ The driving partner wants to prove to the reluctant partner that FIRE is achieva
 - Healthcare planning for a couple where one retires early and one doesn't is a mess that no tool addresses
 - The reluctant partner opens the tool, sees a wall of financial jargon, and closes the tab
 
-**How they discover Calcifer:**  
+**How they discover Jarlan:**  
 The driving partner finds it and brings it to their partner. "Honey, look at this — I ran our numbers." The shareable scenario URL is critical here.
 
 **Usage pattern:**  
@@ -326,7 +326,7 @@ Sit-down sessions together (evening, weekend). The driving partner sets up the s
 - Print/PDF export for the kitchen table conversation
 - The tone should be collaborative ("Your combined portfolio..." "Together, you need...") not individualistic
 
-**Why they matter to Calcifer's growth:**  
+**Why they matter to Jarlan's growth:**  
 Couples represent the majority of actual FIRE pursuits — most people don't retire early alone. Any tool that handles couples well earns fierce loyalty because so few tools do. Couples also naturally double the word-of-mouth — two people telling their respective friends and coworkers about the tool they used together.
 
 ---
@@ -341,7 +341,7 @@ Living in Canada, the UK, Australia, Germany, the Netherlands, or dozens of othe
 **Their mindset:**  
 Frustrated and underserved. They want the same analytical power that American FIRE planners have, but adapted to their tax system, pension structure, and currency. They often have unique considerations: universal healthcare (so no ACA problem), different retirement account structures (ISAs in UK, RRSP/TFSA in Canada, Super in Australia), different social safety nets, different tax rates on capital gains and dividends.
 
-**What they need from Calcifer:**
+**What they need from Jarlan:**
 - Multi-currency support (display and calculation)
 - Country-specific tax presets (at minimum: US, Canada, UK, Australia, Germany, Netherlands)
 - Country-specific retirement account types (RRSP, TFSA, ISA, SIPP, Super, etc.)
@@ -357,8 +357,8 @@ Frustrated and underserved. They want the same analytical power that American FI
 - ERN's research uses US data exclusively
 - They have to mentally convert everything and adjust for their own tax code
 
-**How they discover Calcifer:**  
-Reddit (r/ExpatFIRE, r/EuropeFIRE, r/fiaustralia, r/PersonalFinanceCanada), or they find Calcifer through the main FIRE community and hope it supports their country.
+**How they discover Jarlan:**  
+Reddit (r/ExpatFIRE, r/EuropeFIRE, r/fiaustralia, r/PersonalFinanceCanada), or they find Jarlan through the main FIRE community and hope it supports their country.
 
 **Usage pattern:**  
 Same as other personas in terms of frequency, but they immediately look for a country/currency selector. If they don't find one, they leave within 30 seconds. If they do find one, they become extremely loyal because the options are so scarce.
@@ -370,8 +370,8 @@ Same as other personas in terms of frequency, but they immediately look for a co
 - Historical data: clearly indicate when using US-only data vs. international data and explain the limitations
 - The blog and educational content should acknowledge non-US contexts ("In the US, this is called a 401(k). In the UK, the equivalent is a SIPP.")
 
-**Why they matter to Calcifer's growth:**  
-The international FIRE community is massively underserved and hungry for tools. Being even partially international makes Calcifer stand out from virtually every competitor. International users also tend to be more vocal advocates because they're so grateful to find something that works for them. They represent a large and growing addressable market — FIRE is a global movement, not just an American one.
+**Why they matter to Jarlan's growth:**  
+The international FIRE community is massively underserved and hungry for tools. Being even partially international makes Jarlan stand out from virtually every competitor. International users also tend to be more vocal advocates because they're so grateful to find something that works for them. They represent a large and growing addressable market — FIRE is a global movement, not just an American one.
 
 ---
 
@@ -383,11 +383,11 @@ The international FIRE community is massively underserved and hungry for tools. 
 Age 25-45. They've radically simplified their life — they may live in a low cost-of-living area, own their home outright (or plan to), don't have expensive hobbies, and possibly don't have children. Their annual spending is $20k-$40k. Their FIRE number is relatively modest ($500k-$1M), which means they can achieve FI faster than most — sometimes in their early 30s.
 
 **Their mindset:**  
-They value freedom over luxury. They're not depriving themselves — they genuinely prefer simplicity. But they face a unique challenge that many tools ignore: when your budget is already lean, there's almost no room to cut spending during a downturn. If a dynamic withdrawal strategy requires a 30% spending cut, that means going from $25k to $17.5k — which might mean choosing between food and heating. This is a real and serious concern that Calcifer must address honestly.
+They value freedom over luxury. They're not depriving themselves — they genuinely prefer simplicity. But they face a unique challenge that many tools ignore: when your budget is already lean, there's almost no room to cut spending during a downturn. If a dynamic withdrawal strategy requires a 30% spending cut, that means going from $25k to $17.5k — which might mean choosing between food and heating. This is a real and serious concern that Jarlan must address honestly.
 
 They're also sometimes defensive — the broader FIRE community can be dismissive of Lean FIRE ("you can't really live on $25k"). They want a tool that takes their lifestyle seriously without judgment.
 
-**What they need from Calcifer:**
+**What they need from Jarlan:**
 - Lean FIRE-specific calculations and success rates
 - Honest analysis of the "spending floor" problem — what happens when guardrails require cuts you can't make
 - ERN's research on Lean FIRE spending cuts (Parts 23-25 of the SWR series)
@@ -408,8 +408,8 @@ They're also sometimes defensive — the broader FIRE community can be dismissiv
 - Never patronize or editorialize about their spending level — the tone should be neutral and respectful
 - The FIRE Type Quiz should accurately identify and validate Lean FIRE as a legitimate path
 
-**Why they matter to Calcifer's growth:**  
-r/leanfire has 300k+ members and is one of the most active FIRE subreddits. The Lean FIRE community is tight-knit and passionate. If Calcifer is the first tool that takes Lean FIRE risks seriously (spending floor analysis), they will champion it loudly. They also represent the fastest path to FI, which makes for the most shareable "I retired at 32" stories.
+**Why they matter to Jarlan's growth:**  
+r/leanfire has 300k+ members and is one of the most active FIRE subreddits. The Lean FIRE community is tight-knit and passionate. If Jarlan is the first tool that takes Lean FIRE risks seriously (spending floor analysis), they will champion it loudly. They also represent the fastest path to FI, which makes for the most shareable "I retired at 32" stories.
 
 ---
 
@@ -423,7 +423,7 @@ Age 35-55. High income ($200k-$500k+ household), likely in tech, medicine, law, 
 **Their mindset:**  
 They expect professional-grade tools. They're not impressed by cute mascots (though they won't mind them either). They want comprehensive tax modeling, estate planning awareness, and the ability to model complex income streams. They're willing to spend time on setup if the payoff is a trustworthy plan. They are the least price-sensitive persona but also the hardest to impress.
 
-**What they need from Calcifer:**
+**What they need from Jarlan:**
 - Support for all account types including HSA, 529, brokerage with cost basis, stock options
 - Comprehensive tax modeling — federal + state, capital gains, qualified dividends, ACA implications
 - Roth conversion optimization at higher dollar amounts (filling the 22% or 24% brackets)
@@ -436,9 +436,9 @@ They expect professional-grade tools. They're not impressed by cute mascots (tho
 - Most free tools feel like toys — not enough depth for their complexity
 - ProjectionLab is close but they want more tax granularity
 - They've been burned by financial advisors' proprietary Monte Carlo tools that are opaque and conservative (to keep them working/paying advisory fees longer)
-- They need to compare Calcifer's results against their advisor's recommendations
+- They need to compare Jarlan's results against their advisor's recommendations
 
-**How they discover Calcifer:**  
+**How they discover Jarlan:**  
 r/fatFIRE, White Coat Investor blog, Physician on FIRE, or Google searches for "retirement tax optimization calculator." Some find it through their fee-only financial advisor who uses it as a planning tool.
 
 **Usage pattern:**  
@@ -453,8 +453,8 @@ Intensive setup session (45-60 minutes to enter all accounts and details), then 
 - Consider a "compare to your advisor's plan" feature — input their advisor's projected withdrawal rate and compare
 - Everything must work correctly at high dollar amounts — no UI issues with $5M+ portfolios
 
-**Why they matter to Calcifer's growth:**  
-r/fatFIRE has 500k+ members and is highly engaged. Fat FIRE users are disproportionately influential in tech and finance communities. They have large social networks of other high earners. A single well-known tech executive saying "I used Calcifer to plan my exit" is incredibly powerful social proof. They also push the product to be more robust, which benefits everyone.
+**Why they matter to Jarlan's growth:**  
+r/fatFIRE has 500k+ members and is highly engaged. Fat FIRE users are disproportionately influential in tech and finance communities. They have large social networks of other high earners. A single well-known tech executive saying "I used Jarlan to plan my exit" is incredibly powerful social proof. They also push the product to be more robust, which benefits everyone.
 
 ---
 
@@ -468,13 +468,13 @@ FIRE bloggers, podcasters, YouTubers, TikTokers, newsletter writers. They range 
 **Their mindset:**  
 Curators and educators. They want tools that make them look good — tools that are beautiful (they'll screenshot and embed in blog posts), accurate (their audience will check), and genuinely better than alternatives (they stake their reputation on recommendations). They also want tools that they can create content about — features rich enough to write a blog post or film a YouTube video.
 
-**What they need from Calcifer:**
+**What they need from Jarlan:**
 - Beautiful, screenshot-worthy charts and visualizations
 - Embeddable widget for their blog
 - Unique features worth writing about (the mascot system, CAPE-based withdrawals, Rich/Broke/Dead)
 - A good story (open source, built by a FIRE community member, Studio Ghibli inspiration)
 - Accuracy validated by the community
-- A way to create custom scenario URLs to embed in their articles ("click here to see this example in Calcifer")
+- A way to create custom scenario URLs to embed in their articles ("click here to see this example in Jarlan")
 - No paywall that prevents their audience from using it (this is why free matters — they won't recommend something most readers have to pay for)
 
 **What frustrates them about existing tools:**
@@ -483,23 +483,23 @@ Curators and educators. They want tools that make them look good — tools that 
 - Most tools don't have an embed option
 - They want to link to a specific scenario, not just a generic homepage
 
-**How they discover Calcifer:**  
+**How they discover Jarlan:**  
 Direct outreach from you, seeing buzz on Twitter or Reddit, or a reader/listener recommends it. The blogger outreach in the growth plan is designed specifically for this persona.
 
 **Usage pattern:**  
-They try the tool once, deeply, to evaluate it. If they like it, they write about it or feature it, then become ongoing users. Their content then drives hundreds or thousands of their audience to Calcifer.
+They try the tool once, deeply, to evaluate it. If they like it, they write about it or feature it, then become ongoing users. Their content then drives hundreds or thousands of their audience to Jarlan.
 
 **Design implications:**
 - Visual design quality is non-negotiable — this persona judges the tool by its appearance first
 - Charts must be high-resolution and clean enough for blog/video screenshots
-- The brand (Calcifer mascot, warm color palette) gives them something visually interesting to feature
-- Shareable URLs are critical for their content — "I set up this scenario to show you how Coast FIRE works: [Calcifer link]"
+- The brand (Jarlan mascot, warm color palette) gives them something visually interesting to feature
+- Shareable URLs are critical for their content — "I set up this scenario to show you how Coast FIRE works: [Jarlan link]"
 - The embeddable widget should be easy to set up (one line of code) and look great
-- Consider a "creator kit" — downloadable brand assets, high-res screenshots, the Calcifer mascot in various expressions for their thumbnails
+- Consider a "creator kit" — downloadable brand assets, high-res screenshots, the Jarlan mascot in various expressions for their thumbnails
 - Make their review experience easy — have a /press or /about page with the product story, key stats, and downloadable assets
 
-**Why they matter to Calcifer's growth:**  
-This is the single highest-leverage persona for growth. One Mad Fientist blog post recommending Calcifer could drive more users than 6 months of Reddit activity. One ChooseFI podcast mention reaches hundreds of thousands of FIRE enthusiasts. The influencer layer is how ProjectionLab went from unknown to the most recommended FIRE tool in 2 years. Every design decision that makes the tool more beautiful, more accurate, and more shareable is an investment in this persona's willingness to recommend it.
+**Why they matter to Jarlan's growth:**  
+This is the single highest-leverage persona for growth. One Mad Fientist blog post recommending Jarlan could drive more users than 6 months of Reddit activity. One ChooseFI podcast mention reaches hundreds of thousands of FIRE enthusiasts. The influencer layer is how ProjectionLab went from unknown to the most recommended FIRE tool in 2 years. Every design decision that makes the tool more beautiful, more accurate, and more shareable is an investment in this persona's willingness to recommend it.
 
 ---
 
@@ -508,12 +508,12 @@ This is the single highest-leverage persona for growth. One Mad Fientist blog po
 ### "I want to look at the code, maybe contribute, and definitely self-host."
 
 **Who they are:**  
-Software engineers and data scientists who are also personally interested in FIRE (there's massive overlap between tech workers and the FIRE community). They found Calcifer's GitHub repo and their first instinct is to clone it, read the code, and see how the simulation engine works. Some will run it locally. Some will open issues. Some will contribute code.
+Software engineers and data scientists who are also personally interested in FIRE (there's massive overlap between tech workers and the FIRE community). They found Jarlan's GitHub repo and their first instinct is to clone it, read the code, and see how the simulation engine works. Some will run it locally. Some will open issues. Some will contribute code.
 
 **Their mindset:**  
 Curious and critical. They evaluate code quality, test coverage, documentation, and architecture. A clean, well-documented codebase earns their respect. Messy code with no tests will earn a dismissive "yet another half-baked side project." They care deeply about open source principles and will be uncomfortable if the open-source claim is superficial (e.g., source-available but not truly open).
 
-**What they need from Calcifer:**
+**What they need from Jarlan:**
 - Clean, readable, well-documented codebase
 - MIT license (or similarly permissive)
 - Clear contributing guide with "good first issue" tags
@@ -530,8 +530,8 @@ Curious and critical. They evaluate code quality, test coverage, documentation, 
 - Document all methodology decisions in code comments and a separate METHODOLOGY.md
 - The README is a marketing document for this persona — it should be excellent
 
-**Why they matter to Calcifer's growth:**  
-GitHub stars are social proof. Contributors improve the product for free. Developers who fork or integrate Calcifer's engine into their own tools create ecosystem lock-in. A vibrant open-source community also generates Hacker News interest and generates backlinks from developer blogs. And every developer-user is also a potential FIRE-community member who recommends the tool to non-developers.
+**Why they matter to Jarlan's growth:**  
+GitHub stars are social proof. Contributors improve the product for free. Developers who fork or integrate Jarlan's engine into their own tools create ecosystem lock-in. A vibrant open-source community also generates Hacker News interest and generates backlinks from developer blogs. And every developer-user is also a potential FIRE-community member who recommends the tool to non-developers.
 
 ---
 

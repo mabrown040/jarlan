@@ -2,7 +2,7 @@
  * Mortality Risk — Golden Tests
  *
  * Pins the rich/broke/dead decomposition and verifies SSA mortality data.
- * The mortality overlay is what makes Calcifer unique — showing users they are
+ * The mortality overlay is what makes Jarlan unique — showing users they are
  * more likely to die with money than to run out of it.
  *
  * @source SSA 2025 Trustees Report, Table 4c6

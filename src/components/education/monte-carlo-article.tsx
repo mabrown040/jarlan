@@ -83,7 +83,7 @@ export function MonteCarloArticle() {
           How retirement simulations work, and how to read success rates
         </p>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-          When Calcifer reports an &ldquo;87% success rate,&rdquo; it&apos;s answering a precise
+          When Jarlan reports an &ldquo;87% success rate,&rdquo; it&apos;s answering a precise
           question: in what percentage of simulated retirements does your money last through your
           planned retirement period without hitting zero? There are two fundamentally different ways
           to run that simulation — historical backtesting and Monte Carlo — and they answer slightly
@@ -306,7 +306,7 @@ export function MonteCarloArticle() {
         {/* Monte Carlo variants */}
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">
-            Monte Carlo variants Calcifer supports
+            Monte Carlo variants Jarlan supports
           </p>
 
           <div className="rounded-xl border border-border/60 bg-card/40 p-4">

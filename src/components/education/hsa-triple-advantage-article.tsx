@@ -473,7 +473,7 @@ export function HsaTripleAdvantageArticle() {
                   To contribute to an HSA, you must be enrolled in a qualifying
                   High-Deductible Health Plan (HDHP). If you have one &mdash;
                   or are considering switching to one &mdash; adding an HSA to
-                  your plan will let Calcifer account for it in your projections.
+                  your plan will let Jarlan account for it in your projections.
                 </p>
               </div>
               <div className="rounded-lg border border-border/60 bg-background/60 p-3">

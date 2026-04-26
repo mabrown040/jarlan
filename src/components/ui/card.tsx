@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
  * - `elevated`: elevation-3. Page-dominant surfaces (plan drawer,
  *             hero-adjacent cards).
  * - `feature`: elevation-3 + feature gradient + hover glow. Used when
- *             the card IS the primary content (Why-Calcifer tiles,
+ *             the card IS the primary content (Why-Jarlan tiles,
  *             key CTAs on the landing).
  *
  * Keep the default at `default` so existing code doesn't need changes.

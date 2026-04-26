@@ -160,7 +160,7 @@ const strategyProfiles: Record<
     tradeoff:
       "You get the smoothest paycheck, but the rule does not automatically respond when markets get expensive or portfolios get stressed.",
     implementation:
-      "Calcifer models this in real dollars, so the spending target stays level in purchasing-power terms throughout retirement.",
+      "Jarlan models this in real dollars, so the spending target stays level in purchasing-power terms throughout retirement.",
     expectation:
       "Very predictable spending, but sequence risk can be high when early retirement years are weak.",
     sourceIds: ["bengen1994", "trinity1998"],
@@ -174,7 +174,7 @@ const strategyProfiles: Record<
     tradeoff:
       "The rule can be more resilient than a flat paycheck, but it asks you to trust a market-valuation signal that can stay elevated or depressed for years.",
     implementation:
-      "Calcifer uses a simple annual rule of the form portfolio × (a + b / CAPE), with user-tunable intercept and slope parameters.",
+      "Jarlan uses a simple annual rule of the form portfolio × (a + b / CAPE), with user-tunable intercept and slope parameters.",
     expectation:
       "Can materially improve resilience when valuations are high, but spending may vary from year to year.",
     sourceIds: ["ernSWRSeries", "ernPart54", "shillerData"],
@@ -188,7 +188,7 @@ const strategyProfiles: Record<
     tradeoff:
       "It can support higher initial spending than fixed real rules, but the worst-case cuts can still be emotionally hard to live through.",
     implementation:
-      "Calcifer applies the core guardrail logic annually, including capital-preservation cuts and prosperity increases, with adjustable guardrail width and step size.",
+      "Jarlan applies the core guardrail logic annually, including capital-preservation cuts and prosperity increases, with adjustable guardrail width and step size.",
     expectation:
       "Potentially stronger outcomes in stress periods, but requires discipline to follow cuts and raises consistently.",
     sourceIds: ["guytonKlinger2006", "klinger2016"],
@@ -202,7 +202,7 @@ const strategyProfiles: Record<
     tradeoff:
       "Income can move around a lot, especially after bad markets, so it works best when essential expenses are partly covered elsewhere.",
     implementation:
-      "Calcifer treats VPW as a variable-percentage rule tied to remaining years in retirement rather than a flat real paycheck.",
+      "Jarlan treats VPW as a variable-percentage rule tied to remaining years in retirement rather than a flat real paycheck.",
     expectation:
       "Tends to spend more in stronger periods and less in weaker periods; income can swing materially.",
     sourceIds: ["bogleheadsVPW", "morningstar2025"],
@@ -216,7 +216,7 @@ const strategyProfiles: Record<
     tradeoff:
       "Because spending falls whenever the portfolio falls, this is one of the hardest rules on lifestyle stability.",
     implementation:
-      "This is intentionally a transparent heuristic in Calcifer, not a claim that constant-percentage spending is the universally best researched withdrawal framework.",
+      "This is intentionally a transparent heuristic in Jarlan, not a claim that constant-percentage spending is the universally best researched withdrawal framework.",
     expectation:
       "Simple and durable, but income volatility is high and can be hard to live with after bad markets.",
     sourceIds: ["morningstar2025"],
@@ -230,7 +230,7 @@ const strategyProfiles: Record<
     tradeoff:
       "The rule is simple and age-aware, but the resulting paycheck can still move materially with portfolio size and it was not designed to optimize lifestyle stability.",
     implementation:
-      "Calcifer uses IRS-style divisors as the annual denominator, so withdrawals increase as the divisor falls with age.",
+      "Jarlan uses IRS-style divisors as the annual denominator, so withdrawals increase as the divisor falls with age.",
     expectation:
       "Naturally conservative early and higher later, but spending is still market-sensitive and not needs-based.",
     sourceIds: ["irsRmdWorksheets"],
@@ -244,7 +244,7 @@ const strategyProfiles: Record<
     tradeoff:
       "Bands smooth the ride, but any hard floor reintroduces the chance of depletion if the portfolio is pressured long enough.",
     implementation:
-      "Calcifer implements this as portfolio-based spending clamped between a real-dollar floor and ceiling, which matches the spirit of floor-and-ceiling research while staying easy to audit.",
+      "Jarlan implements this as portfolio-based spending clamped between a real-dollar floor and ceiling, which matches the spirit of floor-and-ceiling research while staying easy to audit.",
     expectation:
       "Smoother than most dynamic rules, but requires active guardrail settings and periodic review.",
     sourceIds: ["retirementResearcherFloorCeiling", "morningstar2025"],
@@ -258,7 +258,7 @@ const strategyProfiles: Record<
     tradeoff:
       "The rule bakes in decline whether or not your real life cooperates, so it can misfit households with rising healthcare or family costs.",
     implementation:
-      "Calcifer models the smile as a steady annual real-spending decline, which is a practical approximation of the broader spending-smile literature rather than a promise of any exact household path.",
+      "Jarlan models the smile as a steady annual real-spending decline, which is a practical approximation of the broader spending-smile literature rather than a promise of any exact household path.",
     expectation:
       "Can support higher early spending, but relies on confidence that your household can spend less later.",
     sourceIds: ["blanchett2014", "morningstar2025"],
@@ -885,7 +885,7 @@ export function WithdrawalStrategiesArticle() {
         <PersonalizedInsight title="Your current plan" hasData={hasData}>
           <div className="space-y-2 text-sm leading-relaxed text-foreground">
             <p>
-              Calcifer is currently modeling your plan with{" "}
+              Jarlan is currently modeling your plan with{" "}
               <strong className="text-[var(--ember)]">
                 {withdrawalStrategyMetadata[currentStrategy].label}
               </strong>
@@ -1187,7 +1187,7 @@ export function WithdrawalStrategiesArticle() {
               </div>
               <div className="rounded-xl border border-border/60 bg-card/40 p-4">
                 <p className="text-sm font-medium text-foreground">
-                  How Calcifer implements it
+                  How Jarlan implements it
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {selectedProfile.implementation}
@@ -1637,7 +1637,7 @@ export function WithdrawalStrategiesArticle() {
           ))}
         </div>
         <p className="text-sm text-muted-foreground">
-          Calcifer supports all {supportedStrategyTypes.length} strategies in the
+          Jarlan supports all {supportedStrategyTypes.length} strategies in the
           Spend workspace, but some are direct literature-backed rules and some
           are simpler planning heuristics chosen because they are transparent,
           auditable, and useful for side-by-side comparison.

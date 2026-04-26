@@ -277,7 +277,7 @@ export function SequenceOfReturnsArticle() {
               )}
             </p>
             <p className="text-muted-foreground">
-              Calcifer stress-tests this plan against{" "}
+              Jarlan stress-tests this plan against{" "}
               <strong className="text-foreground">{yearsOfHistory} years</strong> of market
               history using Shiller data going back to 1871 — including the 1929 crash, the
               1966&ndash;1982 stagflation era, and the 2000 and 2008 downturns. The success
@@ -290,11 +290,11 @@ export function SequenceOfReturnsArticle() {
 
       <section className="mx-auto max-w-3xl px-6">
         <h2 className="font-display text-2xl tracking-[-0.02em] text-foreground">
-          How Calcifer models sequence risk
+          How Jarlan models sequence risk
         </h2>
         <p className="mt-3 text-base leading-relaxed text-muted-foreground">
           The most honest way to model sequence risk is to run your plan against actual market
-          history, not just probability distributions. Calcifer uses two complementary approaches.
+          history, not just probability distributions. Jarlan uses two complementary approaches.
         </p>
         <div className="mt-4 space-y-3">
           <div className="rounded-xl border border-border/60 bg-card/40 p-4">
@@ -375,7 +375,7 @@ export function SequenceOfReturnsArticle() {
               trigger for when to tighten or loosen spending, rather than guessing. Research
               by Guyton and Klinger (2006) found this approach supported higher initial
               withdrawal rates precisely because the guardrails allow adaptive response to
-              poor sequences. Calcifer models Guyton-Klinger as one of its eight supported
+              poor sequences. Jarlan models Guyton-Klinger as one of its eight supported
               withdrawal strategies.
             </p>
           </div>
@@ -451,7 +451,7 @@ export function SequenceOfReturnsArticle() {
           sequences so destructive.
         </p>
         <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-          Calcifer surfaces this through the success rate metric, the historical cohort
+          Jarlan surfaces this through the success rate metric, the historical cohort
           breakdown, and the withdrawal strategy comparison. You can see directly how different
           strategies fare against the 1929, 1966, and 2000 cohorts — not just what the average
           looks like.

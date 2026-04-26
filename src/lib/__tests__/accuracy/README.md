@@ -1,6 +1,6 @@
 # Accuracy Verification System
 
-A comprehensive golden-test suite that pins every financial metric in Calcifer to a known-correct value.
+A comprehensive golden-test suite that pins every financial metric in Jarlan to a known-correct value.
 
 ## Quick Start
 

@@ -1,4 +1,4 @@
-# Calcifer Design System
+# Jarlan Design System
 
 ## Fonts
 

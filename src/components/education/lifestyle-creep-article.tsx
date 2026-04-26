@@ -141,7 +141,7 @@ export function LifestyleCreepArticle() {
             FIRE number = (expenses &times; (1 + g)<sup>n</sup>) &divide; SWR
           </p>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            This is separate from inflation. Calcifer already models expenses in
+            This is separate from inflation. Jarlan already models expenses in
             today&apos;s dollars (real terms) with a real portfolio growth rate.
             Lifestyle creep is an <em>extra</em>, above-inflation increase in
             spending &mdash; new baseline spending that genuinely exceeds what
@@ -592,7 +592,7 @@ export function LifestyleCreepArticle() {
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Why lifestyle creep is distinct from inflation &mdash; and how
-              Calcifer separates the two in your projections.
+              Jarlan separates the two in your projections.
             </p>
           </Link>
         </div>

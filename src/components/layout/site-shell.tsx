@@ -225,10 +225,10 @@ export function SiteShell({ children }: { children: ReactNode }) {
                 href="/"
                 className="font-display text-xl tracking-[-0.03em] text-foreground transition-colors hover:text-primary"
               >
-                Calcifer
+                Jarlan
               </Link>
               <span className="hidden font-mono text-[0.6rem] uppercase tracking-[0.16em] text-muted-foreground sm:inline">
-                FIRECALC
+                FIRE
               </span>
             </div>
 

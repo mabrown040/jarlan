@@ -639,7 +639,7 @@ export function FatFireArticle() {
         {!hasData ? (
           <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-4">
             <p className="text-sm text-muted-foreground">
-              Take the quiz and Calcifer will calculate your FIRE number,
+              Take the quiz and Jarlan will calculate your FIRE number,
               classify your spending tier, and show you exactly what it would
               take to reach Fat FIRE from where you are today.
             </p>

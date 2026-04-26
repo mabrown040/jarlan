@@ -617,7 +617,7 @@ export function CoastFireArticle() {
         {!hasData ? (
           <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-4">
             <p className="text-sm text-muted-foreground">
-              Take the quiz and Calcifer will tell you which FIRE path fits your
+              Take the quiz and Jarlan will tell you which FIRE path fits your
               situation best.
             </p>
             <Link

@@ -333,7 +333,7 @@ export default function SaveWhatIfWorkspace() {
                 <TooltipContent className="max-w-sm text-xs leading-relaxed">
                   <p className="font-medium text-foreground mb-1">How this works</p>
                   <p>Each card models a specific life change — a raise, a career break, a new child — and shows how many years it adds or removes from your timeline.</p>
-                  <p className="mt-1.5">When you select multiple cards, Calcifer compounds them together into a single scenario. The chart and table below update in real time so you can see the combined effect year by year.</p>
+                  <p className="mt-1.5">When you select multiple cards, Jarlan compounds them together into a single scenario. The chart and table below update in real time so you can see the combined effect year by year.</p>
                   <p className="mt-1.5">Adjust the sliders on each card to match your situation. All calculations use your actual tax rate, savings, and portfolio — not generic assumptions.</p>
                 </TooltipContent>
               </Tooltip>

@@ -263,7 +263,7 @@ export function AccountWorkspace() {
                 Pro
               </h2>
               <p className="mt-4 text-sm text-muted-foreground">
-                You&apos;re on Pro. Thanks for supporting Calcifer.
+                You&apos;re on Pro. Thanks for supporting Jarlan.
               </p>
               <Button
                 variant="outline"

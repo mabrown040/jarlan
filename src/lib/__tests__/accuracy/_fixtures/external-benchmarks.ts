@@ -48,8 +48,8 @@ export const cfiresimBenchmarks: ExternalBenchmark[] = [
     toleranceBand: 0.04,
     methodologyNotes: [
       "cFIREsim uses nominal returns with separate CPI inflation adjustment",
-      "Calcifer uses Shiller real total return series directly",
-      "Bond modeling: cFIREsim interpolates 10yr yield; Calcifer estimates carry + duration from GS10",
+      "Jarlan uses Shiller real total return series directly",
+      "Bond modeling: cFIREsim interpolates 10yr yield; Jarlan estimates carry + duration from GS10",
       "Start date eligibility windows may differ by a few months",
       "A 2-4% gap is expected and documented in academic comparisons of backtesting tools",
     ],

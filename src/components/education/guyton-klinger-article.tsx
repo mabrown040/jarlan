@@ -447,7 +447,7 @@ export function GuytonKlingerArticle() {
           How to tune the parameters
         </h2>
         <p className="text-base leading-relaxed text-muted-foreground">
-          Calcifer&apos;s Can I Retire page lets you tune all three GK parameters and see
+          Jarlan&apos;s Can I Retire page lets you tune all three GK parameters and see
           their impact on historical backtest outcomes. Here&apos;s what each one controls:
         </p>
         <div className="overflow-x-auto rounded-xl border border-border/60">

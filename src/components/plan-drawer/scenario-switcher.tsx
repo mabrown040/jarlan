@@ -46,7 +46,7 @@ export function ScenarioSwitcher() {
   const [renameDraft, setRenameDraft] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   // Import result flash — shows "Imported N" or "That file didn't
-  // look like a Calcifer export" briefly after import attempts.
+  // look like a Jarlan export" briefly after import attempts.
   const [importFlash, setImportFlash] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,7 +54,7 @@ export function ScenarioSwitcher() {
     const raw = await file.text();
     const result = await importScenarios(raw);
     if (!result) {
-      setImportFlash("Couldn't read that file — not a Calcifer export.");
+      setImportFlash("Couldn't read that file — not a Jarlan export.");
     } else if (result.imported === 0) {
       setImportFlash("No valid scenarios found in that file.");
     } else {

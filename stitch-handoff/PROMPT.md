@@ -1,8 +1,8 @@
-# Google Stitch Handoff — Calcifer / FIRECALC
+# Google Stitch Handoff — Jarlan / FIRECALC
 
 ## Project brief
 
-**Calcifer** (internal: FIRECALC) is a local-first FIRE (Financial Independence, Retire Early) calculator web app. It helps users answer "when can I retire?" with a quick headline number, then routes them to progressively deeper planning tools as their questions get more specific.
+**Jarlan** (internal: FIRECALC) is a local-first FIRE (Financial Independence, Retire Early) calculator web app. It helps users answer "when can I retire?" with a quick headline number, then routes them to progressively deeper planning tools as their questions get more specific.
 
 The product is built on **Next.js 15 App Router, React 19, TypeScript, Tailwind 4, Zustand, Recharts, and Dexie (IndexedDB)**. All data lives in the browser — no accounts required. There is a Pro tier (via Stripe) for advanced features.
 
@@ -33,7 +33,7 @@ The visual identity is built around **fire and warmth**. The palette uses earthy
 
 ```
 Header (sticky, frosted glass backdrop-blur)
-  Logo: "Calcifer" (display font) + "FIRECALC" (mono eyebrow)
+  Logo: "Jarlan" (display font) + "FIRECALC" (mono eyebrow)
   Primary nav: Home | Save | Spend | Learn | Pro★
   Sub-nav (context-sensitive, below header border):
     Save → Your plan | What if?

@@ -19,7 +19,7 @@ import type { Scenario } from "@/lib/domain/types";
 
 export const PORTABILITY_FORMAT_VERSION = 1;
 export const PORTABILITY_MIME_TYPE = "application/json";
-export const PORTABILITY_FILE_EXTENSION = "calcifer.json";
+export const PORTABILITY_FILE_EXTENSION = "jarlan.json";
 
 export interface PortabilityEnvelope {
   /** Stable identifier so we can detect "is this ours" on import. */
@@ -136,7 +136,7 @@ export function downloadScenarioExport(
     filename ??
     (envelope.scenarios.length === 1
       ? `${sanitizeFilename(envelope.scenarios[0].name)}.${PORTABILITY_FILE_EXTENSION}`
-      : `calcifer-export.${PORTABILITY_FILE_EXTENSION}`);
+      : `jarlan-export.${PORTABILITY_FILE_EXTENSION}`);
 
   const blob = new Blob([JSON.stringify(envelope, null, 2)], {
     type: PORTABILITY_MIME_TYPE,
@@ -163,5 +163,5 @@ function sanitizeFilename(input: string): string {
     .replace(/\s+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
-  return stripped.length > 0 ? stripped : "calcifer-plan";
+  return stripped.length > 0 ? stripped : "jarlan-plan";
 }

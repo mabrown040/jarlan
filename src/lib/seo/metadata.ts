@@ -13,13 +13,13 @@ import type { Metadata } from "next";
 
 /** Canonical origin. Override via NEXT_PUBLIC_SITE_URL at deploy. */
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://calcifer.fire"
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://jarlan.fire"
 ).replace(/\/$/, "");
 
-export const SITE_NAME = "Calcifer";
+export const SITE_NAME = "Jarlan";
 export const SITE_TAGLINE = "A research-backed FIRE calculator that shows its math";
 
-/** Used as the per-route title suffix: "Quiz | Calcifer — FIRECALC". */
+/** Used as the per-route title suffix: "Quiz | Jarlan — FIRECALC". */
 const TITLE_SUFFIX = `${SITE_NAME} — FIRECALC`;
 
 const DEFAULT_DESCRIPTION =
@@ -39,7 +39,7 @@ const OG_IMAGE = {
 };
 
 export interface PageMetadataInput {
-  /** The "page" portion of the title — gets suffixed with Calcifer. */
+  /** The "page" portion of the title — gets suffixed with Jarlan. */
   title?: string;
   /** Description override — falls back to the site default. */
   description?: string;
@@ -93,7 +93,7 @@ export const ROOT_METADATA: Metadata = {
   ...buildMetadata(),
   metadataBase: new URL(SITE_URL),
   applicationName: SITE_NAME,
-  authors: [{ name: "Calcifer" }],
+  authors: [{ name: "Jarlan" }],
   keywords: [
     "FIRE calculator",
     "financial independence",

@@ -93,7 +93,7 @@ export function RealVsNominalReturnsArticle() {
             It sounds like a technical distinction, but it has enormous practical
             consequences. A retirement plan built on nominal returns will
             systematically overestimate what your money can buy. A plan built
-            on real returns &mdash; as Calcifer is &mdash; keeps the math honest
+            on real returns &mdash; as Jarlan is &mdash; keeps the math honest
             by measuring everything in today&apos;s dollars from start to finish.
           </p>
         </div>
@@ -152,7 +152,7 @@ export function RealVsNominalReturnsArticle() {
         <p className="text-base leading-relaxed text-muted-foreground">
           Based on roughly 150 years of US market data, the standard reference
           points for long-run returns are well-established. These are the numbers
-          that underlie most FIRE planning, including Calcifer&apos;s defaults.
+          that underlie most FIRE planning, including Jarlan&apos;s defaults.
         </p>
 
         <div className="overflow-x-auto rounded-xl border border-border/60">
@@ -198,7 +198,7 @@ export function RealVsNominalReturnsArticle() {
 
         <div className="rounded-xl border border-border/60 bg-card/40 p-4 sm:p-5">
           <p className="text-sm font-semibold text-foreground">
-            Why Calcifer defaults to 7% real
+            Why Jarlan defaults to 7% real
           </p>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             The 7% real return assumption reflects 150+ years of US equity
@@ -322,14 +322,14 @@ export function RealVsNominalReturnsArticle() {
         </div>
       </section>
 
-      {/* ── Section 4: Why Calcifer Uses Real ── */}
+      {/* ── Section 4: Why Jarlan Uses Real ── */}
       <section className="mx-auto max-w-3xl space-y-5 px-6">
         <h2 className="font-display text-2xl tracking-[-0.02em] text-foreground">
-          Why Calcifer works in real terms
+          Why Jarlan works in real terms
         </h2>
         <p className="text-base leading-relaxed text-muted-foreground">
           FIRE planning has two sides: your expenses and your portfolio growth.
-          Calcifer models your retirement expenses in today&apos;s dollars
+          Jarlan models your retirement expenses in today&apos;s dollars
           &mdash; your $60K/yr spending goal is $60K in today&apos;s purchasing
           power, not a number that inflates over time. To keep both sides of the
           equation consistent, the growth rate must also be in today&apos;s
@@ -465,9 +465,9 @@ export function RealVsNominalReturnsArticle() {
 
             <div className="rounded-lg border border-border/60 bg-background/60 p-3">
               <p className="text-xs text-muted-foreground">
-                <strong className="text-foreground">What you see in your account vs. what Calcifer uses:</strong>{" "}
+                <strong className="text-foreground">What you see in your account vs. what Jarlan uses:</strong>{" "}
                 When the market is up 10% in a year, your account balance grows
-                10% nominally. Calcifer uses your real return of {formatPercent(realReturn, 1)}
+                10% nominally. Jarlan uses your real return of {formatPercent(realReturn, 1)}
                 &mdash; the growth in purchasing power &mdash; so all projections
                 are already expressed in today&apos;s dollars.
               </p>

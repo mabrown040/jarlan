@@ -18,8 +18,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Calcifer — FIRECALC",
-    short_name: "Calcifer",
+    name: "Jarlan",
+    short_name: "Jarlan",
     description:
       "A research-backed FIRE calculator that shows its math.",
     start_url: "/",

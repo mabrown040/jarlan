@@ -385,7 +385,7 @@ export function QuickFireWorkspace({
             <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="max-w-3xl space-y-2">
                 <p className="text-lg font-medium text-foreground">
-                  You opened Calcifer from a shared link.
+                  You opened Jarlan from a shared link.
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Review the numbers, adjust anything you want, and copy a fresh share
@@ -450,7 +450,7 @@ export function QuickFireWorkspace({
             {/* Two-card onboarding grid. `feature` tone gives these the
                 richest surface (subtle ember gradient + elevation-3), and
                 `card-hover` gives the lift + glow on pointer-over. Same
-                primitive used by the Why Calcifer and What's Inside
+                primitive used by the Why Jarlan and What's Inside
                 grids below, differentiated only by tone. */}
             <section className="mx-auto max-w-7xl px-6">
               <div className="grid gap-4 md:grid-cols-2">
@@ -510,13 +510,13 @@ export function QuickFireWorkspace({
               </div>
             </section>
 
-            {/* "Why Calcifer" — positioning claims framed against competitor
+            {/* "Why Jarlan" — positioning claims framed against competitor
                 defaults. Each card uses the gradient-border primitive so
                 the grid reads as a coordinated set rather than four
                 independent tiles. `card-hover` lifts on pointer-over to
                 match the two-card CTA grid above. */}
             <section className="mx-auto max-w-7xl px-6">
-              <SectionEyebrow>Why Calcifer</SectionEyebrow>
+              <SectionEyebrow>Why Jarlan</SectionEyebrow>
               <h2 className="mt-3 font-display text-3xl leading-tight tracking-[-0.03em] text-foreground">
                 Built more accurate, more flexible, more honest.
               </h2>
@@ -576,7 +576,7 @@ export function QuickFireWorkspace({
 
             {/* Feature grid — reordered so Stress-test retirement (flagship)
                 leads. `soft` tone distinguishes this set visually from the
-                Why-Calcifer cards above (positioning-level) — these are
+                Why-Jarlan cards above (positioning-level) — these are
                 inventory-level, meant to read as a clean list. */}
             <section className="mx-auto max-w-7xl px-6">
               <SectionEyebrow>What&rsquo;s inside</SectionEyebrow>

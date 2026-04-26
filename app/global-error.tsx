@@ -21,7 +21,7 @@ export default function GlobalError({
         <main>
           <AppErrorState
             title="The app shell failed to load cleanly"
-            description="Calcifer caught a root-level runtime issue before the normal layout finished loading. Retry first, and if needed, jump back to the landing page."
+            description="Jarlan caught a root-level runtime issue before the normal layout finished loading. Retry first, and if needed, jump back to the landing page."
             onRetry={reset}
           />
         </main>
