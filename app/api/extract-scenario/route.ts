@@ -19,7 +19,9 @@
  *   7. parseScenario gate
  *   8. log admin_extractions
  *   9. compose share URL from request origin
- *  10. return scenario + share URL
+ *  10. calculate FIRE summary
+ *  11. two-pass reply generation with real numbers
+ *  12. return scenario + share URL + fireSummary
  */
 
 import { NextResponse } from "next/server";
@@ -29,6 +31,8 @@ import { logAdminExtraction } from "@/lib/ai/admin-audit";
 import { logAiCall } from "@/lib/ai/audit";
 import { buildScenarioFromExtraction } from "@/lib/ai/scenario-from-extraction";
 import { extractScenario } from "@/lib/ai/tools/extract-scenario";
+import { generateReply } from "@/lib/ai/tools/generate-reply";
+import { calculateFireSummary } from "@/lib/calc/fire-summary";
 import { parseScenario } from "@/lib/domain/schema";
 import {
   RATE_LIMIT_WINDOWS,
@@ -43,6 +47,7 @@ import { requireAdmin } from "@/lib/supabase/admin";
 const requestSchema = z.object({
   text: z.string().trim().min(20).max(50_000),
   source: z.enum(["admin_paste", "description"]).default("admin_paste"),
+  replyStyle: z.enum(["concise", "thorough", "questioning"]).optional(),
 });
 
 const PER_MINUTE_LIMIT = 10;
@@ -97,6 +102,7 @@ export async function POST(request: Request) {
     text: body.text,
     source: body.source,
     userId: gate.user.id,
+    replyStyle: body.replyStyle,
   });
 
   // 5. Audit the AI call when usage info is available (success or
@@ -167,12 +173,42 @@ export async function POST(request: Request) {
     ? shortLink.shortUrl
     : buildScenarioShareUrl(`${origin}/`, validated);
 
-  // 10. Return everything the client UI needs.
+  // 10. Two-pass reply generation: calculate first, then write reply
+  //     with real numbers. Falls back to extraction-pass replyDraft if
+  //     the second call fails (e.g., Anthropic key missing, rate limit).
+  const fireSummary = calculateFireSummary(validated);
+
+  const replyWithNumbers = await generateReply({
+    originalText: body.text,
+    fireSummary,
+    assumptions: extraction.extraction.assumptions,
+    style: body.replyStyle ?? "thorough",
+  });
+
+  let replyDraft = extraction.extraction.replyDraft;
+  if (replyWithNumbers.ok) {
+    // Log the second AI call too.
+    await logAiCall({
+      userId: gate.user.id,
+      route: "generate-reply",
+      usage: replyWithNumbers.usage,
+      error: null,
+    });
+
+    replyDraft = {
+      summary: extraction.extraction.replyDraft.summary,
+      body: replyWithNumbers.body,
+      assumptionsLine: replyWithNumbers.assumptionsLine,
+    };
+  }
+
+  // 11. Return everything the client UI needs.
   return NextResponse.json({
     scenario: validated,
     confidence: extraction.extraction.confidence,
     notes: extraction.extraction.notes,
-    replyDraft: extraction.extraction.replyDraft,
+    replyDraft,
     shareUrl,
+    fireSummary,
   });
 }
