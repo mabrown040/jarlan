@@ -59,6 +59,10 @@ export async function extractScenario(
   const startedAt = Date.now();
 
   try {
+    const styleHint = input.replyStyle
+      ? `\n\nReply style: ${input.replyStyle}`
+      : "";
+
     const response = await client.messages.parse({
       model: EXTRACTION_MODEL,
       max_tokens: MAX_OUTPUT_TOKENS,
@@ -71,7 +75,7 @@ export async function extractScenario(
       messages: [
         {
           role: "user",
-          content: `<user_supplied_content>\n${input.text}\n</user_supplied_content>`,
+          content: `<user_supplied_content>\n${input.text}\n</user_supplied_content>${styleHint}`,
         },
       ],
     });

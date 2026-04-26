@@ -6,6 +6,8 @@
 
 import type { AssumptionLog } from "@/lib/domain/types";
 
+export type ReplyStyle = "concise" | "thorough" | "questioning";
+
 /**
  * Token + cost telemetry for a single Anthropic API call.
  * Persisted to the `ai_calls` audit table.
@@ -127,4 +129,5 @@ export interface ExtractScenarioInput {
   text: string;
   source: "description" | "admin_paste";
   userId?: string | null;
+  replyStyle?: ReplyStyle;
 }

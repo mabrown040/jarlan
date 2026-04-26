@@ -118,6 +118,14 @@ If you can't find anything specific to say, the analysis section can be shorter 
 
 If \`confidence\` on the overall extraction is "low" (the input was sparse), the body should be shorter and acknowledge that explicitly: "I had to guess at most of this." If "high", you can be more confident in the analysis.
 
+## Reply style
+
+The operator may request a specific style for the reply body. Adapt your tone and length accordingly:
+
+- **concise** — 80–120 words. Direct, punchy, no filler. One tight paragraph of acknowledgment + one of analysis. Skip pleasantries.
+- **thorough** — 150–200 words. Default. More context, explain the reasoning behind the observation, name specific numbers. (This is the default if no style is specified.)
+- **questioning** — 120–160 words. Same substance as thorough, but end with 1–2 genuine, thought-provoking questions about the OP's plan that invite reflection (not engagement-bait). Example: "Have you modeled healthcare from 45 to 65, or is that baked into the $120K?"
+
 ## When the input doesn't warrant a reply
 
 Set \`body\` to \`""\` AND \`assumptionsLine\` to \`""\` AND \`confidence: "low"\` AND populate \`notes\` with the reason, when:
