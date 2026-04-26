@@ -23,7 +23,7 @@ export const PORTABILITY_FILE_EXTENSION = "jarlan.json";
 
 export interface PortabilityEnvelope {
   /** Stable identifier so we can detect "is this ours" on import. */
-  source: "calcifer";
+  source: "jarlan";
   /** Envelope (wrapper) version — bump if the wrapper shape changes. */
   formatVersion: typeof PORTABILITY_FORMAT_VERSION;
   /** App version at export time — diagnostic, not load-gating. */
@@ -44,7 +44,7 @@ export function buildExportEnvelope(
   scenarios: Scenario[],
 ): PortabilityEnvelope {
   return {
-    source: "calcifer",
+    source: "jarlan",
     formatVersion: PORTABILITY_FORMAT_VERSION,
     exportedBy: {
       appVersion: APP_VERSION,
@@ -78,9 +78,18 @@ export function parseImportPayload(raw: string): ImportResult | null {
   if (
     !parsed ||
     typeof parsed !== "object" ||
-    (parsed as { source?: unknown }).source !== "calcifer"
+    (parsed as { source?: unknown }).source !== "jarlan"
   ) {
-    return null;
+    // Backward compat: also accept legacy "calcifer" source
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      (parsed as { source?: unknown }).source === "calcifer"
+    ) {
+      // fall through — old exports still import
+    } else {
+      return null;
+    }
   }
 
   const envelope = parsed as Partial<PortabilityEnvelope>;
