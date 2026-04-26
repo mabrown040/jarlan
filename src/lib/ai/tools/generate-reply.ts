@@ -22,11 +22,20 @@ import type { FireSummary } from "@/lib/calc/fire-summary";
 const REPLY_MODEL = "claude-sonnet-4-6";
 const MAX_OUTPUT_TOKENS = 2_048;
 
+const SUBREDDIT_TONES: Record<string, string> = {
+  fatfire: "Direct, numbers-heavy, assumes sophistication. No hand-holding.",
+  leanfire: "Efficiency-focused, spending optimization, community-minded.",
+  personalfinance: "Beginner-friendly, more explanatory, educational tone.",
+  financialindependence: "Balanced, community-savvy, references 4% rule naturally.",
+  fire: "General FIRE community tone — practical, encouraging, specific.",
+};
+
 export interface GenerateReplyParams {
   originalText: string;
   fireSummary: FireSummary;
   assumptions: AssumptionLog[];
   style: ReplyStyle;
+  subreddit?: string;
 }
 
 export type GenerateReplyResult =
@@ -78,6 +87,15 @@ export async function generateReply(
 - Monthly safe withdrawal: $${Math.round(params.fireSummary.monthlySafeWithdrawal).toLocaleString()}
 - Monthly safer withdrawal: $${Math.round(params.fireSummary.monthlySaferWithdrawal).toLocaleString()}`;
 
+  // Subreddit-aware tone
+  const subredditTone = params.subreddit
+    ? SUBREDDIT_TONES[params.subreddit.toLowerCase()]
+    : undefined;
+
+  const toneBlock = subredditTone
+    ? `\n\nSubreddit tone (${params.subreddit}): ${subredditTone}`
+    : "";
+
   try {
     const response = await client.messages.create({
       model: REPLY_MODEL,
@@ -86,7 +104,7 @@ export async function generateReply(
       messages: [
         {
           role: "user",
-          content: `Style: ${params.style}\n\n${fireSummaryBlock}\n\n${assumptionsBlock}\n\nOriginal post:\n${params.originalText.slice(0, 10_000)}`,
+          content: `Style: ${params.style}${toneBlock}\n\n${fireSummaryBlock}\n\n${assumptionsBlock}\n\nOriginal post:\n${params.originalText.slice(0, 10_000)}`,
         },
       ],
     });

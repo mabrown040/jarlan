@@ -48,6 +48,7 @@ const requestSchema = z.object({
   text: z.string().trim().min(20).max(50_000),
   source: z.enum(["admin_paste", "description"]).default("admin_paste"),
   replyStyle: z.enum(["concise", "thorough", "questioning"]).optional(),
+  subreddit: z.string().max(50).optional(),
 });
 
 const PER_MINUTE_LIMIT = 10;
@@ -183,6 +184,7 @@ export async function POST(request: Request) {
     fireSummary,
     assumptions: extraction.extraction.assumptions,
     style: body.replyStyle ?? "thorough",
+    subreddit: body.subreddit,
   });
 
   let replyDraft = extraction.extraction.replyDraft;

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { PostedReplyButton } from "@/components/admin/posted-reply-button";
 import { assembleReplyMessage } from "@/lib/ai/reply-template";
 import type { ReplyStyle } from "@/lib/ai/types";
 import { calculateFireSummary } from "@/lib/calc/fire-summary";
@@ -37,6 +38,7 @@ const MAX_INPUT_CHARS = 50_000;
 export function AdminScenarioFromText() {
   const [text, setText] = useState("");
   const [replyStyle, setReplyStyle] = useState<ReplyStyle>("thorough");
+  const [subreddit, setSubreddit] = useState("");
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
 
@@ -63,6 +65,7 @@ export function AdminScenarioFromText() {
           text: trimmed,
           source: "admin_paste",
           replyStyle: styleOverride ?? replyStyle,
+          subreddit: subreddit.trim() || undefined,
         }),
       });
 
@@ -131,6 +134,7 @@ export function AdminScenarioFromText() {
           copyState={copyState}
           onReset={handleReset}
           onRegenerate={(style) => handleExtract(style)}
+          subreddit={subreddit}
         />
       ) : (
         <PastePanel
@@ -138,6 +142,8 @@ export function AdminScenarioFromText() {
           setText={setText}
           replyStyle={replyStyle}
           setReplyStyle={setReplyStyle}
+          subreddit={subreddit}
+          setSubreddit={setSubreddit}
           onExtract={() => handleExtract()}
           error={stage.kind === "error" ? stage.message : null}
         />
@@ -151,6 +157,8 @@ interface PastePanelProps {
   setText: (s: string) => void;
   replyStyle: ReplyStyle;
   setReplyStyle: (s: ReplyStyle) => void;
+  subreddit: string;
+  setSubreddit: (s: string) => void;
   onExtract: () => void;
   error: string | null;
 }
@@ -160,6 +168,8 @@ function PastePanel({
   setText,
   replyStyle,
   setReplyStyle,
+  subreddit,
+  setSubreddit,
   onExtract,
   error,
 }: PastePanelProps) {
@@ -202,10 +212,10 @@ function PastePanel({
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           <label htmlFor="reply-style" className="text-sm text-gray-600 dark:text-gray-400">
-            Reply style:
+            Style:
           </label>
           <select
             id="reply-style"
@@ -217,6 +227,18 @@ function PastePanel({
             <option value="thorough">Thorough (150–200 words)</option>
             <option value="questioning">Questioning (ends with questions)</option>
           </select>
+          <label htmlFor="subreddit" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+            r/
+          </label>
+          <input
+            id="subreddit"
+            type="text"
+            value={subreddit}
+            onChange={(e) => setSubreddit(e.target.value)}
+            placeholder="subreddit (optional)"
+            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900"
+            maxLength={30}
+          />
         </div>
         <button
           type="button"
@@ -247,6 +269,7 @@ interface ResultPanelProps {
   copyState: "idle" | "copied";
   onReset: () => void;
   onRegenerate: (style: ReplyStyle) => void;
+  subreddit: string;
 }
 
 function ResultPanel({
@@ -256,6 +279,7 @@ function ResultPanel({
   copyState,
   onReset,
   onRegenerate,
+  subreddit,
 }: ResultPanelProps) {
   const { scenario, confidence, notes, shareUrl } = data;
 
@@ -331,6 +355,13 @@ function ResultPanel({
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+        <PostedReplyButton
+          replyDraft={data.replyDraft}
+          shareUrl={shareUrl}
+          confidence={confidence}
+          replyStyle="thorough"
+          subreddit={subreddit}
+        />
         <button
           type="button"
           onClick={onReset}
