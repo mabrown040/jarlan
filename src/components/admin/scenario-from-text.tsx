@@ -4,9 +4,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { assembleReplyMessage } from "@/lib/ai/reply-template";
+import type { ReplyStyle } from "@/lib/ai/types";
+import { calculateFireSummary } from "@/lib/calc/fire-summary";
 import { formatCompactCurrency, formatPercent } from "@/lib/calc/format";
 import type { AssumptionLog, Scenario } from "@/lib/domain/types";
 import { useScenarioStore } from "@/lib/store/use-scenario-store";
+
+import type { FireSummary } from "@/lib/calc/fire-summary";
 
 interface ExtractApiResponse {
   scenario: Scenario;
@@ -18,6 +22,7 @@ interface ExtractApiResponse {
     assumptionsLine: string;
   };
   shareUrl: string;
+  fireSummary: FireSummary;
 }
 
 type Stage =
@@ -31,13 +36,14 @@ const MAX_INPUT_CHARS = 50_000;
 
 export function AdminScenarioFromText() {
   const [text, setText] = useState("");
+  const [replyStyle, setReplyStyle] = useState<ReplyStyle>("thorough");
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
 
   const router = useRouter();
   const replaceScenario = useScenarioStore((s) => s.replaceScenario);
 
-  async function handleExtract() {
+  async function handleExtract(styleOverride?: ReplyStyle) {
     const trimmed = text.trim();
     if (trimmed.length < MIN_INPUT_CHARS) {
       setStage({
@@ -53,7 +59,11 @@ export function AdminScenarioFromText() {
       const res = await fetch("/api/extract-scenario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: trimmed, source: "admin_paste" }),
+        body: JSON.stringify({
+          text: trimmed,
+          source: "admin_paste",
+          replyStyle: styleOverride ?? replyStyle,
+        }),
       });
 
       if (!res.ok) {
@@ -120,12 +130,15 @@ export function AdminScenarioFromText() {
           onCopyShareUrl={handleCopyShareUrl}
           copyState={copyState}
           onReset={handleReset}
+          onRegenerate={(style) => handleExtract(style)}
         />
       ) : (
         <PastePanel
           text={text}
           setText={setText}
-          onExtract={handleExtract}
+          replyStyle={replyStyle}
+          setReplyStyle={setReplyStyle}
+          onExtract={() => handleExtract()}
           error={stage.kind === "error" ? stage.message : null}
         />
       )}
@@ -136,11 +149,20 @@ export function AdminScenarioFromText() {
 interface PastePanelProps {
   text: string;
   setText: (s: string) => void;
+  replyStyle: ReplyStyle;
+  setReplyStyle: (s: ReplyStyle) => void;
   onExtract: () => void;
   error: string | null;
 }
 
-function PastePanel({ text, setText, onExtract, error }: PastePanelProps) {
+function PastePanel({
+  text,
+  setText,
+  replyStyle,
+  setReplyStyle,
+  onExtract,
+  error,
+}: PastePanelProps) {
   const tooShort = text.trim().length < MIN_INPUT_CHARS;
   const tooLong = text.length > MAX_INPUT_CHARS;
 
@@ -180,7 +202,22 @@ function PastePanel({ text, setText, onExtract, error }: PastePanelProps) {
         </div>
       ) : null}
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <label htmlFor="reply-style" className="text-sm text-gray-600 dark:text-gray-400">
+            Reply style:
+          </label>
+          <select
+            id="reply-style"
+            value={replyStyle}
+            onChange={(e) => setReplyStyle(e.target.value as ReplyStyle)}
+            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900"
+          >
+            <option value="concise">Concise (80–120 words)</option>
+            <option value="thorough">Thorough (150–200 words)</option>
+            <option value="questioning">Questioning (ends with questions)</option>
+          </select>
+        </div>
         <button
           type="button"
           onClick={onExtract}
@@ -209,6 +246,7 @@ interface ResultPanelProps {
   onCopyShareUrl: (url: string) => void;
   copyState: "idle" | "copied";
   onReset: () => void;
+  onRegenerate: (style: ReplyStyle) => void;
 }
 
 function ResultPanel({
@@ -217,6 +255,7 @@ function ResultPanel({
   onCopyShareUrl,
   copyState,
   onReset,
+  onRegenerate,
 }: ResultPanelProps) {
   const { scenario, confidence, notes, shareUrl } = data;
 
@@ -234,7 +273,34 @@ function ResultPanel({
         </div>
       ) : null}
 
+      <FireSummaryCard summary={data.fireSummary} />
+
       <ReplyDraftPanel replyDraft={data.replyDraft} shareUrl={shareUrl} />
+
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-600 dark:text-gray-400">Regenerate as:</span>
+        <button
+          type="button"
+          onClick={() => onRegenerate("concise")}
+          className="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+        >
+          Concise
+        </button>
+        <button
+          type="button"
+          onClick={() => onRegenerate("thorough")}
+          className="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+        >
+          Thorough
+        </button>
+        <button
+          type="button"
+          onClick={() => onRegenerate("questioning")}
+          className="rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+        >
+          Questioning
+        </button>
+      </div>
 
       <ScenarioSummary scenario={scenario} />
 
@@ -284,6 +350,35 @@ function ResultPanel({
   );
 }
 
+function FireSummaryCard({ summary }: { summary: FireSummary }) {
+  return (
+    <div className="rounded-lg border-2 border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/50 dark:bg-emerald-900/20">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
+        FIRE Math
+      </h3>
+      <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+        <SummaryItem label="Portfolio" value={formatCompactCurrency(summary.portfolioTotal)} />
+        <SummaryItem label="Expenses" value={formatCompactCurrency(summary.annualExpenses)} />
+        <SummaryItem label="WR" value={formatPercent(summary.withdrawalRate)} />
+        <SummaryItem label="Safer WR" value={formatPercent(summary.saferWithdrawalRate)} />
+        <SummaryItem
+          label="Years to FI"
+          value={summary.yearsToFire !== null ? `${summary.yearsToFire.toFixed(1)}` : "—"}
+        />
+        <SummaryItem
+          label="Already FI?"
+          value={summary.isAlreadyFi ? "Yes ✓" : "No"}
+        />
+      </dl>
+      {summary.isAlreadyFi && (
+        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+          Portfolio covers expenses at the safer withdrawal rate.
+        </p>
+      )}
+    </div>
+  );
+}
+
 interface ReplyDraftPanelProps {
   replyDraft: {
     summary: string;
@@ -293,22 +388,6 @@ interface ReplyDraftPanelProps {
   shareUrl: string;
 }
 
-/**
- * The headline output of the admin tool: a Reddit-ready reply
- * the operator can edit and copy. Initial text is assembled from
- * the AI's body + optional assumptions-line + the share URL +
- * a hardcoded disclosure (`assembleReplyMessage`). The operator
- * sees and copies the final text. They're free to edit before
- * posting; word count is shown so they don't accidentally exceed
- * subreddit length norms.
- *
- * Hardcoding the disclosure + link wrap eliminates the risk
- * that the model writes something inaccurate (we hit this with
- * "nothing saved", which became false when share-links shipped).
- *
- * If the model declined to draft (`body === ""`), show a gentle
- * empty state pointing at the model's note above.
- */
 function ReplyDraftPanel({ replyDraft, shareUrl }: ReplyDraftPanelProps) {
   const initial = assembleReplyMessage({
     body: replyDraft.body,
@@ -317,6 +396,7 @@ function ReplyDraftPanel({ replyDraft, shareUrl }: ReplyDraftPanelProps) {
   });
   const [replyText, setReplyText] = useState(initial);
   const [copied, setCopied] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const trimmed = replyText.trim();
   const wordCount = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
@@ -375,7 +455,40 @@ function ReplyDraftPanel({ replyDraft, shareUrl }: ReplyDraftPanelProps) {
 
       <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
         <span>{wordCount} words</span>
-        <span>Edit freely before posting — the link is already inserted.</span>
+        <button
+          type="button"
+          onClick={() => setShowPreview((p) => !p)}
+          className="text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+        >
+          {showPreview ? "Hide Reddit preview" : "Show Reddit preview"}
+        </button>
+      </div>
+
+      {showPreview && (
+        <RedditPreview replyText={replyText} />
+      )}
+    </div>
+  );
+}
+
+function RedditPreview({ replyText }: { replyText: string }) {
+  return (
+    <div className="rounded-lg border border-gray-300 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="h-8 w-8 rounded-full bg-orange-500" />
+        <div>
+          <div className="text-sm font-medium">u/JarlanBot</div>
+          <div className="text-xs text-gray-500">just now</div>
+        </div>
+      </div>
+      <div className="whitespace-pre-wrap text-sm leading-relaxed">
+        {replyText}
+      </div>
+      <div className="mt-3 flex gap-3 text-xs text-gray-500">
+        <span>↑ Vote</span>
+        <span>Reply</span>
+        <span>Share</span>
+        <span>Save</span>
       </div>
     </div>
   );

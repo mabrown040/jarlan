@@ -29,15 +29,17 @@ export interface GenerateReplyParams {
   style: ReplyStyle;
 }
 
-export interface GenerateReplyResult {
-  ok: true;
-  body: string;
-  assumptionsLine: string;
-  usage: AiUsage;
-} | {
-  ok: false;
-  message: string;
-}
+export type GenerateReplyResult =
+  | {
+      ok: true;
+      body: string;
+      assumptionsLine: string;
+      usage: AiUsage;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
 
 export async function generateReply(
   params: GenerateReplyParams,
@@ -59,7 +61,10 @@ export async function generateReply(
 
   const assumptionsBlock = notableAssumptions.length
     ? `Notable assumptions (${notableAssumptions.length} flagged):\n${notableAssumptions
-        .map((a) => `- ${a.field}: ${JSON.stringify(a.value)} (${a.source}) — ${a.reason}`)
+        .map(
+          (a) =>
+            `- ${a.field}: ${JSON.stringify(a.value)} (${a.source}) — ${a.reason}`,
+        )
         .join("\n")}`
     : "No notable assumptions — all fields were directly stated.";
 
